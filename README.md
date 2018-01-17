@@ -5,3 +5,5 @@ It is provided "as is," Inserm and its collaborators do not assume any liability
 
 you can find more information about IntrAnat here:
 https://f-tract.eu/software/intranat
+
+or on the wiki page
