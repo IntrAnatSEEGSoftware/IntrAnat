@@ -7,3 +7,4 @@ you can find more information about IntrAnat here:
 https://f-tract.eu/software/intranat
 
 or on the wiki page
+https://github.com/IntrAnatSEEGSoftware/IntrAnat/wiki
