@@ -11,11 +11,12 @@
 
 import sys
 
+from ImageImportWindow import ImageImportWindow
+
 # import PyQt4 QtCore and QtGui modules
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from ImageImportWindow import ImageImportWindow
 
 if __name__ == '__main__':
 

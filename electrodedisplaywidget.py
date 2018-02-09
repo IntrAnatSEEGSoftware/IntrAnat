@@ -16,7 +16,7 @@ import sys, pickle, shutil, traceback, os, json, re, numpy, csv
 from brainvisa import axon
 from brainvisa import anatomist
 from soma import aims
-import registration
+import brainvisa.registration as registration
 
 from locateElectrodes import createElectrode, getPlotsCenters, getPlots, getPlotsNames, createBipole
 from referentialconverter import ReferentialConverter

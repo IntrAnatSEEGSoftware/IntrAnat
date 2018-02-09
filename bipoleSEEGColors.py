@@ -14,7 +14,7 @@ from brainvisa import axon
 #from soma.aims.spmnormalizationreader import readSpmNormalization
 from brainvisa import anatomist
 from brainvisa.data import neuroHierarchy
-import registration
+import brainvisa.registration as registration
 
 from externalprocesses import *
 from referentialconverter import ReferentialConverter

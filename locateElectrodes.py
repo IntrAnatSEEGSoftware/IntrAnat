@@ -38,9 +38,6 @@
 import sys, os, pickle, glob, numpy, re, string, time, subprocess, json, copy, csv, gc  #gc.get_referrers pour trouver où est encore déclarer une variable (pour problem quand variable déclarer en python et en c++)
 import openpyxl
 
-from PyQt4 import QtGui, QtCore, uic, Qt
-from PyQt4.QtGui import QVBoxLayout
-
 from numpy import *
 from math import sqrt, cos, sin
 from collections import OrderedDict
@@ -51,7 +48,7 @@ from brainvisa import axon
 #from soma.aims.spmnormalizationreader import readSpmNormalization
 from brainvisa import anatomist
 from brainvisa.data import neuroHierarchy
-import registration
+import brainvisa.registration as registration
 
 from externalprocesses import *
 from MicromedListener import MicromedListener as ML
@@ -59,7 +56,7 @@ from referentialconverter import ReferentialConverter
 from checkSpmVersion import *
 from readSulcusLabelTranslationFile import *
 from readFreesurferLabelFile import *
-from neuroProcesses import defaultContext
+from processes import defaultContext
 from TimerMessageBox import *
 from generate_contact_colors import *
 from bipoleSEEGColors import bipoleSEEGColors
@@ -72,6 +69,8 @@ from brainvisa.processes import *
 from PIL import Image
 
 import pdb
+from PyQt4 import QtGui, QtCore, uic, Qt
+from PyQt4.QtGui import QVBoxLayout
 
 #import objgraph #if not install in a terminal : pip install objgraph --prefix /brainvisa_4.50/
 
@@ -1226,7 +1225,7 @@ class LocateElectrodes(QtGui.QDialog):
                 pos_bipol = (numpy.array(plotsT1Ref_sorted[i_bipole.split()[0].title()]) + numpy.array(plotsT1Ref_sorted[i_bipole.split()[2].title()]))/2
               except:
                   print("problem plotsT1Ref")
-                pdb.set_trace()
+                  pdb.set_trace()
               entry_bipole = numpy.array(plotsT1Ref_sorted[i_bipole.split()[0].title()])
               #orient_vector_bip = (numpy.array(plotsT1Ref_sorted[i_bipole.split()[0]]) - numpy.array(plotsT1Ref_sorted[i_bipole.split()[2]]))/linalg.norm((numpy.array(plotsT1Ref_sorted[i_bipole.split()[0]]) - numpy.array(plotsT1Ref_sorted[i_bipole.split()[2]])))
               #il faut un orient vector

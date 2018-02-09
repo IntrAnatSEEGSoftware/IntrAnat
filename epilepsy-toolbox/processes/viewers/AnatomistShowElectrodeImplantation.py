@@ -28,8 +28,8 @@
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL license version 2 and that you accept its terms.
 
-from neuroProcesses import *
-import shfjGlobals
+from brainvisa.processes import *
+from brainvisa.tools import aimsGlobals
 from brainvisa import anatomist
 
 name = 'Anatomist Show Electrode Implantation'
@@ -41,7 +41,7 @@ def validation():
 
 signature = Signature(
     'impl', ReadDiskItem( 'Electrode Implantation', 'Electrode Implantation format' ), 
-    't1mri', ReadDiskItem( 'Raw T1 MRI', shfjGlobals.aimsVolumeFormats ),
+    't1mri', ReadDiskItem( 'Raw T1 MRI', aimsGlobals.aimsVolumeFormats ),
     )
 
 

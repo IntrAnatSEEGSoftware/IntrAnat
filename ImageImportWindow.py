@@ -30,7 +30,6 @@
 # ipython -q4thread  locateElectrodes.py # Pour avoir ipython et Qt actifs en même temps au cours du debug
 
 
-from PyQt4 import uic, QtGui, QtCore
 import os, subprocess, re, pickle, shutil, tempfile, scipy.io, json, numpy
 from scipy import ndimage
 
@@ -42,7 +41,7 @@ from brainvisa.data.writediskitem import ReadDiskItem, WriteDiskItem
 from brainvisa.data import neuroHierarchy
 #import anatomist.direct.api as anatomist
 from brainvisa import anatomist
-import registration
+import brainvisa.registration as registration
 
 from externalprocesses import *
 from dicomutilities import *
@@ -52,6 +51,8 @@ from freesurfer.brainvisaFreesurfer import *
 from TimerMessageBox import *
 
 import pdb
+
+from PyQt4 import uic, QtGui, QtCore
 
 #  Matlab code : coregister file1 to file2
 def matlab_cellstr(listOfStrings):
@@ -278,7 +279,7 @@ class ImageImportWindow (QDialog):
 				## Init brainvisa to access the DB
 		axon.initializeProcesses()
 		# Allow calling brainvisa processes
-		from neuroProcesses import defaultContext
+		from brainvisa.processes import defaultContext
 		self.brainvisaContext = defaultContext()
 
 		# Get Transformation Manager

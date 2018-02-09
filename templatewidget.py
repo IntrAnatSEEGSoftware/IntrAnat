@@ -17,7 +17,7 @@ import sys, os
 from brainvisa import axon
 from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
-import registration
+import brainvisa.registration as registration
 import numpy
 
 from externalprocesses import *
