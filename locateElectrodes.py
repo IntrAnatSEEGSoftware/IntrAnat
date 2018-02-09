@@ -69,8 +69,8 @@ from brainvisa.processes import *
 from PIL import Image
 
 import pdb
-from soma.qt_gui.qt_backend.Qt import QtGui, QtCore, uic, Qt
-from soma.qt_gui.qt_backend.Qt.QtGui import QVBoxLayout
+from soma.qt_gui.qt_backend import QtGui, QtCore, uic, Qt
+from soma.qt_gui.qt_backend.QtGui import QVBoxLayout
 
 #import objgraph #if not install in a terminal : pip install objgraph --prefix /brainvisa_4.50/
 
@@ -4452,7 +4452,7 @@ if __name__ == "__main__":
   main()
 
 #if __name__ == "__main__":
-#    from soma.qt_gui.qt_backend.Qt.QtGui import qApp
+#    from soma.qt_gui.qt_backend.QtGui import qApp
 #    app = qApp
 #    main(0)
 

@@ -8,7 +8,7 @@
 #
 # License GNU GPL v3
 
-from soma.qt_gui.qt_backend.Qt import QtGui, QtCore
+from soma.qt_gui.qt_backend import QtGui, QtCore
 import pdb, os, json
 from brainvisa.data.writediskitem import ReadDiskItem, WriteDiskItem
 

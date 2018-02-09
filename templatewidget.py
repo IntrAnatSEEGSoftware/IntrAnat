@@ -9,7 +9,7 @@
 # License GNU GPL v3
 #
 #
-from soma.qt_gui.qt_backend.Qt import QtGui, QtCore, uic
+from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 
 import sys, os
 

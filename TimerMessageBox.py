@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from soma.qt_gui.qt_backend.Qt import QtCore
-from soma.qt_gui.qt_backend.Qt import QtGui
+from soma.qt_gui.qt_backend import QtCore
+from soma.qt_gui.qt_backend import QtGui
 
 
 class TimerMessageBox(QtGui.QMessageBox):

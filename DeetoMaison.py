@@ -2,7 +2,7 @@
 
 #Import of Usefull Libraries
 import struct, time, re, os, json, subprocess
-from soma.qt_gui.qt_backend.Qt import QtGui, QtCore, uic, Qt
+from soma.qt_gui.qt_backend import QtGui, QtCore, uic, Qt
 import pdb
 from numpy import *
 from math import sqrt

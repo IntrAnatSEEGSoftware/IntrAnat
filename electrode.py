@@ -6,7 +6,7 @@
 
 import os, pickle
 from soma import aims
-from soma.qt_gui.qt_backend.Qt import QtGui
+from soma.qt_gui.qt_backend import QtGui
 import pdb
 
 # TODO : should use JSON, not pickle, but Brainvisa-4.3.0 pack does not contain json module for python

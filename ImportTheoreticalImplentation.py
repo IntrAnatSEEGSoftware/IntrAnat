@@ -4,7 +4,7 @@
 import sys, os, pickle,numpy, re, string, json, csv, pdb
 
 
-from soma.qt_gui.qt_backend.Qt import QtGui, QtCore, uic, Qt
+from soma.qt_gui.qt_backend import QtGui, QtCore, uic, Qt
 
 
 
