@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+from soma.qt_gui.qt_backend.Qt import QtCore
+from soma.qt_gui.qt_backend.Qt import QtGui
 
 
 class TimerMessageBox(QtGui.QMessageBox):

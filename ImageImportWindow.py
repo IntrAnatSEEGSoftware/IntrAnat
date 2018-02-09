@@ -52,7 +52,7 @@ from TimerMessageBox import *
 
 import pdb
 
-from PyQt4 import uic, QtGui, QtCore
+from soma.qt_gui.qt_backend.Qt import uic, QtGui, QtCore
 
 #  Matlab code : coregister file1 to file2
 def matlab_cellstr(listOfStrings):

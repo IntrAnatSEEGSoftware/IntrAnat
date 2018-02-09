@@ -4,7 +4,7 @@
 # Script to import old databases of patients into new BrainVisa hierarchy
 
 import os, json,sys
-from PyQt4 import QtGui, QtCore
+from soma.qt_gui.qt_backend.Qt import QtGui, QtCore
 
 #Init PyQt4
 app=QtGui.QApplication(sys.argv)

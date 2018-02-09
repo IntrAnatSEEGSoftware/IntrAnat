@@ -8,7 +8,7 @@
 #
 
 import re, shutil
-from PyQt4 import QtCore
+from soma.qt_gui.qt_backend.Qt import QtCore
 from externalprocesses import *
 
 

@@ -37,7 +37,7 @@ from soma import aims
 from soma.aims import colormaphints
 import sys, os, math
 import pdb
-from PyQt4 import QtCore, QtGui
+from soma.qt_gui.qt_backend.Qt import QtCore, QtGui
 
 sys.path.insert( 0, '.' )
 
@@ -49,7 +49,7 @@ sys.path.insert( 0, '.' )
   #qt4 = True
   #
   #qt = QtGui
-  #from PyQt4.uic import loadUi
+  #from soma.qt_gui.qt_backend.Qt.uic import loadUi
 #else:
   #import qt, qtui
   #loadUi = qtui.QWidgetFactory.create

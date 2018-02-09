@@ -19,7 +19,7 @@
 # We should check the header was received and is valid (see server_micromed.c)
 #
 
-from PyQt4.QtNetwork import QTcpServer, QTcpSocket
+from soma.qt_gui.qt_backend.Qt.QtNetwork import QTcpServer, QTcpSocket
 import struct
 
 class MicromedListener(QTcpServer):

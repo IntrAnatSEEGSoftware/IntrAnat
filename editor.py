@@ -8,7 +8,7 @@
 
 
 import sys, os, pickle
-from PyQt4 import QtGui, QtCore, uic
+from soma.qt_gui.qt_backend.Qt import QtGui, QtCore, uic
 
 import anatomist.direct.api as anatomist
 from soma import aims

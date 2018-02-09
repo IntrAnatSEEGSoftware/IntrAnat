@@ -2,7 +2,7 @@
 
 import sys, os, pickle, glob, numpy, re, string, time, subprocess, json, copy, csv
 
-from PyQt4 import QtGui, QtCore, uic, Qt
+from soma.qt_gui.qt_backend.Qt import QtGui, QtCore, uic, Qt
 
 from numpy import *
 from math import sqrt

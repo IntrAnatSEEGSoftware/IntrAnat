@@ -14,8 +14,8 @@ import sys
 from ImageImportWindow import ImageImportWindow
 
 # import PyQt4 QtCore and QtGui modules
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from soma.qt_gui.qt_backend.Qt.QtCore import *
+from soma.qt_gui.qt_backend.Qt.QtGui import *
 
 
 if __name__ == '__main__':
