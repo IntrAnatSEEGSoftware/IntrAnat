@@ -56,7 +56,7 @@ from referentialconverter import ReferentialConverter
 from checkSpmVersion import *
 from readSulcusLabelTranslationFile import *
 from readFreesurferLabelFile import *
-from processes import defaultContext
+#from processes import defaultContext
 from TimerMessageBox import *
 from generate_contact_colors import *
 from bipoleSEEGColors import bipoleSEEGColors
