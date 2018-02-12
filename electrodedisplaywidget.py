@@ -14,6 +14,8 @@ import sys, pickle, shutil, traceback, os, json, re, numpy, csv
 
 
 from brainvisa import axon
+from brainvisa.configuration import neuroConfig
+neuroConfig.gui = True
 from brainvisa import anatomist
 from soma import aims
 import brainvisa.registration as registration

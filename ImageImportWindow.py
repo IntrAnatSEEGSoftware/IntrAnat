@@ -40,6 +40,8 @@ from soma.wip.application.api import Application
 from brainvisa.data.writediskitem import ReadDiskItem, WriteDiskItem
 from brainvisa.data import neuroHierarchy
 #import anatomist.direct.api as anatomist
+from brainvisa.configuration import neuroConfig
+neuroConfig.gui = True
 from brainvisa import anatomist
 import brainvisa.registration as registration
 

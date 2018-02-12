@@ -46,6 +46,8 @@ from soma import aims
 from brainvisa import axon
 
 #from soma.aims.spmnormalizationreader import readSpmNormalization
+from brainvisa.configuration import neuroConfig
+neuroConfig.gui = True
 from brainvisa import anatomist
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
@@ -4434,6 +4436,10 @@ def main(noapp=0):
     if noapp == 0:
       print "NO APP"
       app = QtGui.QApplication(sys.argv)
+      axon.initializeProcesses()
+      from brainvisa.data.readdiskitem import ReadDiskItem
+      from brainvisa.data.writediskitem import WriteDiskItem
+
     print "CREATE DIALOG"
     window = LocateElectrodes(app = app)
     window.show()
@@ -4442,10 +4448,6 @@ def main(noapp=0):
 
 if __name__ == "__main__":
   print "LAUNCHING ELECTRODE LOCATE"
-  axon.initializeProcesses()
-  from brainvisa.data.readdiskitem import ReadDiskItem
-  from brainvisa.data.writediskitem import WriteDiskItem
-
   print "MAIN"
   # Allow pdb to work for debugging !
   QtCore.pyqtRemoveInputHook()
