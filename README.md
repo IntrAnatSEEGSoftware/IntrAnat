@@ -8,3 +8,6 @@ https://f-tract.eu/software/intranat
 
 or on the wiki page
 https://github.com/IntrAnatSEEGSoftware/IntrAnat/wiki
+
+explanation to install IntrAnat are here
+https://github.com/IntrAnatSEEGSoftware/IntrAnat/wiki#how-to-install
