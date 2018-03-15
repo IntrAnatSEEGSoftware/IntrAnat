@@ -612,6 +612,7 @@ class ImageImportWindow (QDialog):
 	    	   projects[self.prefs['projectSelected'][0]].setChecked(True)
 		else:
                   self.prefs.update({'projectSelected':[2]})
+                  projects= [self.ui.radioButtonProject,self.ui.radioButtonProject_2,self.ui.radioButtonProject_3,self.ui.radioButtonProject_4]
                   projects[self.prefs['projectSelected'][0]].setChecked(True)
 
 
