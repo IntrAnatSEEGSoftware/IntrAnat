@@ -1293,6 +1293,7 @@ class ImageImportWindow (QDialog):
 	    	return
 	  else:
 	  	mri = self.a.loadObject(path)
+		tmp_nii_path = path
 
 	  self.a.addObjects(mri, self.wins)
 	  self.dispObj.append(mri)
