@@ -522,7 +522,7 @@ class ImageImportWindow (QDialog):
 
 	        filein.close()
 	    except:
-	      pass
+	      print("There is a problem with %s opening apparently"%prefpath)
 
 	    self.dicomOutputPath = self.prefs['dicomOutputPath']
 	    self.niftiOutputPath = self.prefs['niftiOutputPath']
@@ -610,6 +610,9 @@ class ImageImportWindow (QDialog):
 	    	if self.prefs['projectSelected'] != []:
 	    	   projects= [self.ui.radioButtonProject,self.ui.radioButtonProject_2,self.ui.radioButtonProject_3,self.ui.radioButtonProject_4]
 	    	   projects[self.prefs['projectSelected'][0]].setChecked(True)
+		else:
+                  self.prefs.update({'projectSelected':[2]})
+                  projects[self.prefs['projectSelected'][0]].setChecked(True)
 
 
 
