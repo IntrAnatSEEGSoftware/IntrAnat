@@ -11,6 +11,7 @@
 
 import subprocess, os, types, tempfile, time, random, string,sys
 from soma.qt_gui.qt_backend import QtCore
+from os.path import expanduser
 import pdb
 
 
@@ -184,3 +185,14 @@ def matlabRunNB(cmd, callback = None):
 def runCmd(cmd):
 	""" Executes a command and returns the output as an array of strings (the output lines)"""
 	return subprocess.Popen(cmd, stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
+    
+def isWindowsWSL():
+    """ Check wether the OS is a native Linux system or a Windows10/WSL system """
+    with open('/proc/version', 'r') as procfile:
+        return (procfile.read().find("Microsoft") != -1)
+       
+def formatExternalPath(fullpath):
+	if isWindowsWSL():
+		return fullpath.replace(expanduser("~"), "L:").replace("/", "\\")
+	else:
+		return fullpath
