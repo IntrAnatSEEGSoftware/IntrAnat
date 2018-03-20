@@ -29,12 +29,9 @@
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL license version 2 and that you accept its terms.
 
-import shfjGlobals
-from brainvisa.data import neuroDiskItems
-
-
 include( 'builtin' )
 include( 'registration' )
+include( 'anatomy' )
 
 ####################### File Formats ##########################
 Format( 'Electrode Implantation format', 'f|*.elecimplant' )
@@ -54,18 +51,14 @@ Format ('Blackrock MER format', ['f|*.ccf', 'f|*.nev', 'f|*.ns5'] )
 Format ( 'Eyelink format', 'f|*.edf' )
 Format ( 'PDF file', "f|*.pdf" )
 Format ( 'Powerpoint file', ["f|*.ppt","f|*.pptx"] )
+Format( 'Atlas metrics', 'f|*.atlasmetrics')
 
 ####################### File types ##########################
 # Images
 # FileType( 'T2 MRI', '3D Volume' ) -> already in builtin.py
 
 FileType( 'CT', '3D Volume' )
-
-checkAlreadyDecleared = neurodiskItems.getAllDiskItemTypes()
-checkAlreadyDeclearedStr = [x.name for x in checkAlreadyDecleared]
-if "PET" not in checkAlreadyDeclearedStr:
-  FileType( 'PET', '3D Volume' ) # Or should it be 4D ?
-  
+FileType( 'PET', '3D Volume' ) # Or should it be 4D ? # Already defined in /usr/local/brainvisa/toolboxes/nuclearimaging/types/OLDnuclear_imaging.py
 FileType( 'fMRI-epile', '3D Volume') #'4D Volume'
 FileType( 'Statistic-Data', '3D Volume')
 FileType('T1 SPM resampled in MNI', '3D Volume')
@@ -91,6 +84,14 @@ FileType('leftHippocampusNII','3D Volume')
 #FileType('leftposteroHippocampusNII','3D Volume')
 FileType('rightHippocampusNII','3D Volume')
 #FileType('rightposteroHippocampusNII','3D Volume')
+
+FileType('Screenshot of Mars Atlas' ,'Any Type','PNG image')
+#FileType('GIF of Mars Atlas','Any Type', 'GIF image')
+#FileType('GIF of Electrodes','Any Type', 'GIF image')
+FileType('Parcels Infos','Any Type', 'Atlas metrics')
+FileType('Outliers','Any Type', 'Atlas metrics')
+FileType('MP4 of Mars Atlas', 'Any Type','MP4 film')
+FileType('MP4 of Electrodes','Any Type', 'MP4 film')
 
 #Patient
 FileType('SubjectInfo','Any Type', 'Subject Information format')
