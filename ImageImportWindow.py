@@ -610,10 +610,10 @@ class ImageImportWindow (QDialog):
             if self.prefs['projectSelected'] != []:
                 projects= [self.ui.radioButtonProject,self.ui.radioButtonProject_2,self.ui.radioButtonProject_3,self.ui.radioButtonProject_4]
                 projects[self.prefs['projectSelected'][0]].setChecked(True)
-            else:
-                self.prefs.update({'projectSelected':[2]})
-                projects= [self.ui.radioButtonProject,self.ui.radioButtonProject_2,self.ui.radioButtonProject_3,self.ui.radioButtonProject_4]
-                projects[self.prefs['projectSelected'][0]].setChecked(True)
+        else:
+            self.prefs.update({'projectSelected':[2]})
+            projects= [self.ui.radioButtonProject,self.ui.radioButtonProject_2,self.ui.radioButtonProject_3,self.ui.radioButtonProject_4]
+            projects[self.prefs['projectSelected'][0]].setChecked(True)
 
 
 
@@ -716,7 +716,7 @@ class ImageImportWindow (QDialog):
         This returns the dictionary of patients and sequences already imported in there"""
         if not os.path.isdir(root):
             return {}
-            return dict([(f, os.listdir(os.path.join(root, f))) for f in os.listdir(root) if os.path.isdir(os.path.join(root, f))])
+        return dict([(f, os.listdir(os.path.join(root, f))) for f in os.listdir(root) if os.path.isdir(os.path.join(root, f))])
 
     def analyzeNiftiOutput(self, root):
         """ Structure of the nifti output directory is supposed to be
@@ -831,15 +831,15 @@ class ImageImportWindow (QDialog):
         else:
             currentIndex = 0
 
-    def selectSubj(subjCombo):
-        " Subfunction to select the current subject "
-        if self.currentSubject is None:
-            return
-        idx = subjCombo.findText(self.currentSubject)
-        print "search current subj"
-        if idx != -1:
-            print "found at "+repr(idx)
-            subjCombo.setCurrentIndex(idx)
+        def selectSubj(subjCombo):
+            " Subfunction to select the current subject "
+            if self.currentSubject is None:
+                return
+            idx = subjCombo.findText(self.currentSubject)
+            print "search current subj"
+            if idx != -1:
+                print "found at "+repr(idx)
+                subjCombo.setCurrentIndex(idx)
 
         if tab == 0 or tab is None: # Tab 0 is BrainVisa database tab
             self.ui.bvProtocolCombo.clear()
@@ -938,8 +938,8 @@ class ImageImportWindow (QDialog):
         images = self.findAllImagesForSubject(self.ui.bvProtocolCombo.currentText(), subj)
         #name = modality + acquisition + subacquisition if exist subacquisition key else modality + acquisition
         self.ui.bvImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
-        #i.attributes()['modality'] if 'acquisition' not in i.attributes().keys()\
-        else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
+                #i.attributes()['modality'] if 'acquisition' not in i.attributes().keys()\
+                else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
     
         dict_temporaire = {}
         for i in images:
@@ -1868,8 +1868,8 @@ class ImageImportWindow (QDialog):
         for i in images:
             if 'subacquisition' in i.attributes().keys():
                 dict_temporaire1.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i.fileName()})
-        else:
-            dict_temporaire1.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i.fileName()})
+            else:
+                dict_temporaire1.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i.fileName()})
     
         dict_temporaire2 = {}
         for i in images:
@@ -1878,10 +1878,10 @@ class ImageImportWindow (QDialog):
             else:
                 dict_temporaire2.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i})
     
-            self.ui.regImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
-                    else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
-            self.ui.regImageList2.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
-                    else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
+        self.ui.regImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
+                else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
+        self.ui.regImageList2.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
+                else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
     
     
         self.regImagePaths = dict_temporaire1
@@ -2226,12 +2226,12 @@ class ImageImportWindow (QDialog):
         imageFileName = image.fileName()
         if  image.attributes()['data_type'] == 'RGB':
             print "it is RGB"
-        imageFileName = getTmpFilePath('nii')
-        ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
-        if ret < 0:
-            print "Conversion to S16 error: "+repr(registeredPath) #terminal
-            QtGui.QMessageBox.warning(self, "Error", u"The conversion into S16 didn't worked!") #utilisateur
-            return
+            imageFileName = getTmpFilePath('nii')
+            ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
+            if ret < 0:
+                print "Conversion to S16 error: "+repr(registeredPath) #terminal
+                QtGui.QMessageBox.warning(self, "Error", u"The conversion into S16 didn't worked!") #utilisateur
+                return
     
         if 'brainCenter' not in image.attributes() or 'brainCenter' not in target.attributes():
             call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
@@ -2433,90 +2433,90 @@ class ImageImportWindow (QDialog):
                 tempNameMNI2SB[-1]= "tmpMNItoScannerBased"+tempNameMNI2SB[-1]
                 tempNameMNI2SB = "/".join(tempNameMNI2SB)
 
-            if len(di_defField_read) > 0:
-                print "inverse deformation field found and used"
-                matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_defField_read[0].fileName())+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+                if len(di_defField_read) > 0:
+                    print "inverse deformation field found and used"
+                    matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_defField_read[0].fileName())+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+    
+                    cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii.backup"]
+                    line1 = runCmd(cmd1)
+    
+                    rname = tempNameMNI2SB.split('/')
+                    rname[-1]="r"+rname[-1]
+                    rname = "/".join(rname)
+                    cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
+                    line2 = runCmd(cmd2)
+    
+                    os.remove(tempNameMNI2SB)
+                    os.remove(rname)
+                    os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
+    
+                    write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
+                    wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
+                    write_filters.update({'subacquisition':di[StatToConvert[0]].attributes()['subacquisition']})
+    
+                    di_new = wdi_new.findValue(write_filters)
+    
+                    ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
+                    di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
+                    di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+                    neuroHierarchy.databases.insertDiskItem( di_new, update=True )
+                    self.transfoManager.setReferentialTo(di_new, self.mriAcPc)
 
-                cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii.backup"]
-                line1 = runCmd(cmd1)
-
-                rname = tempNameMNI2SB.split('/')
-                rname[-1]="r"+rname[-1]
-                rname = "/".join(rname)
-                cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
-                line2 = runCmd(cmd2)
-
-                os.remove(tempNameMNI2SB)
-                os.remove(rname)
-                os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
-
-                write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
-                wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
-                write_filters.update({'subacquisition':di[StatToConvert[0]].attributes()['subacquisition']})
-
-                di_new = wdi_new.findValue(write_filters)
-
-                ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
-                di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
-                di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-                neuroHierarchy.databases.insertDiskItem( di_new, update=True )
-                self.transfoManager.setReferentialTo(di_new, self.mriAcPc)
-
-            else:
-                #look for a y_file second
-                rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':self.mriAcPc.attributes()['acquisition'] })
-                di_y = list(rdi_y.findValues({}, None, False))
-
-                if len(di_y) == 0:
-                    print "No deformation field found in database"
-                    self.setStatus(u"MNI to ScannerBased conversion of %s not performed, no deformation field found"%str(di[StatToConvert[i_stat2conv]].fileName()))
-                    return
                 else:
-                    print "deformation field found and used"
-                    wdi_inverse = WriteDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
-                    dir_yinv_split = str(di_y[0].fileName()).split('/')
-                    name_yinverse = dir_yinv_split.pop()[2:]
-                    #name_yinverse.replace('.nii','_inverse.nii')
-                    dir_yinverse = "/".join(dir_yinv_split)
-                    di_inverse = wdi_inverse.findValue(di_y[0])
-                    #on fait l'inversion de la deformation
-                    #pour le moment ce bout de code ne marche qu'avec spm12
-                    if spm_version == '(SPM12)':
-                        print 'SPM12 used'
-                        matlabRun(spm_inverse_y_field12%("'"+str(self.prefs['spm'])+"'","'"+str(di_y[0].fileName())+"'","'"+str(self.mriAcPc)+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
-                        neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
-                        matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_inverse)+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+                    #look for a y_file second
+                    rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':self.mriAcPc.attributes()['acquisition'] })
+                    di_y = list(rdi_y.findValues({}, None, False))
     
-                        cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii"]
-                        line1 = runCmd(cmd1)
-    
-                        rname = tempNameMNI2SB.split('/')
-                        rname[-1]="r"+rname[-1]
-                        rname = "/".join(rname)
-                        cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
-                        line2 = runCmd(cmd2)
-    
-                        os.remove(tempNameMNI2SB)
-                        os.remove(rname)
-                        os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
-    
-                        write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
-                        wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
-                        write_filters.update({'subacquisition':di[StatToConvert[i_stat2conv]].attributes()['subacquisition']})
-    
-                        di_new = wdi_new.findValue(write_filters)
-    
-                        ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
-                        di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
-                        di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-                        neuroHierarchy.databases.insertDiskItem( di[StatToConvert[i_stat2conv]], update=True )
-                        self.transfoManager.setReferentialTo(di[StatToConvert[i_stat2conv]], self.mriAcPc)
-    
-                    else:
-                        print "doesn't work with SPM8"
+                    if len(di_y) == 0:
+                        print "No deformation field found in database"
+                        self.setStatus(u"MNI to ScannerBased conversion of %s not performed, no deformation field found"%str(di[StatToConvert[i_stat2conv]].fileName()))
                         return
-
-            self.setStatus(u"MNI to ScannerBased conversion of %s done"%str(di[StatToConvert[i_stat2conv]].fileName()))
+                    else:
+                        print "deformation field found and used"
+                        wdi_inverse = WriteDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
+                        dir_yinv_split = str(di_y[0].fileName()).split('/')
+                        name_yinverse = dir_yinv_split.pop()[2:]
+                        #name_yinverse.replace('.nii','_inverse.nii')
+                        dir_yinverse = "/".join(dir_yinv_split)
+                        di_inverse = wdi_inverse.findValue(di_y[0])
+                        #on fait l'inversion de la deformation
+                        #pour le moment ce bout de code ne marche qu'avec spm12
+                        if spm_version == '(SPM12)':
+                            print 'SPM12 used'
+                            matlabRun(spm_inverse_y_field12%("'"+str(self.prefs['spm'])+"'","'"+str(di_y[0].fileName())+"'","'"+str(self.mriAcPc)+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+                            neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
+                            matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_inverse)+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+        
+                            cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii"]
+                            line1 = runCmd(cmd1)
+        
+                            rname = tempNameMNI2SB.split('/')
+                            rname[-1]="r"+rname[-1]
+                            rname = "/".join(rname)
+                            cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
+                            line2 = runCmd(cmd2)
+        
+                            os.remove(tempNameMNI2SB)
+                            os.remove(rname)
+                            os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
+        
+                            write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
+                            wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
+                            write_filters.update({'subacquisition':di[StatToConvert[i_stat2conv]].attributes()['subacquisition']})
+        
+                            di_new = wdi_new.findValue(write_filters)
+        
+                            ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
+                            di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
+                            di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+                            neuroHierarchy.databases.insertDiskItem( di[StatToConvert[i_stat2conv]], update=True )
+                            self.transfoManager.setReferentialTo(di[StatToConvert[i_stat2conv]], self.mriAcPc)
+        
+                        else:
+                            print "doesn't work with SPM8"
+                            return
+    
+                self.setStatus(u"MNI to ScannerBased conversion of %s done"%str(di[StatToConvert[i_stat2conv]].fileName()))
 
         else:
             print "no statistic data to convert from MNI to Scanner-Based"
@@ -2898,7 +2898,7 @@ class ImageImportWindow (QDialog):
         # No T1pre : nothing else to do
         if t1preImage is None:
             print('no T1pre image')
-            return
+        return
 
         context = brainvisa.processes.defaultContext()
         context.write("recon-all from freesurfer")
@@ -3362,7 +3362,6 @@ class ImageImportWindow (QDialog):
                     # To print description string : desc = f.read(64); print desc[:desc.find('\x00')]
                     if "".join(["\x00" for j in range(64)]) != desc:
                         fo.seek(historyOffs + 128*4 + sizeMontage*i+264)
-                        fo.write(struct.pack('<64B',*[ord(a) for a in newMontageName.ljust(64,'\x00')]))
     
                 # undocumented string in place of the last electrode in  name in HISTORY : find history offset,
                 fo.seek(192)
