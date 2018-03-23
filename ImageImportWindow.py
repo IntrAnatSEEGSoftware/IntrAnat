@@ -2108,7 +2108,7 @@ class ImageImportWindow (QDialog):
 				morphologist.executionNode().SulcalMorphometry.setSelected(False)
 
 				self.brainvisaContext.runInteractiveProcess(lambda x='':self.run2ndpartMorphologist() , morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-		                       posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+		                       posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = False)
 	#def spmRegisterPatient(self, protocol, patient, acq):
 	  ## Comment choisir le moment pour recaler les post avec les pre, si l'import est fait dans l'ordre post puis pre ?
 	  ## Solution :
