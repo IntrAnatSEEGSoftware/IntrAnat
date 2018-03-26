@@ -1994,7 +1994,8 @@ class ImageImportWindow (QDialog):
                 print("ANTs coregistration used")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
         
-                ants_call = '{}/antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(self.prefs['ants'],str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
+#                ants_call = '{}/antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(self.prefs['ants'],str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
+                ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
                 thr = Executor(ants_call.split())
                 thr.finished.connect(lambda:self.taskfinished(u"ANTs Coregister done", thr))
                 thr.finished.connect(lambda im = image, tmp_folder=temp_folder_ants:self.setANTstrm_database(im, tmp_folder))
@@ -2056,7 +2057,8 @@ class ImageImportWindow (QDialog):
 
         file_to_open = tmp_folder + '0GenericAffine.mat'
         tmp_trm_path = getTmpFilePath('txt')
-        ants_call ='{}/ConvertTransformFile 3 {} {} --RAS --homogeneousMatrix'.format(self.prefs['ants'],file_to_open,tmp_trm_path)
+        # ants_call ='{}/ConvertTransformFile 3 {} {} --RAS --homogeneousMatrix'.format(self.prefs['ants'],file_to_open,tmp_trm_path)
+        ants_call ='ConvertTransformFile 3 {} {} --RAS --homogeneousMatrix'.format(file_to_open,tmp_trm_path)
         runCmd(ants_call.split())
         info_mat = numpy.loadtxt(tmp_trm_path)
         info_mat = numpy.linalg.inv(info_mat)
