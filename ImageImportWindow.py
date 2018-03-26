@@ -73,47 +73,59 @@ def matlab_cellstr(listOfStrings):
 #spm_jobman('run',matlabbatch); catch, disp 'AN ERROR OCCURED'; end;quit;"
 
 # Coregister two files and saves the matrix in an ASCII file (space-separated)
-spm_coregister = """try,addpath(genpath(%s));VF=spm_vol(%s);VG=spm_vol(%s);
-centermatF = eye(4);
-center_F = %s;
-F_orient = %s;
-F_orient = reshape(F_orient,4,4)';
-centermatF(:,4) = F_orient*[center_F 1]';
-centermatG = eye(4);
-center_G = %s;
-G_orient = %s;
-G_orient = reshape(G_orient,4,4)';
-centermatG(:,4) = G_orient*[center_G 1]';
-centeredmatF = inv(centermatF)*VF.private.mat;
-centeredmatG = inv(centermatG)*VG.private.mat;
-VF.mat = centeredmatF;
-VF.private.mat = centeredmatF;
-VF.private.mat0 = centeredmatF;
-VG.mat = centeredmatG;
-VG.private.mat = centeredmatG;
-VG.private.mat0 = centeredmatG;
-x = spm_coreg(VF,VG);
-matCoreg = spm_matrix(x(:)');
-trm = centermatG*matCoreg*inv(centermatF);
-trm = [trm(1:3,4)';trm(1:3,1:3)];
-dlmwrite(%s,trm, 'delimiter',' ','precision',16); \n
-catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm_coregister = """try
+    addpath(genpath(%s));
+    VF=spm_vol(%s);
+    VG=spm_vol(%s);
+    centermatF = eye(4);
+    center_F = %s;
+    F_orient = %s;
+    F_orient = reshape(F_orient,4,4)';
+    centermatF(:,4) = F_orient*[center_F 1]';
+    centermatG = eye(4);
+    center_G = %s;
+    G_orient = %s;
+    G_orient = reshape(G_orient,4,4)';
+    centermatG(:,4) = G_orient*[center_G 1]';
+    centeredmatF = inv(centermatF)*VF.private.mat;
+    centeredmatG = inv(centermatG)*VG.private.mat;
+    VF.mat = centeredmatF;
+    VF.private.mat = centeredmatF;
+    VF.private.mat0 = centeredmatF;
+    VG.mat = centeredmatG;
+    VG.private.mat = centeredmatG;
+    VG.private.mat0 = centeredmatG;
+    x = spm_coreg(VF,VG);
+    matCoreg = spm_matrix(x(:)');
+    trm = centermatG*matCoreg*inv(centermatF);
+    trm = [trm(1:3,4)';trm(1:3,1:3)];
+    dlmwrite(%s,trm, 'delimiter',' ','precision',16); \n
+catch
+    disp 'AN ERROR OCCURED'; 
+end
+quit;"""
 
 
 # SPM coregistration onto file1 ({'/home/manik/data/epilepsie/IRM-testOD/Pre/3DT1.img,1'}) of file 2 ({'/home/manik/data/epilepsie/IRM-testOD/Post/SagT2.img,1'}) with reslicing
-spm_coregisterReslice = "try,addpath(genpath(%s)); spm('defaults', 'FMRI');spm_jobman('initcfg');\
-matlabbatch{1}.spm.spatial.coreg.estwrite.ref == %s;\
-matlabbatch{1}.spm.spatial.coreg.estwrite.source = %s;\
-matlabbatch{1}.spm.spatial.coreg.estwrite.other = {''};\
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.cost_fun = 'nmi';\
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.sep = [4 2];\
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];\
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.fwhm = [7 7];\
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 1;\
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];\
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;\
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';\
-spm_jobman('run',matlabbatch); catch, disp 'AN ERROR OCCURED'; end;quit;"
+spm_coregisterReslice = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');spm_jobman('initcfg');
+    matlabbatch{1}.spm.spatial.coreg.estwrite.ref == %s;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.source = %s;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.other = {''};
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.cost_fun = 'nmi';
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.sep = [4 2];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.fwhm = [7 7];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 1;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
 
 # SPM normalisation of file 1 ({'/home/manik/data/epilepsie/IRM-testOD/Pre/3DT1.img,1'}) onto template
@@ -132,129 +144,163 @@ spm_jobman('run',matlabbatch); catch, disp 'AN ERROR OCCURED'; end;quit;"
 #matlabbatch{1}.spm.spatial.normalise.est.eoptions.reg = 1;
 #spm_jobman('run',matlabbatch); catch, disp 'AN ERROR OCCURED'; end;quit;"""
 
-spm8_normalise = """try, addpath(genpath(%s)); spm('defaults', 'FMRI');spm_jobman('initcfg');
-matlabbatch{1}.spm.spatial.normalise.estwrite.subj.source = %s;
-matlabbatch{1}.spm.spatial.normalise.estwrite.subj.wtsrc = '';
-matlabbatch{1}.spm.spatial.normalise.estwrite.subj.resample = %s;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.template = %s;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.weight = '';
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.smosrc = 8;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.smoref = 0;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.regtype = 'mni';
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.cutoff = 25;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.nits = 16;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.reg = 1;
-matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.preserve = 0;
-matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.bb = [-78 -112 -50
-                                                             78 76 85];
-matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.vox = [1 1 1];
-matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.interp = 1;
-matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.wrap = [0 0 0];
-matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.prefix = 'w';
-spm_jobman('run',matlabbatch); catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm8_normalise = """try
+    addpath(genpath(%s)); 
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.source = %s;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.wtsrc = '';
+    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.resample = %s;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.template = %s;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.weight = '';
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.smosrc = 8;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.smoref = 0;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.regtype = 'mni';
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.cutoff = 25;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.nits = 16;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.reg = 1;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.preserve = 0;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.bb = [-78 -112 -50
+                                                                 78 76 85];
+    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.vox = [1 1 1];
+    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.interp = 1;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.wrap = [0 0 0];
+    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.prefix = 'w';
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
-spm12_normalise = """try, addpath(genpath(%s)); spm('defaults', 'FMRI');spm_jobman('initcfg');
-matlabbatch{1}.spm.spatial.normalise.estwrite.subj.vol = %s;
-matlabbatch{1}.spm.spatial.normalise.estwrite.subj.resample = %s;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.biasreg = 0.0001;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.biasfwhm = 60;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.tpm = {%s};
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.affreg = 'mni';
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.reg = [0 0.001 0.5 0.05 0.2];
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.fwhm = 0;
-matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.samp = 3;
-matlabbatch{1}.spm.spatial.normalise.estwrite.woptions.bb = [-78 -112 -70
-                                                             78 76 85];
-matlabbatch{1}.spm.spatial.normalise.estwrite.woptions.vox = [1 1 1];
-matlabbatch{1}.spm.spatial.normalise.estwrite.woptions.interp = 4;
-spm_jobman('run',matlabbatch); catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm12_normalise = """try
+    addpath(genpath(%s)); 
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.vol = %s;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.resample = %s;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.biasreg = 0.0001;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.biasfwhm = 60;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.tpm = {%s};
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.affreg = 'mni';
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.reg = [0 0.001 0.5 0.05 0.2];
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.fwhm = 0;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.samp = 3;
+    matlabbatch{1}.spm.spatial.normalise.estwrite.woptions.bb = [-78 -112 -70
+                                                                 78 76 85];
+    matlabbatch{1}.spm.spatial.normalise.estwrite.woptions.vox = [1 1 1];
+    matlabbatch{1}.spm.spatial.normalise.estwrite.woptions.interp = 4;
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
-matlab_removeGado = """try, addpath(genpath(%s)); spm('defaults', 'FMRI');spm_jobman('initcfg');
-matlabbatch{1}.spm.spatial.preproc.channel.vols = {%s};
-matlabbatch{1}.spm.spatial.preproc.channel.biasreg = 0.001;
-matlabbatch{1}.spm.spatial.preproc.channel.biasfwhm = 60;
-matlabbatch{1}.spm.spatial.preproc.channel.write = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(1).tpm = {%s};
-matlabbatch{1}.spm.spatial.preproc.tissue(1).ngaus = 1;
-matlabbatch{1}.spm.spatial.preproc.tissue(1).native = [1 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(1).warped = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(2).tpm = {%s};
-matlabbatch{1}.spm.spatial.preproc.tissue(2).ngaus = 1;
-matlabbatch{1}.spm.spatial.preproc.tissue(2).native = [1 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(2).warped = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(3).tpm = {%s};
-matlabbatch{1}.spm.spatial.preproc.tissue(3).ngaus = 2;
-matlabbatch{1}.spm.spatial.preproc.tissue(3).native = [1 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(3).warped = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(4).tpm = {%s};
-matlabbatch{1}.spm.spatial.preproc.tissue(4).ngaus = 3;
-matlabbatch{1}.spm.spatial.preproc.tissue(4).native = [1 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(4).warped = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(5).tpm = {%s};
-matlabbatch{1}.spm.spatial.preproc.tissue(5).ngaus = 4;
-matlabbatch{1}.spm.spatial.preproc.tissue(5).native = [1 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(5).warped = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(6).tpm = {%s};
-matlabbatch{1}.spm.spatial.preproc.tissue(6).ngaus = 2;
-matlabbatch{1}.spm.spatial.preproc.tissue(6).native = [0 0];
-matlabbatch{1}.spm.spatial.preproc.tissue(6).warped = [0 0];
-matlabbatch{1}.spm.spatial.preproc.warp.mrf = 1;
-matlabbatch{1}.spm.spatial.preproc.warp.cleanup = 1;
-matlabbatch{1}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-matlabbatch{1}.spm.spatial.preproc.warp.affreg = 'mni';
-matlabbatch{1}.spm.spatial.preproc.warp.fwhm = 0;
-matlabbatch{1}.spm.spatial.preproc.warp.samp = 2;
-matlabbatch{1}.spm.spatial.preproc.warp.write = [0 0];
-spm_jobman('run',matlabbatch);
-c1 = spm_vol(%s);
-c2 = spm_vol(%s);
-c3 = spm_vol(%s);
-c4 = spm_vol(%s);
-Yc1 = spm_read_vols(c1);
-Yc2 = spm_read_vols(c2);
-Yc3 = spm_read_vols(c3);
-Yc4 = spm_read_vols(c4);
-keepC1 = find(Yc1 ~= 0);
-keepC2 = find(Yc2 ~= 0);
-keepC3 = find(Yc3 ~= 0);
-keepC4 = find(Yc4 ~= 0);
-all_keep = unique([keepC1; keepC2]);
-fullImage = spm_vol(%s);
-YfullImage = spm_read_vols(fullImage);
-all_remove = [1:1:size(YfullImage(:))];
-all_remove(all_keep)=[];
-YfullImage(all_remove)=0;
-fullImage.fname=%s;
-spm_write_vol(fullImage,YfullImage);
-catch, disp 'AN ERROR OCCURED'; end;quit;"""
+matlab_removeGado = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    matlabbatch{1}.spm.spatial.preproc.channel.vols = {%s};
+    matlabbatch{1}.spm.spatial.preproc.channel.biasreg = 0.001;
+    matlabbatch{1}.spm.spatial.preproc.channel.biasfwhm = 60;
+    matlabbatch{1}.spm.spatial.preproc.channel.write = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(1).tpm = {%s};
+    matlabbatch{1}.spm.spatial.preproc.tissue(1).ngaus = 1;
+    matlabbatch{1}.spm.spatial.preproc.tissue(1).native = [1 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(1).warped = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(2).tpm = {%s};
+    matlabbatch{1}.spm.spatial.preproc.tissue(2).ngaus = 1;
+    matlabbatch{1}.spm.spatial.preproc.tissue(2).native = [1 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(2).warped = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(3).tpm = {%s};
+    matlabbatch{1}.spm.spatial.preproc.tissue(3).ngaus = 2;
+    matlabbatch{1}.spm.spatial.preproc.tissue(3).native = [1 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(3).warped = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(4).tpm = {%s};
+    matlabbatch{1}.spm.spatial.preproc.tissue(4).ngaus = 3;
+    matlabbatch{1}.spm.spatial.preproc.tissue(4).native = [1 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(4).warped = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(5).tpm = {%s};
+    matlabbatch{1}.spm.spatial.preproc.tissue(5).ngaus = 4;
+    matlabbatch{1}.spm.spatial.preproc.tissue(5).native = [1 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(5).warped = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(6).tpm = {%s};
+    matlabbatch{1}.spm.spatial.preproc.tissue(6).ngaus = 2;
+    matlabbatch{1}.spm.spatial.preproc.tissue(6).native = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.tissue(6).warped = [0 0];
+    matlabbatch{1}.spm.spatial.preproc.warp.mrf = 1;
+    matlabbatch{1}.spm.spatial.preproc.warp.cleanup = 1;
+    matlabbatch{1}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
+    matlabbatch{1}.spm.spatial.preproc.warp.affreg = 'mni';
+    matlabbatch{1}.spm.spatial.preproc.warp.fwhm = 0;
+    matlabbatch{1}.spm.spatial.preproc.warp.samp = 2;
+    matlabbatch{1}.spm.spatial.preproc.warp.write = [0 0];
+    spm_jobman('run',matlabbatch);
+    c1 = spm_vol(%s);
+    c2 = spm_vol(%s);
+    c3 = spm_vol(%s);
+    c4 = spm_vol(%s);
+    Yc1 = spm_read_vols(c1);
+    Yc2 = spm_read_vols(c2);
+    Yc3 = spm_read_vols(c3);
+    Yc4 = spm_read_vols(c4);
+    keepC1 = find(Yc1 ~= 0);
+    keepC2 = find(Yc2 ~= 0);
+    keepC3 = find(Yc3 ~= 0);
+    keepC4 = find(Yc4 ~= 0);
+    all_keep = unique([keepC1; keepC2]);
+    fullImage = spm_vol(%s);
+    YfullImage = spm_read_vols(fullImage);
+    all_remove = [1:1:size(YfullImage(:))];
+    all_remove(all_keep)=[];
+    YfullImage(all_remove)=0;
+    fullImage.fname=%s;
+    spm_write_vol(fullImage,YfullImage);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
-spm_inverse_y_field12 = """try,addpath(genpath(%s));spm('defaults', 'FMRI');spm_jobman('initcfg');
-clear matlabbatch;
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
-matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {%s};
-matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = %s;
-matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr = {%s};
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm_inverse_y_field12 = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    clear matlabbatch;
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {%s};
+    matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = %s;
+    matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr = {%s};
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
-spm_MNItoScannerBased = """try,addpath(genpath(%s));spm('defaults', 'FMRI');spm_jobman('initcfg');
-clear matlabbatch;
-matlabbatch{1}.spm.spatial.normalise.write.subj.def = {%s};
-matlabbatch{1}.spm.spatial.normalise.write.subj.resample = {%s};
-matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-150 -150 -150
-                                                          150 150 150];
-matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = [1 1 1];
-matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
-matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix = 'tmpMNItoScannerBased';
-matlabbatch{2}.spm.spatial.realign.write.data = {
-                                                 %s
-                                                 %s
-                                                 };
-matlabbatch{2}.spm.spatial.realign.write.roptions.which = [2 1];
-matlabbatch{2}.spm.spatial.realign.write.roptions.interp = 4;
-matlabbatch{2}.spm.spatial.realign.write.roptions.wrap = [0 0 0];
-matlabbatch{2}.spm.spatial.realign.write.roptions.mask = 1;
-matlabbatch{2}.spm.spatial.realign.write.roptions.prefix = '';
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm_MNItoScannerBased = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    clear matlabbatch;
+    matlabbatch{1}.spm.spatial.normalise.write.subj.def = {%s};
+    matlabbatch{1}.spm.spatial.normalise.write.subj.resample = {%s};
+    matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-150 -150 -150
+                                                              150 150 150];
+    matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = [1 1 1];
+    matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
+    matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix = 'tmpMNItoScannerBased';
+    matlabbatch{2}.spm.spatial.realign.write.data = {
+                                                     %s
+                                                     %s
+                                                     };
+    matlabbatch{2}.spm.spatial.realign.write.roptions.which = [2 1];
+    matlabbatch{2}.spm.spatial.realign.write.roptions.interp = 4;
+    matlabbatch{2}.spm.spatial.realign.write.roptions.wrap = [0 0 0];
+    matlabbatch{2}.spm.spatial.realign.write.roptions.mask = 1;
+    matlabbatch{2}.spm.spatial.realign.write.roptions.prefix = '';
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
 
 (Ui_ImageImportWindow, QDialog) = uic.loadUiType('ImageImportWindow.ui')
@@ -1932,6 +1978,7 @@ class ImageImportWindow (QDialog):
             return
     
         for image in images:
+
         # A T1pre is there, coregister all images to it
             if image == t1preImage:
                 continue
@@ -1976,7 +2023,7 @@ class ImageImportWindow (QDialog):
                 #   return
                 #self.insertTransformationToT1pre(tmp_trm_path,image)
     
-    
+        return  #### TO REMOVE!!
         self.mriAcPc = t1preImage # Store the mri for Morphologist
         self.runBVMorphologist(t1preImage)
         # Check the registrations with anatomist when threads are done
@@ -2385,14 +2432,14 @@ class ImageImportWindow (QDialog):
         if not os.path.isfile(di_write.fileName()):
             QtGui.QMessageBox.warning(self, "Error", "Impossible dto find a valid path for the T1 coregistered into the MNI")
         else:
-            print "Declaring T1 registered MNI in BrainVisa DB" + di_write.fileName()
+            print "Declaring T1 registered MNI in BrainVisa DB : " + di_write.fileName()
             neuroHierarchy.databases.insertDiskItem(di_write, update = True)
             self.setNormalizedToT1pre(di_write,di_write.fileName())
     
         # The file should already be there : if it is not, abort with an error, otherwise declare it in the DB
         #pdb.set_trace()
         if os.path.isfile(di.fileName()):
-            print "Declaring SPM normalization in BrainVisa DB : "+di.fileName()
+            print "Declaring SPM normalization in BrainVisa DB : " + di.fileName()
             neuroHierarchy.databases.insertDiskItem( di, update=True )
             # Compute deformation fields
             #wdi = WriteDiskItem('SPM normalization inverse deformation field','aims readable volume formats')
@@ -2998,7 +3045,7 @@ class ImageImportWindow (QDialog):
 
     def taskfinished(self, message, threadObj=None):
         """ When a task (thread) is finished, display the message and launch the waiting callbacks"""
-        elf.setStatus(u"Task done : "+message) #+' : '+repr(threadObj)
+        self.setStatus(u"Task done : "+message) #+' : '+repr(threadObj)
         if threadObj is None:
             return
         # Looking for callback functions waiting
