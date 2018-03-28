@@ -2947,7 +2947,7 @@ class ImageImportWindow (QDialog):
         # No T1pre : nothing else to do
         if t1preImage is None:
             print('no T1pre image')
-        return
+            return
 
         context = brainvisa.processes.defaultContext()
         context.write("recon-all from freesurfer")
@@ -3065,7 +3065,8 @@ class ImageImportWindow (QDialog):
         for tD in toDelete:
             del self.waitingForThreads[tD]
     
-        idx = self.threads.remove(threadObj) # Now remove the thread
+        if threadObj in self.threads:
+            idx = self.threads.remove(threadObj) # Now remove the thread
 
 
     def downloadPacs(self):
