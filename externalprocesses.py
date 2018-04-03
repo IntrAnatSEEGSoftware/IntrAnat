@@ -39,10 +39,13 @@ def getTmpFilePath(extension='txt'):
       file extension (txt by default) can be given as argument
       Usage : filepath = getTmpFilePath('jpg')
     """
-    tmpdir = tempfile.gettempdir()
+    if isWindowsWSL:
+        tmpdir = tempfile.gettempdir()
+    else:
+        tmpdir = tempfile.gettempdir()
     tmpCmd = ''.join(random.choice(string.letters) for i in xrange(15))
     tmpfile = tmpCmd + '.' + extension
-    #print "TMPdir : %s, filename : %s"%(repr(tmpdir), repr(tmpfile))
+
     fullpath = os.path.join(tmpdir, tmpfile)
     return fullpath
 
@@ -139,33 +142,13 @@ def matlabRun(cmd):
       The call is blocking until command completion.
       Use matlabRunNB to get non-blocking command execution
     """
-    if not isinstance(cmd, types.ListType):
-        cmd = [cmd,]
-    # Because the command may be too long for a command line, let's put it in a temp file and run the file
-    # In Windows/WSL: Use $HOME/tmp instead of /tmp
-    if isWindowsWSL:
-        tmpdir = expanduser("~/tmp");
-        if not os.path.exists(tmpdir):
-            os.makedirs(tmpdir)
-    else:
-        tmpdir = tempfile.gettempdir()   # Expands to /tmp
-    tmpCmd = ''.join(random.choice(string.letters) for i in xrange(15))
-    tmpfile = tmpCmd + '.m'
-    fullpath = os.path.join(tmpdir, tmpfile)
-    # Write Matlab script in temp folder
-    f = open(fullpath, 'w')
-    f = open(fullpath, 'w')
-    f.write("disp('===============================================================');\n")
-    f.write("disp('Executing Matlab script: "+fullpath+"');\n")
-    f.write("disp(' ');\n")
-    f.write("fprintf(1, '" + ' '.join(cmd).replace("\\", "\\\\").replace("'", "''").replace('\n','\\n') + "\\n');\n")
-    f.write("disp('===============================================================');\n\n")
-    f.write(' '.join(cmd) + "\n\n")
-    f.close()
-    print "Calling matlab in "+tmpdir+" with file "+tmpfile+ " and matlab command : "+repr(matlabCall)
-    cmd = ["cd '%s';%s"%(formatExternalPath(tmpdir),tmpCmd),]
-    result = subprocess.Popen(matlabCall+cmd, stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
-    os.remove(fullpath)
+    # Save matlab script
+    matlabCall = saveMatlabCall(cmd)
+    # Run code
+    result = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
+    # Delete temp file
+    os.remove(matlabCall['filename'])
+    # Return stdout
     return result
 
 def matlabRunNB(cmd, callback = None):
@@ -174,8 +157,42 @@ def matlabRunNB(cmd, callback = None):
      A "Finished( QStringList )" Qt signal is emitted when matlab exits.
      :param callback is a callback function that will be called at the end of the execution
     """
-    cmd = [cmd,]
-    # Because the command may be too long for a command line, let's put it in a temp file and run the file
+    # Save matlab script
+    matlabCall = saveMatlabCall(cmd)
+    # Create callback function : destroy temporary file and call the provided callback function
+    if callback is None:
+        cb = lambda:os.remove(fullpath)
+    else:
+        def cb():
+            os.remove(matlabCall['filename'])
+            callback()
+    return Executor(matlabCall['code'], objectsToKeep=matlabCall['file'], exitFunc = cb)
+
+
+def saveMatlabCall(cmd):
+    """ Format Matlab call in a cross-platform setup (replace paths if needed) """
+    cmd = str(cmd)
+    # For WSL/Windows, replace home and temporary folders
+    if isWindowsWSL:
+        cmd = cmd.replace(expanduser("~")+"/", "L:\\")
+    # Get temp file
+    tmpDir = getTmpDir()
+    tmpFile = ''.join(random.choice(string.letters) for i in xrange(15))
+    tmpFullPath = os.path.join(tmpDir, tmpFile + '.m')
+    # Write Matlab script in temp folder
+    f = open(tmpFullPath, 'w')
+    f.write("disp('===============================================================');\n")
+    f.write("disp('Executing Matlab script: "+tmpFullPath+"');\n")
+    f.write("disp(' ');\n")
+    f.write("fprintf(1, '" + cmd.replace("\\", "\\\\").replace("'", "''").replace('\n','\\n') + "\\n');\n")
+    f.write("disp('===============================================================');\n\n")
+    f.write(cmd + "\n\n")
+    f.close()
+    print("Calling script '"+tmpFullPath+ "' and with Matlab command : "+repr(matlabCall))
+    scriptCall = ["cd '%s';%s"%(formatExternalPath(tmpDir),tmpFile),]
+    return {'code':matlabCall+scriptCall, 'file':f, 'filename':tmpFullPath}
+
+def getTmpDir():
     # In Windows/WSL: Use $HOME/tmp instead of /tmp
     if isWindowsWSL:
         tmpdir = expanduser("~/tmp");
@@ -183,40 +200,15 @@ def matlabRunNB(cmd, callback = None):
             os.makedirs(tmpdir)
     else:
         tmpdir = tempfile.gettempdir()   # Expands to /tmp
-    tmpCmd = ''.join(random.choice(string.letters) for i in xrange(15))
-    tmpfile = tmpCmd + '.m'
-    fullpath = os.path.join(tmpdir, tmpfile)
-    # Write Matlab script in temp folder
-    f = open(fullpath, 'w')
-    f.write("disp('===============================================================');\n")
-    f.write("disp('Executing Matlab script: "+fullpath+"');\n")
-    f.write("disp(' ');\n")
-    f.write("fprintf(1, '" + ' '.join(cmd).replace("\\", "\\\\").replace("'", "''").replace('\n','\\n') + "\\n');\n")
-    f.write("disp('===============================================================');\n\n")
-    f.write(' '.join(cmd) + "\n\n")
-    f.close()
-    print("Calling matlab in "+tmpdir+" with file "+tmpfile+ " and matlab command : "+repr(matlabCall))
-    cmd = ["cd '%s';%s"%(formatExternalPath(tmpdir),tmpCmd),]
-    # Create callback function : destroy temporary file and call the provided callback function
-    if callback is None:
-        cb = lambda:os.remove(fullpath)
-    else:
-        def cb():
-            os.remove(fullpath)
-            callback()
-    return Executor(matlabCall+cmd, objectsToKeep=f, exitFunc = cb)
+    return tmpdir
+
 
 def runCmd(cmd):
     """ Executes a command and returns the output as an array of strings (the output lines)"""
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
     
-# def isWindowsWSL():
-#     """ Check whether the OS is a native Linux system or a Windows10/WSL system """
-#     with open('/proc/version', 'r') as procfile:
-#         return (procfile.read().find("Microsoft") != -1)
-       
 def formatExternalPath(fullpath):
     if isWindowsWSL:
-        return fullpath.replace(expanduser("~"), "L:").replace("/", "\\")
+        return str(fullpath).replace(expanduser("~"), "L:").replace("/", "\\")
     else:
-        return fullpath
+        return str(fullpath)

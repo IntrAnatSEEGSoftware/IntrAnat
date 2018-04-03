@@ -2328,17 +2328,14 @@ class ImageImportWindow (QDialog):
 
     def spmNormalize(self, image, protocol, patient, acq):
         """ Normalize one image (filepath of nifti file) to the T1 template MNI referential"""
-        # Get SPM path (corrected for various OS)
-        spm_path = formatExternalPath(str(self.prefs['spm']))
-        img_path = formatExternalPath(str(image))
         # Check SPM version
         spm_version = checkSpmVersion(str(self.prefs['spm']))
         if spm_version == '(SPM12)':
             print 'SPM12 used'
-            call = spm12_normalise%("'"+spm_path+"'","{'"+img_path+",1'}", "{'"+img_path+",1'}", self.spm_template_t1())
+            call = spm12_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", self.spm_template_t1())
         elif spm_version == '(SPM8)':
             print 'SPM8 used'
-            call = spm8_normalise%("'"+spm_path+"'","{'"+img_path+",1'}", "{'"+img_path+",1'}", self.spm_template_t1())
+            call = spm8_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", self.spm_template_t1())
         #TODO CHECK REGISTRATION AT THE END
         thr = matlabRunNB(call)#, lambda: self.taskfinished("spm normalize")) #matlabRunNB(call)
         # Try to connect the thread signals to a function here that will notice when it finishes
