@@ -58,6 +58,12 @@ Format( 'Atlas metrics', 'f|*.atlasmetrics')
 # FileType( 'T2 MRI', '3D Volume' ) -> already in builtin.py
 
 FileType( 'CT', '3D Volume' )
+
+try:
+    include('nuclearImaging')
+except:
+    FileType( 'PET', '4D Volume' )
+
 #FileType( 'PET', '3D Volume' ) # Or should it be 4D ? # Already defined in /usr/local/brainvisa/toolboxes/nuclearimaging/types/OLDnuclear_imaging.py
 FileType( 'fMRI-epile', '3D Volume') #'4D Volume'
 FileType( 'Statistic-Data', '3D Volume')
