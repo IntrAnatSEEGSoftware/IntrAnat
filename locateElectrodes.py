@@ -153,19 +153,25 @@ quit;"""
 
 # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
 spm_normalizePoints = """try
+    disp('Reading inverse MNI transformation...');
     addpath(genpath(%s));
     P='%s';
     P1=spm_vol([P ',1,1']);
     P2=spm_vol([P ',1,2']);
     P3=spm_vol([P ',1,3']);
+    disp('Reading inverse MNI transformation: X...');
     [V1,XYZ]=spm_read_vols(P1);
+    disp('Reading inverse MNI transformation: Y...');
     V2=spm_read_vols(P2);
+    disp('Reading inverse MNI transformation: Z...');
     V3=spm_read_vols(P3);
 
     %% Apply tranformation to electrodes
     PosElectrode = dlmread('%s');
     wPosElectrode=PosElectrode;
     for i1=1:size(PosElectrode,1)
+        fprintf('Processing contact: %%d / %%d...\\n', i1, size(PosElectrode,1));
+        %% Compute distance
         D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
         [tmp,order]=sort(D);
         tmp=tmp(1:18);      %%  cubic neighborhood
