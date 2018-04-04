@@ -42,17 +42,21 @@ def getTmpDir():
         tmpDir = tempfile.gettempdir()   # Expands to /tmp
     return tmpDir
 
-def getTmpFilePath(extension='txt'):
+def getTmpFilePath(extension='txt', isFull=False):
     """
       Generate a random file name in a temp directory
 
       file extension (txt by default) can be given as argument
       Usage : filepath = getTmpFilePath('jpg')
+              dict{'dir','filename','fullpath'} = getTmpFilePath('jpg', True)
     """
     tmpDir = getTmpDir()
     tmpFile = ''.join(random.choice(string.letters) for i in xrange(15))
     tmpPath = os.path.join(tmpDir, tmpFile + '.' + extension)
-    return {'dir':tmpDir, 'filename':tmpFile, 'fullpath':tmpPath}
+    if isFull:
+        return {'dir':tmpDir, 'filename':tmpFile, 'fullpath':tmpPath}
+    else:
+        return tmpPath
 
 class Executor(QtCore.QThread):
     """ This class executes a shell command in a thread.
@@ -181,7 +185,7 @@ def saveMatlabCall(cmd):
     if isWindowsWSL:
         cmd = cmd.replace(expanduser("~")+"/", "L:\\")
     # Get temp file
-    tmp = getTmpFilePath('m')
+    tmp = getTmpFilePath('m', True)
     # Write Matlab script in temp folder
     f = open(tmp['fullpath'], 'w')
     f.write("disp('===============================================================');\n")
