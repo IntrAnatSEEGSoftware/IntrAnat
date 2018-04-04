@@ -31,6 +31,16 @@ matlabCall = ['matlab', '-nosplash', '-nodisplay','-r']     #essayer sans le -no
 with open('/proc/version', 'r') as procfile:
 	isWindowsWSL = (procfile.read().find("Microsoft") != -1)
 
+def getTmpDir():
+    """ Get temporary folder """
+    # In Windows/WSL: Use $HOME/tmp instead of /tmp
+    if isWindowsWSL:
+        tmpDir = expanduser("~/tmp");
+        if not os.path.exists(tmpDir):
+            os.makedirs(tmpDir)
+    else:
+        tmpDir = tempfile.gettempdir()   # Expands to /tmp
+    return tmpDir
 
 def getTmpFilePath(extension='txt'):
     """
@@ -39,15 +49,10 @@ def getTmpFilePath(extension='txt'):
       file extension (txt by default) can be given as argument
       Usage : filepath = getTmpFilePath('jpg')
     """
-    if isWindowsWSL:
-        tmpdir = tempfile.gettempdir()
-    else:
-        tmpdir = tempfile.gettempdir()
-    tmpCmd = ''.join(random.choice(string.letters) for i in xrange(15))
-    tmpfile = tmpCmd + '.' + extension
-
-    fullpath = os.path.join(tmpdir, tmpfile)
-    return fullpath
+    tmpDir = getTmpDir()
+    tmpFile = ''.join(random.choice(string.letters) for i in xrange(15))
+    tmpPath = os.path.join(tmpDir, tmpFile + '.' + extension)
+    return {'dir':tmpDir, 'filename':tmpFile, 'fullpath':tmpPath}
 
 class Executor(QtCore.QThread):
     """ This class executes a shell command in a thread.
@@ -147,7 +152,7 @@ def matlabRun(cmd):
     # Run code
     result = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
     # Delete temp file
-    os.remove(matlabCall['filename'])
+    os.remove(matlabCall['fullpath'])
     # Return stdout
     return result
 
@@ -161,10 +166,10 @@ def matlabRunNB(cmd, callback = None):
     matlabCall = saveMatlabCall(cmd)
     # Create callback function : destroy temporary file and call the provided callback function
     if callback is None:
-        cb = lambda:os.remove(fullpath)
+        cb = lambda:os.remove(matlabCall['fullpath'])
     else:
         def cb():
-            os.remove(matlabCall['filename'])
+            os.remove(matlabCall['fullpath'])
             callback()
     return Executor(matlabCall['code'], objectsToKeep=matlabCall['file'], exitFunc = cb)
 
@@ -176,32 +181,19 @@ def saveMatlabCall(cmd):
     if isWindowsWSL:
         cmd = cmd.replace(expanduser("~")+"/", "L:\\")
     # Get temp file
-    tmpDir = getTmpDir()
-    tmpFile = ''.join(random.choice(string.letters) for i in xrange(15))
-    tmpFullPath = os.path.join(tmpDir, tmpFile + '.m')
+    tmp = getTmpFilePath('m')
     # Write Matlab script in temp folder
-    f = open(tmpFullPath, 'w')
+    f = open(tmp['fullpath'], 'w')
     f.write("disp('===============================================================');\n")
-    f.write("disp('Executing Matlab script: "+tmpFullPath+"');\n")
+    f.write("disp('Executing Matlab script: "+tmp['fullpath']+"');\n")
     f.write("disp(' ');\n")
     f.write("fprintf(1, '" + cmd.replace("\\", "\\\\").replace("'", "''").replace('\n','\\n') + "\\n');\n")
     f.write("disp('===============================================================');\n\n")
     f.write(cmd + "\n\n")
     f.close()
-    print("Calling script '"+tmpFullPath+ "' and with Matlab command : "+repr(matlabCall))
-    scriptCall = ["cd '%s';%s"%(formatExternalPath(tmpDir),tmpFile),]
-    return {'code':matlabCall+scriptCall, 'file':f, 'filename':tmpFullPath}
-
-def getTmpDir():
-    # In Windows/WSL: Use $HOME/tmp instead of /tmp
-    if isWindowsWSL:
-        tmpdir = expanduser("~/tmp");
-        if not os.path.exists(tmpdir):
-            os.makedirs(tmpdir)
-    else:
-        tmpdir = tempfile.gettempdir()   # Expands to /tmp
-    return tmpdir
-
+    print("Calling script '"+tmp['fullpath']+ "' and with Matlab command : "+repr(matlabCall))
+    scriptCall = ["cd '%s';%s"%(formatExternalPath(tmp['dir']),tmp['filename']),]
+    return {'code':matlabCall+scriptCall, 'file':f, 'fullpath':tmp['fullpath']}
 
 def runCmd(cmd):
     """ Executes a command and returns the output as an array of strings (the output lines)"""

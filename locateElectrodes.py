@@ -91,154 +91,189 @@ from soma.qt_gui.qt_backend.QtGui import QVBoxLayout
 
 ########## SPM calls
 # Convert SPM normalization _sn.mat to vector field
-spm_SnToField8 = """try, addpath(genpath(%s));spm('defaults', 'FMRI');spm_jobman('initcfg');
-clear matlabbatch;
-FileNameSN = '%s';
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
-matlabbatch{1}.spm.util.defs.comp{1}.inv.space{1}=['%s' ',1'];
-matlabbatch{1}.spm.util.defs.ofname='%s';
-matlabbatch{1}.spm.util.defs.fnames='';
-matlabbatch{1}.spm.util.defs.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
-matlabbatch{1}.spm.util.defs.interp=1;
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;""" # %(FileNameSN, FileSource, ofname) -> '_sn.mat' file and source image FileSource (normalized with the _sn). For the Database, we want y_<subject>_inverse.nii, so we need ofname = '<subject>_inverse' --> Maybe should provide also the output dir ? Right now, same as _sn.mat
+spm_SnToField8 = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    clear matlabbatch;
+    FileNameSN = '%s';
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.space{1}=['%s' ',1'];
+    matlabbatch{1}.spm.util.defs.ofname='%s';
+    matlabbatch{1}.spm.util.defs.fnames='';
+    matlabbatch{1}.spm.util.defs.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
+    matlabbatch{1}.spm.util.defs.interp=1;
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED'; 
+end
+quit;""" 
+# %(FileNameSN, FileSource, ofname) -> '_sn.mat' file and source image FileSource (normalized with the _sn). 
+# For the Database, we want y_<subject>_inverse.nii, so we need ofname = '<subject>_inverse' --> 
+# Maybe should provide also the output dir ? Right now, same as _sn.mat
 
 # API changed in SPM12...
-spm_SnToField12 = """try, addpath(genpath(%s));spm('defaults', 'FMRI');spm_jobman('initcfg');
-clear matlabbatch;
-FileNameSN = '%s';
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
-matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {'%s'};
-matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = '%s';
-matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm_SnToField12 = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    clear matlabbatch;
+    FileNameSN = '%s';
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {'%s'};
+    matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = '%s';
+    matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
 #spm_SnToField = spm_SnToField12
 
-spm_inverse_y_field12 = """try,addpath(genpath(%s));spm('defaults', 'FMRI');spm_jobman('initcfg');
-clear matlabbatch;
-matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
-matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {%s};
-matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = %s;
-matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr = {%s};
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;"""
+spm_inverse_y_field12 = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    clear matlabbatch;
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
+    matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {%s};
+    matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = %s;
+    matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr = {%s};
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED'; 
+end
+quit;"""
 
-spm_inverse_y_field8 ="""try,addpath(genpath(%s));spm('defaults', 'FMRI');spm_jobman('initcfg');
-
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;"""
 
 # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
-spm_normalizePoints = """
-try, addpath(genpath(%s));P='%s';
-P1=spm_vol([P ',1,1']);
-P2=spm_vol([P ',1,2']);
-P3=spm_vol([P ',1,3']);
-[V1,XYZ]=spm_read_vols(P1);
-V2=spm_read_vols(P2);
-V3=spm_read_vols(P3);
+spm_normalizePoints = """try
+    addpath(genpath(%s));
+    P='%s';
+    P1=spm_vol([P ',1,1']);
+    P2=spm_vol([P ',1,2']);
+    P3=spm_vol([P ',1,3']);
+    [V1,XYZ]=spm_read_vols(P1);
+    V2=spm_read_vols(P2);
+    V3=spm_read_vols(P3);
 
-%% Apply tranformation to electrodes
-PosElectrode = dlmread('%s');
-wPosElectrode=PosElectrode;
-for i1=1:size(PosElectrode,1)
-D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
-[tmp,order]=sort(D);
-tmp=tmp(1:18);      %%  cubic neighborhood
-order=order(1:18);
-W=1./tmp;           %%  weight inverse to distance
-if sum(isinf(W))>0
-W=[1 zeros(1,length(W)-1)];
+    %% Apply tranformation to electrodes
+    PosElectrode = dlmread('%s');
+    wPosElectrode=PosElectrode;
+    for i1=1:size(PosElectrode,1)
+        D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
+        [tmp,order]=sort(D);
+        tmp=tmp(1:18);      %%  cubic neighborhood
+        order=order(1:18);
+        W=1./tmp;           %%  weight inverse to distance
+        if sum(isinf(W))>0
+            W=[1 zeros(1,length(W)-1)];
+        end
+        wPosElectrode(i1,:)=[sum(V1(order).*W)./sum(W) sum(V2(order).*W)./sum(W) sum(V3(order).*W)./sum(W)];
+    end
+    dlmwrite('%s',wPosElectrode,'precision',18);
+catch
+    disp 'AN ERROR OCCURED'; 
 end
-wPosElectrode(i1,:)=[sum(V1(order).*W)./sum(W) sum(V2(order).*W)./sum(W) sum(V3(order).*W)./sum(W)];
-end
-dlmwrite('%s',wPosElectrode,'precision',18);
-catch, disp 'AN ERROR OCCURED'; end;quit;
-"""
+quit;"""
 
 
 #coregister and reslice and segmentation (for resection estimation)
-spm_resection_estimation = """try, addpath(genpath(%s)); spm('defaults', 'FMRI'); spm_jobman('initcfg');
-clear matlabbatch;
+spm_resection_estimation = """try
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
+    spm_jobman('initcfg');
+    clear matlabbatch;
 
-final_directory = %s;
-if isdir(final_directory) == 0
-   mkdir(final_directory)
+    final_directory = %s;
+    if isdir(final_directory) == 0
+       mkdir(final_directory)
+    end
+    matlabbatch{1}.spm.spatial.coreg.estwrite.ref = %s;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.source = %s;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.other = {''};
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.cost_fun = 'nmi';
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.sep = [4 2];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.fwhm = [7 7];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 4;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;
+    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';
+    matlabbatch{2}.spm.spatial.preproc.channel.vols = %s;
+    matlabbatch{2}.spm.spatial.preproc.channel.biasreg = 0.001;
+    matlabbatch{2}.spm.spatial.preproc.channel.biasfwhm = 60;
+    matlabbatch{2}.spm.spatial.preproc.channel.write = [0 0];
+    matlabbatch{2}.spm.spatial.preproc.tissue(1).tpm = %s;
+    matlabbatch{2}.spm.spatial.preproc.tissue(1).ngaus = 2;
+    matlabbatch{2}.spm.spatial.preproc.tissue(1).native = [1 0];
+    matlabbatch{2}.spm.spatial.preproc.tissue(1).warped = [0 0];
+    matlabbatch{2}.spm.spatial.preproc.warp.mrf = 1;
+    matlabbatch{2}.spm.spatial.preproc.warp.cleanup = 1;
+    matlabbatch{2}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
+    matlabbatch{2}.spm.spatial.preproc.warp.affreg = 'mni';
+    matlabbatch{2}.spm.spatial.preproc.warp.fwhm = 0;
+    matlabbatch{2}.spm.spatial.preproc.warp.samp = 3;
+    matlabbatch{2}.spm.spatial.preproc.warp.write = [0 0];
+    matlabbatch{3}.spm.spatial.preproc.channel.vols = %s;
+    matlabbatch{3}.spm.spatial.preproc.channel.biasreg = 0.001;
+    matlabbatch{3}.spm.spatial.preproc.channel.biasfwhm = 60;
+    matlabbatch{3}.spm.spatial.preproc.channel.write = [0 0];
+    matlabbatch{3}.spm.spatial.preproc.tissue(1).tpm = %s;
+    matlabbatch{3}.spm.spatial.preproc.tissue(1).ngaus = 2;
+    matlabbatch{3}.spm.spatial.preproc.tissue(1).native = [1 0];
+    matlabbatch{3}.spm.spatial.preproc.tissue(1).warped = [0 0];
+    matlabbatch{3}.spm.spatial.preproc.warp.mrf = 1;
+    matlabbatch{3}.spm.spatial.preproc.warp.cleanup = 1;
+    matlabbatch{3}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
+    matlabbatch{3}.spm.spatial.preproc.warp.affreg = 'mni';
+    matlabbatch{3}.spm.spatial.preproc.warp.fwhm = 0;
+    matlabbatch{3}.spm.spatial.preproc.warp.samp = 3;
+    matlabbatch{3}.spm.spatial.preproc.warp.write = [0 0];
+    matlabbatch{4}.spm.util.imcalc.input = {
+                                            %s
+                                            %s
+                                            };
+    matlabbatch{4}.spm.util.imcalc.output = %s;
+    matlabbatch{4}.spm.util.imcalc.outdir = %s;
+    matlabbatch{4}.spm.util.imcalc.expression = 'i1-i2';
+    matlabbatch{4}.spm.util.imcalc.var = struct('name', {}, 'value', {});
+    matlabbatch{4}.spm.util.imcalc.options.dmtx = 0;
+    matlabbatch{4}.spm.util.imcalc.options.mask = 0;
+    matlabbatch{4}.spm.util.imcalc.options.interp = 1;
+    matlabbatch{4}.spm.util.imcalc.options.dtype = 4;
+    spm_jobman('run',matlabbatch);
+catch
+    disp 'AN ERROR OCCURED'; 
 end
-matlabbatch{1}.spm.spatial.coreg.estwrite.ref = %s;
-matlabbatch{1}.spm.spatial.coreg.estwrite.source = %s;
-matlabbatch{1}.spm.spatial.coreg.estwrite.other = {''};
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.cost_fun = 'nmi';
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.sep = [4 2];
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
-matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.fwhm = [7 7];
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 4;
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;
-matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';
-matlabbatch{2}.spm.spatial.preproc.channel.vols = %s;
-matlabbatch{2}.spm.spatial.preproc.channel.biasreg = 0.001;
-matlabbatch{2}.spm.spatial.preproc.channel.biasfwhm = 60;
-matlabbatch{2}.spm.spatial.preproc.channel.write = [0 0];
-matlabbatch{2}.spm.spatial.preproc.tissue(1).tpm = %s;
-matlabbatch{2}.spm.spatial.preproc.tissue(1).ngaus = 2;
-matlabbatch{2}.spm.spatial.preproc.tissue(1).native = [1 0];
-matlabbatch{2}.spm.spatial.preproc.tissue(1).warped = [0 0];
-matlabbatch{2}.spm.spatial.preproc.warp.mrf = 1;
-matlabbatch{2}.spm.spatial.preproc.warp.cleanup = 1;
-matlabbatch{2}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-matlabbatch{2}.spm.spatial.preproc.warp.affreg = 'mni';
-matlabbatch{2}.spm.spatial.preproc.warp.fwhm = 0;
-matlabbatch{2}.spm.spatial.preproc.warp.samp = 3;
-matlabbatch{2}.spm.spatial.preproc.warp.write = [0 0];
-matlabbatch{3}.spm.spatial.preproc.channel.vols = %s;
-matlabbatch{3}.spm.spatial.preproc.channel.biasreg = 0.001;
-matlabbatch{3}.spm.spatial.preproc.channel.biasfwhm = 60;
-matlabbatch{3}.spm.spatial.preproc.channel.write = [0 0];
-matlabbatch{3}.spm.spatial.preproc.tissue(1).tpm = %s;
-matlabbatch{3}.spm.spatial.preproc.tissue(1).ngaus = 2;
-matlabbatch{3}.spm.spatial.preproc.tissue(1).native = [1 0];
-matlabbatch{3}.spm.spatial.preproc.tissue(1).warped = [0 0];
-matlabbatch{3}.spm.spatial.preproc.warp.mrf = 1;
-matlabbatch{3}.spm.spatial.preproc.warp.cleanup = 1;
-matlabbatch{3}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-matlabbatch{3}.spm.spatial.preproc.warp.affreg = 'mni';
-matlabbatch{3}.spm.spatial.preproc.warp.fwhm = 0;
-matlabbatch{3}.spm.spatial.preproc.warp.samp = 3;
-matlabbatch{3}.spm.spatial.preproc.warp.write = [0 0];
-matlabbatch{4}.spm.util.imcalc.input = {
-                                        %s
-                                        %s
-                                        };
-matlabbatch{4}.spm.util.imcalc.output = %s;
-matlabbatch{4}.spm.util.imcalc.outdir = %s;
-matlabbatch{4}.spm.util.imcalc.expression = 'i1-i2';
-matlabbatch{4}.spm.util.imcalc.var = struct('name', {}, 'value', {});
-matlabbatch{4}.spm.util.imcalc.options.dmtx = 0;
-matlabbatch{4}.spm.util.imcalc.options.mask = 0;
-matlabbatch{4}.spm.util.imcalc.options.interp = 1;
-matlabbatch{4}.spm.util.imcalc.options.dtype = 4;
-spm_jobman('run',matlabbatch);catch, disp 'AN ERROR OCCURED'; end;quit;"""
+quit;"""
 
 
-region_grow="""try,addpath(genpath(%s));
-imgresec = %s;
-iSeed = %s;
-reseccenter = %s;
-f_orient = %s;
-f_orient = reshape(f_orient,4,4)';
-centermatF = eye(4);
-centermatF(:,4) = f_orient*[reseccenter 1]';
-VF = spm_vol(imgresec);
-reseccenter_pix = inv(VF.mat)*centermatF(:,4);
-mat_to_grow=spm_read_vols(VF);
-new_image = regiongrowing(mat_to_grow,iSeed,reseccenter_pix(1:3));
-VF.fname = %s;
-VF.private.mat0 = VF.mat;
-spm_write_vol(VF,new_image);
-catch, disp 'AN ERROR OCCURED'; end;quit;"""
+region_grow="""try
+    addpath(genpath(%s));
+    imgresec = %s;
+    iSeed = %s;
+    reseccenter = %s;
+    f_orient = %s;
+    f_orient = reshape(f_orient,4,4)';
+    centermatF = eye(4);
+    centermatF(:,4) = f_orient*[reseccenter 1]';
+    VF = spm_vol(imgresec);
+    reseccenter_pix = inv(VF.mat)*centermatF(:,4);
+    mat_to_grow=spm_read_vols(VF);
+    new_image = regiongrowing(mat_to_grow,iSeed,reseccenter_pix(1:3));
+    VF.fname = %s;
+    VF.private.mat0 = VF.mat;
+    spm_write_vol(VF,new_image);
+catch
+    disp 'AN ERROR OCCURED';
+end
+quit;"""
 
 def viewFile(filepath):
 	""" Launches an external app to display the provided file (windows/linux/mac-specific methods) """
@@ -723,8 +758,9 @@ class LocateElectrodes(QtGui.QDialog):
            print 'SPM12 used'
            matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
         if spm_version == '(SPM8)':
-           print 'SPM8 used'
-           matlabRun(spm_inverse_y_field8%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+           print 'SPM8 used: NOT SUPPORTED'
+           raise
+           # matlabRun(spm_inverse_y_field8%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
 
         self.t1preMniFieldPath = di_inverse.fileName()
         neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
@@ -2079,12 +2115,12 @@ class LocateElectrodes(QtGui.QDialog):
           image = self.dispObj[content[0]]
           w2.addObjects(image)
           time.sleep(1)
-          w2.windowConfig(snapshot="/tmp/"+self.brainvisaPatientAttributes['subject']+"RightHemiSagittal.png")
+          w2.windowConfig(snapshot=os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittal.png"))
           #rotates the view by 180°
           w2.camera(view_quaternion=[-0.5, 0.5, 0.5, -0.5])     
           #waits a second so that the window has the tame to be updated before the next screenshot, they are saved in the tmp repertory
           time.sleep(1)
-          w2.windowConfig(snapshot="/tmp/"+self.brainvisaPatientAttributes['subject']+"RightHemiSagittalRot.png")
+          w2.windowConfig(snapshot=os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittalRot.png"))
           
           w2.close()
           
@@ -2099,17 +2135,19 @@ class LocateElectrodes(QtGui.QDialog):
           image = self.dispObj[content[0]]
           w21.addObjects(image)
           time.sleep(1)
-          w21.windowConfig(snapshot="/tmp/"+self.brainvisaPatientAttributes['subject']+"LeftHemiSagittal.png")
+          w21.windowConfig(snapshot=os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittal.png"))
           w21.camera(view_quaternion=[-0.5, 0.5, 0.5, -0.5])          
           time.sleep(1)
-          w21.windowConfig(snapshot="/tmp/"+self.brainvisaPatientAttributes['subject']+"LeftHemiSagittalRot.png")
+          w21.windowConfig(snapshot=os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittalRot.png"))
           w21.close()
 
           #puts the cursor back
           self.a.config()[ 'linkedCursor' ] = 1
           #opens the pictures of the left and right brain which were taken previously
-          images1 = map(Image.open, ["/tmp/"+self.brainvisaPatientAttributes['subject']+"RightHemiSagittal.png", "/tmp/"+self.brainvisaPatientAttributes['subject']+"RightHemiSagittalRot.png"])
-          images2 = map(Image.open, ["/tmp/"+self.brainvisaPatientAttributes['subject']+"LeftHemiSagittal.png","/tmp/"+self.brainvisaPatientAttributes['subject']+"LeftHemiSagittalRot.png"])
+          images1 = map(Image.open, [os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittal.png"),\
+                                     os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittalRot.png")])
+          images2 = map(Image.open, [os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittal.png"),\
+                                     os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittalRot.png")])
           
           #calculates the width and height of the new picture we are going to make
           widths1, heights1 = zip(*(i.size for i in images1))
@@ -2130,17 +2168,17 @@ class LocateElectrodes(QtGui.QDialog):
               new_im1.paste(im, (x_offset,0))
               x_offset += im.size[0]
               
-          new_im1.save('/tmp/associated1.png')
+          new_im1.save(os.path.join(getTmpDir(), 'associated1.png'))
           
           x_offset = 0
           for im in images2:
               new_im2.paste(im, (x_offset,0))
               x_offset += im.size[0]   
           
-          new_im2.save('/tmp/associated2.png')
+          new_im2.save(os.path.join(getTmpDir(),'associated2.png'))
           
           #pastes the two images obtained previously by the y axis
-          images = map(Image.open, ["/tmp/associated1.png","/tmp/associated2.png"])    
+          images = map(Image.open, [os.path.join(getTmpDir(),"associated1.png"), os.path.join(getTmpDir(),"associated2.png")])    
           new_im=Image.new('RGB', (total_width1, max_height1*2))
           
           y_offset = 0
@@ -2149,7 +2187,7 @@ class LocateElectrodes(QtGui.QDialog):
               y_offset += im.size[1]  
           
           
-          new_im.save('/tmp/associated.png')
+          new_im.save(os.path.join(getTmpDir(), 'associated.png'))
           #verification that the path is creatable
           wdi = WriteDiskItem('Screenshot of Mars Atlas','PNG image')
           di=wdi.findValue(self.diskItems['T1pre'])
@@ -2163,7 +2201,7 @@ class LocateElectrodes(QtGui.QDialog):
                   #line0 = runCmd(cmd0) 
               except:
                   line0=1
-              cmd1 = ['mv', '/tmp/associated.png', str(di.fullPath())]
+              cmd1 = ['mv', os.path.join(getTmpDir(),'associated.png'), str(di.fullPath())]
               line1 = runCmd(cmd1)
               #updates the database with the image of the 2 views of the 2 parcellation
               neuroHierarchy.databases.insertDiskItem(di, update=True )
@@ -2242,7 +2280,7 @@ class LocateElectrodes(QtGui.QDialog):
             limit=npCT.shape[1]
             
         #Erase all previous files
-        os.system('find /tmp/gif*.png -type f -exec rm -f {} \;')
+        os.system('find ' + os.path.join(getTmpDir(),'gif') + '*.png -type f -exec rm -f {} \;')
         
         #Take out the cursor
         self.a.config()[ 'linkedCursor' ] = 0
@@ -2286,12 +2324,12 @@ class LocateElectrodes(QtGui.QDialog):
         snapShots=[]
         while i<limit:
             self.a.execute( 'LinkedCursor', window=w21, position=( 0, 0, i ) )   
-            w21.windowConfig(snapshot="/tmp/gifCT%03i.png"%(i))
-            snapShots.append("/tmp/gifCT%03i.png"%(i))
+            w21.windowConfig(snapshot=os.path.join(getTmpDir(), "gifCT%03i.png"%(i)))
+            snapShots.append(os.path.join(getTmpDir(), "gifCT%03i.png"%(i)))
             i+=1    
         w21.close()
         brainvisaContext = defaultContext()
-        brainvisaContext.runProcess('mpegEncode_avconv', animation="/tmp/animationElec.mp4",images = snapShots[:-1],encoding='h264',quality=75,passes=1)
+        brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),"animationElec.mp4"),images = snapShots[:-1],encoding='h264',quality=75,passes=1)
 
         wdi = WriteDiskItem('MP4 of Electrodes','MP4 film')
         if PresCT==True:
@@ -2308,7 +2346,7 @@ class LocateElectrodes(QtGui.QDialog):
             except:
                pass
                
-            cmd1 = ['mv', "/tmp/animationElec.mp4" , str(di.fullPath())]
+            cmd1 = ['mv', os.path.join(getTmpDir(),"animationElec.mp4"), str(di.fullPath())]
             line1 = runCmd(cmd1)
             neuroHierarchy.databases.insertDiskItem(di, update=True )
             
@@ -2345,7 +2383,7 @@ class LocateElectrodes(QtGui.QDialog):
             image = self.dispObj[content[0]]
             w2.addObjects(image)
             time.sleep(1)
-            w2.windowConfig(snapshot="/tmp/gifR000.png")
+            w2.windowConfig(snapshot=os.path.join(getTmpDir(),"gifR000.png"))
             i=1
             v0=[0.5, 0.5, 0.5, 0.5]
             v1=[-0.5,0.5,0.5,-0.5] 
@@ -2353,7 +2391,7 @@ class LocateElectrodes(QtGui.QDialog):
             while i<176:
                 quat=quaternion.Quaternion((v0[0]*(1-incr*i)+v1[0]*incr*i,v0[1]*(1-incr*i)+v1[1]*incr*i,v0[2]*(1-incr*i)+v1[2]*incr*i,v0[3]*(1-incr*i)+v1[3]*incr*i)).normalized().vector()
                 w2.camera(view_quaternion=quat)
-                w2.windowConfig(snapshot="/tmp/gifR%03i.png"%(i))
+                w2.windowConfig(snapshot=os.path.join(getTmpDir(),"gifR%03i.png"%(i)))
                 i+=1  
             i=0    
             v1=[0.5, 0.5, 0.5, 0.5]
@@ -2361,7 +2399,7 @@ class LocateElectrodes(QtGui.QDialog):
             while i<175:
                 quat=quaternion.Quaternion((v0[0]*(1-incr*i)-v1[0]*incr*i,v0[1]*(1-incr*i)-v1[1]*incr*i,v0[2]*(1-incr*i)-v1[2]*incr*i,v0[3]*(1-incr*i)-v1[3]*incr*i)).normalized().vector()
                 w2.camera(view_quaternion=quat)                                                               
-                w2.windowConfig(snapshot="/tmp/gifR%03i.png"%(i+175))
+                w2.windowConfig(snapshot=os.path.join(getTmpDir(),"gifR%03i.png"%(i+175)))
                 i+=1    
             w2.close()  
         
@@ -2377,7 +2415,7 @@ class LocateElectrodes(QtGui.QDialog):
             image = self.dispObj[content[0]]
             w2.addObjects(image)
             time.sleep(1)
-            w2.windowConfig(snapshot="/tmp/gifL000.png")
+            w2.windowConfig(snapshot=os.path.join(getTmpDir(),"gifL000.png"))
             i=1
             v0=[0.5, 0.5, 0.5, 0.5]
             v1=[-0.5,0.5,0.5,-0.5] 
@@ -2385,7 +2423,7 @@ class LocateElectrodes(QtGui.QDialog):
             while i<175:
                 quat=quaternion.Quaternion((v0[0]*(1-incr*i)+v1[0]*incr*i,v0[1]*(1-incr*i)+v1[1]*incr*i,v0[2]*(1-incr*i)+v1[2]*incr*i,v0[3]*(1-incr*i)+v1[3]*incr*i)).normalized().vector()
                 w2.camera(view_quaternion=quat)    
-                w2.windowConfig(snapshot="/tmp/gifL%03i.png"%(i))
+                w2.windowConfig(snapshot=os.path.join(getTmpDir(),"gifL%03i.png"%(i)))
                 i+=1  
             i=0    
             v1=[0.5, 0.5, 0.5, 0.5]
@@ -2393,7 +2431,7 @@ class LocateElectrodes(QtGui.QDialog):
             while i<175:
                 quat=quaternion.Quaternion((v0[0]*(1-incr*i)-v1[0]*incr*i,v0[1]*(1-incr*i)-v1[1]*incr*i,v0[2]*(1-incr*i)-v1[2]*incr*i,v0[3]*(1-incr*i)-v1[3]*incr*i)).normalized().vector()
                 w2.camera(view_quaternion=quat)                                                               
-                w2.windowConfig(snapshot="/tmp/gifL%03i.png"%(i+175))
+                w2.windowConfig(snapshot=os.path.join(getTmpDir(),"gifL%03i.png"%(i+175)))
                 i+=1    
             w2.close()  
         
@@ -2401,7 +2439,7 @@ class LocateElectrodes(QtGui.QDialog):
             j=0
             while j<350:
                 #print 'j', j
-                images = map(Image.open,["/tmp/gifL%03i.png"%(j),"/tmp/gifR%03i.png"%(j)])
+                images = map(Image.open,[os.path.join(getTmpDir(),"gifL%03i.png"%(j)), os.path.join(getTmpDir(),"gifR%03i.png"%(j))])
                 
                 widths, heights = zip(*(i.size for i in images))
           
@@ -2415,8 +2453,8 @@ class LocateElectrodes(QtGui.QDialog):
                     new_im.paste(im, (x_offset,0))
                     x_offset += im.size[0]
                 
-                new_im.save('/tmp/gifF%03i.jpg'%(j),quality=70)
-                new_list_image.append('/tmp/gifF%03i.jpg'%(j))
+                new_im.save(os.path.join(getTmpDir(),'gifF%03i.jpg'%(j)), quality=70)
+                new_list_image.append(os.path.join(getTmpDir(), 'gifF%03i.jpg'%(j)))
                 
                 j+=1    
             #cmd1 = ['convert','-delay', '50', '-loop','0','/tmp/gif*.png','/home/gin11_stage/animation.gif']
@@ -2424,7 +2462,7 @@ class LocateElectrodes(QtGui.QDialog):
             #line1 = runCmd(cmd1)
             
             brainvisaContext = defaultContext()
-            brainvisaContext.runProcess('mpegEncode_avconv', animation='/tmp/animationMA.mp4',images = new_list_image,encoding='h264',quality=50,passes=1)
+            brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),'animationMA.mp4'),images = new_list_image,encoding='h264',quality=50,passes=1)
             wdi = WriteDiskItem('MP4 of Mars Atlas','MP4 film')
             di=wdi.findValue(self.diskItems['T1pre'])
 
@@ -2437,7 +2475,7 @@ class LocateElectrodes(QtGui.QDialog):
                 except:
                   pass
 
-                cmd1 = ['mv', '/tmp/animationMA.mp4', str(di.fullPath())]
+                cmd1 = ['mv', os.path.join(getTmpDir(),'animationMA.mp4'), str(di.fullPath())]
                 line1 = runCmd(cmd1)
                 neuroHierarchy.databases.insertDiskItem(di, update=True )
                 
@@ -2616,7 +2654,7 @@ class LocateElectrodes(QtGui.QDialog):
       if field is None:
           print "MNI deformation field not found"
           return None
-      tmpOutput = '/tmp/test.csv' #pour tester
+      tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
       arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
       numpy.savetxt(tmpOutput, arr, delimiter=",")
       matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))

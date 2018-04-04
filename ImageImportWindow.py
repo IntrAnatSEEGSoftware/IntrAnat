@@ -1314,9 +1314,9 @@ class ImageImportWindow (QDialog):
         split_path = os.path.splitext(path)
         if split_path[-1] == ".mgz":
             try:
-                tmp_nii_path = "/tmp/tmp_mgz_nii.nii"
+                # tmp_nii_path = "/ tmp / tmp_mgz_nii.nii"
+                tmp_nii_path = getTmpFilePath('nii')
                 #on reslice par rapport au t1 pre
-                #pdb.set_trace()
                 di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.currentSubject } )
                 allT1 = list(di.findValues({},None,False))
                 idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
@@ -2213,7 +2213,7 @@ class ImageImportWindow (QDialog):
         matlabRun(call)
         print "segmentation gado done"
     
-        cmd1 = ['mv', str(nobiasimages[id_pre[0]]), os.path.join('/tmp',self.currentSubject+'backup.nii')]
+        cmd1 = ['mv', str(nobiasimages[id_pre[0]]), os.path.join(getTmpDir(),self.currentSubject+'backup.nii')]
         cmd2 = ['cp',str(splittedName), str(nobiasimages[id_pre[0]])]
         line1 = runCmd(cmd1)
         line2 = runCmd(cmd2)
@@ -2240,7 +2240,7 @@ class ImageImportWindow (QDialog):
                 nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
                 nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
                 id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
-                cmd = ['mv',os.path.join('/tmp',self.currentSubject+'backup.nii'),str(nobiasimages[id_pre[0]])]
+                cmd = ['mv',os.path.join(getTmpDir(),self.currentSubject+'backup.nii'),str(nobiasimages[id_pre[0]])]
                 line1 = runCmd(cmd)
 
         self.taskfinished(u'Segmentation et maillages BrainVisa')
@@ -2618,7 +2618,7 @@ class ImageImportWindow (QDialog):
             for ii in range(len(notrightamygdalapx[0])):
                 volDestrieux.setValue(0,notrightamygdalapx[3][ii],notrightamygdalapx[2][ii],notrightamygdalapx[1][ii])
 
-            aims.write(volDestrieux,'/tmp/rightamygdala.nii')
+            aims.write(volDestrieux, os.path.join(getTmpDir(),'rightamygdala.nii'))
             volDestrieux = aims.read(diFS.fullPath())
             wdirightamygdala =  WriteDiskItem('rightAmygdala', 'GIFTI file' )
             dirightamygdala = wdirightamygdala.findValue(constraints)
@@ -2627,7 +2627,7 @@ class ImageImportWindow (QDialog):
             else:
                 if not os.path.isdir(os.path.dirname(dirightamygdala.fullPath())):
                     os.makedirs(os.path.dirname(dirightamygdala.fullPath()))
-                ret = subprocess.call(['AimsMeshBrain', '-i', '/tmp/rightamygdala.nii', '-o', dirightamygdala.fullPath()])
+                ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'rightamygdala.nii'), '-o', dirightamygdala.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dirightamygdala, update = True)
                 if 'referential' in allT1[idxT1pre[0]].attributes().keys():
                     self.transfoManager.setReferentialTo(dirightamygdala, allT1[idxT1pre[0]].attributes()['referential'] )
@@ -2636,7 +2636,7 @@ class ImageImportWindow (QDialog):
             for ii in range(len(notleftamygdalapx[0])):
                 volDestrieux.setValue(0,notleftamygdalapx[3][ii],notleftamygdalapx[2][ii],notleftamygdalapx[1][ii])
 
-            aims.write(volDestrieux,'/tmp/leftamygdala.nii')
+            aims.write(volDestrieux,os.path.join(getTmpDir(),'leftamygdala.nii'))
             volDestrieux = aims.read(diFS.fullPath())
             wdileftamygdala =  WriteDiskItem('leftAmygdala', 'GIFTI file' )
             dileftamygdala = wdileftamygdala.findValue(constraints)
@@ -2645,7 +2645,7 @@ class ImageImportWindow (QDialog):
             else:
                 if not os.path.isdir(os.path.dirname(dileftamygdala.fullPath())):
                     os.makedirs(os.path.dirname(dileftamygdala.fullPath()))
-                ret = subprocess.call(['AimsMeshBrain', '-i', '/tmp/leftamygdala.nii', '-o', dileftamygdala.fullPath()])
+                ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'leftamygdala.nii'), '-o', dileftamygdala.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dileftamygdala, update = True)
                 if 'referential' in allT1[idxT1pre[0]].attributes().keys():
                     self.transfoManager.setReferentialTo(dileftamygdala, allT1[idxT1pre[0]].attributes()['referential'] )
@@ -2661,7 +2661,7 @@ class ImageImportWindow (QDialog):
             for ii in range(len(notrighthippopx[0])):
                 volDestrieux.setValue(0,notrighthippopx[3][ii],notrighthippopx[2][ii],notrighthippopx[1][ii])
 
-            aims.write(volDestrieux,'/tmp/righthippo.nii')
+            aims.write(volDestrieux,os.path.join(getTmpDir(),'righthippo.nii'))
             volDestrieux = aims.read(diFS.fullPath())
             wdirighthippo =  WriteDiskItem('rightHippo', 'GIFTI file' )
             dirightHippo = wdirighthippo.findValue(constraints)
@@ -2670,7 +2670,7 @@ class ImageImportWindow (QDialog):
             else:
                 if not os.path.isdir(os.path.dirname(dirightHippo.fullPath())):
                     os.makedirs(os.path.dirname(dirightHippo.fullPath()))
-            ret = subprocess.call(['AimsMeshBrain', '-i', '/tmp/righthippo.nii', '-o', dirightHippo.fullPath()])
+            ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'righthippo.nii'), '-o', dirightHippo.fullPath()])
             neuroHierarchy.databases.insertDiskItem(dirightHippo, update = True)
             if 'referential' in allT1[idxT1pre[0]].attributes().keys():
                 self.transfoManager.setReferentialTo(dirightHippo, allT1[idxT1pre[0]].attributes()['referential'] )
@@ -2696,18 +2696,18 @@ class ImageImportWindow (QDialog):
 
             aims.SurfaceManip.meshMerge(testhippocut,planmesh)
             aims.SurfaceManip.meshMerge(testhippocut2,planmesh2)
-            aims.write(testhippocut,'/tmp/testhippocut.gii')
-            aims.write(testhippocut2,'/tmp/testhippocut2.gii')
+            aims.write(testhippocut,os.path.join(getTmpDir(),'testhippocut.gii'))
+            aims.write(testhippocut2,os.path.join(getTmpDir(),'testhippocut2.gii'))
 
-            #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', '/tmp/testhippocut.gii', '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center)),'-p','/tmp/testplan.nii'])
-            #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', '/tmp/testhippocut2.gii', '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center)),'-p','/tmp/testplan2.nii'])
+            #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut.gii'), '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center)),'-p',os.path.join(getTmpDir(),'testplan.nii')])
+            #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut2.gii'), '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center)),'-p',os.path.join(getTmpDir(),'testplan2.nii')])
 
-            #equivalent à : test = aims.read(-numpy.inner(rotation[2,:],center))  truc = aims.AimsTimeSurface_2()  bidule=aims.AimsTimeSurface()  aims.SurfaceManip.cutMesh(test1,[rotation[2,2],rotation[2,1],rotation[2,0],-numpy.inner(rotation[2,:],center)],bidule,truc) aims.write(bidule,'/tmp/bidule.gii')
-            hippogii = aims.read('/tmp/testhippocut.gii')
+            #equivalent à : test = aims.read(-numpy.inner(rotation[2,:],center))  truc = aims.AimsTimeSurface_2()  bidule=aims.AimsTimeSurface()  aims.SurfaceManip.cutMesh(test1,[rotation[2,2],rotation[2,1],rotation[2,0],-numpy.inner(rotation[2,:],center)],bidule,truc) aims.write(bidule,os.path.join(getTmpDir(),'bidule.gii'))
+            hippogii = aims.read(os.path.join(getTmpDir(),'testhippocut.gii'))
             hippovertex = numpy.array(hippogii.vertex().list())
             centerhippo = numpy.average(hippovertex,axis=0)
 
-            hippogii2 = aims.read('/tmp/testhippocut2.gii')
+            hippogii2 = aims.read(os.path.join(getTmpDir(),'testhippocut2.gii'))
             hippovertex2 = numpy.array(hippogii2.vertex().list())
             centerhippo2 = numpy.average(hippovertex2,axis=0)
 
@@ -2719,8 +2719,8 @@ class ImageImportWindow (QDialog):
                 if dirighthippoantero is None or dirighthippopostero is None:
                     print "mesh export : could not find valid path"
                 else:
-                    cmd1 = ['mv', '/tmp/testhippocut2.gii', str(dirighthippoantero.fullPath())]
-                    cmd2 = ['mv', '/tmp/testhippocut.gii', str(dirighthippopostero.fullPath())]
+                    cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dirighthippoantero.fullPath())]
+                    cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dirighthippopostero.fullPath())]
                     line1 = runCmd(cmd1)
                     line2 = runCmd(cmd2)
                     neuroHierarchy.databases.insertDiskItem(dirighthippoantero, update = True)
@@ -2733,8 +2733,8 @@ class ImageImportWindow (QDialog):
                 if dirighthippoantero is None or dirighthippopostero is None:
                     print "mesh export : could not find valid path"
                 else:
-                    cmd1 = ['mv', '/tmp/testhippocut.gii', str(dirighthippoantero.fullPath())]
-                    cmd2 = ['mv', '/tmp/testhippocut2.gii', str(dirighthippopostero.fullPath())]
+                    cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dirighthippoantero.fullPath())]
+                    cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dirighthippopostero.fullPath())]
                     line1 = runCmd(cmd1)
                     line2 = runCmd(cmd2)
                     neuroHierarchy.databases.insertDiskItem(dirighthippoantero, update = True)
@@ -2790,7 +2790,7 @@ class ImageImportWindow (QDialog):
             for ii in range(len(notlefthippopx[0])):
                 volDestrieux.setValue(0,notlefthippopx[3][ii],notlefthippopx[2][ii],notlefthippopx[1][ii])
 
-            aims.write(volDestrieux,'/tmp/lefthippo.nii')
+            aims.write(volDestrieux,os.path.join(getTmpDir(),'lefthippo.nii'))
             wdilefthippo =  WriteDiskItem('leftHippo', 'GIFTI file' )
             dileftHippo = wdilefthippo.findValue(constraints)
             if dileftHippo is None:
@@ -2798,7 +2798,7 @@ class ImageImportWindow (QDialog):
             else:
                 if not os.path.isdir(os.path.dirname(dileftHippo.fullPath())):
                     os.makedirs(os.path.dirname(dileftHippo.fullPath()))
-                ret = subprocess.call(['AimsMeshBrain', '-i', '/tmp/lefthippo.nii', '-o', dileftHippo.fullPath()])
+                ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'lefthippo.nii'), '-o', dileftHippo.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dileftHippo, update = True)
                 if 'referential' in allT1[idxT1pre[0]].attributes().keys():
                     self.transfoManager.setReferentialTo(dileftHippo, allT1[idxT1pre[0]].attributes()['referential'] )
@@ -2823,16 +2823,16 @@ class ImageImportWindow (QDialog):
 
                 aims.SurfaceManip.meshMerge(testhippocut,planmesh)
                 aims.SurfaceManip.meshMerge(testhippocut2,planmesh2)
-                aims.write(testhippocut,'/tmp/testhippocut.gii')
-                aims.write(testhippocut2,'/tmp/testhippocut2.gii')
-                #ret = subprocess.call(['AimsMeshCut', '-i', str(dileftHippo.fullPath()), '-o', '/tmp/testhippocut.gii', '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center))])
-                #ret = subprocess.call(['AimsMeshCut', '-i', str(dileftHippo.fullPath()), '-o', '/tmp/testhippocut2.gii', '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center))])
+                aims.write(testhippocut, os.path.join(getTmpDir(),'testhippocut.gii'))
+                aims.write(testhippocut2, os.path.join(getTmpDir(),'testhippocut2.gii'))
+                #ret = subprocess.call(['AimsMeshCut', '-i', str(dileftHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut.gii'), '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center))])
+                #ret = subprocess.call(['AimsMeshCut', '-i', str(dileftHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut2.gii'), '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center))])
 
-                hippogii = aims.read('/tmp/testhippocut.gii')
+                hippogii = aims.read(os.path.join(getTmpDir(),'testhippocut.gii'))
                 hippovertex = numpy.array(hippogii.vertex().list())
                 centerhippo = numpy.average(hippovertex,axis=0)
 
-                hippogii2 = aims.read('/tmp/testhippocut2.gii')
+                hippogii2 = aims.read(os.path.join(getTmpDir(),'testhippocut2.gii'))
                 hippovertex2 = numpy.array(hippogii2.vertex().list())
                 centerhippo2 = numpy.average(hippovertex2,axis=0)
 
@@ -2844,8 +2844,8 @@ class ImageImportWindow (QDialog):
                     if dilefthippoantero is None or dilefthippopostero is None:
                         print "mesh export : could not find valid path"
                     else:
-                        cmd1 = ['mv', '/tmp/testhippocut2.gii', str(dilefthippoantero.fullPath())]
-                        cmd2 = ['mv', '/tmp/testhippocut.gii', str(dilefthippopostero.fullPath())]
+                        cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dilefthippoantero.fullPath())]
+                        cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dilefthippopostero.fullPath())]
                         line1 = runCmd(cmd1)
                         line2 = runCmd(cmd2)
                         neuroHierarchy.databases.insertDiskItem(dilefthippoantero, update = True)
@@ -2858,8 +2858,8 @@ class ImageImportWindow (QDialog):
                     if dilefthippoantero is None or dilefthippopostero is None:
                         print "mesh export : could not find valid path"
                     else:
-                        cmd1 = ['mv', '/tmp/testhippocut.gii', str(dilefthippoantero.fullPath())]
-                        cmd2 = ['mv', '/tmp/testhippocut2.gii', str(dilefthippopostero.fullPath())]
+                        cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dilefthippoantero.fullPath())]
+                        cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dilefthippopostero.fullPath())]
                         line1 = runCmd(cmd1)
                         line2 = runCmd(cmd2)
                         neuroHierarchy.databases.insertDiskItem(dilefthippoantero, update = True)
@@ -3324,9 +3324,10 @@ class ImageImportWindow (QDialog):
             if len(PatInfo[patListToCheck[ii]])>0:
                 previous_lists_not_path.update({patListToCheck[ii]:PatInfo[patListToCheck[ii]]})
     
-        for jj in range(len(patpatListToCheck[self.currentProtocol])):
-            if len(patPatInfo[patpatListToCheck[self.currentProtocol][jj]])>0:
-                previous_lists_path_protocol.update({patpatListToCheck[self.currentProtocol][jj]:patPatInfo[patpatListToCheck[self.currentProtocol][jj]]})
+        if self.currentProtocol in patpatListToCheck:
+            for jj in range(len(patpatListToCheck[self.currentProtocol])):
+                if len(patPatInfo[patpatListToCheck[self.currentProtocol][jj]])>0:
+                    previous_lists_path_protocol.update({patpatListToCheck[self.currentProtocol][jj]:patPatInfo[patpatListToCheck[self.currentProtocol][jj]]})
     
         previous_lists_path_full.update({self.currentProtocol:previous_lists_path_protocol})
         full_dictio_inter = {'notPathoSpecific':previous_lists_not_path,'PathoSpecific':previous_lists_path_full}
