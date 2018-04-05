@@ -419,11 +419,11 @@
                 <string>Generate mapping contact - hemi mesh</string>
                </property>
               </item>
-              <item>
+              <!-- item>
                <property name="text">
                 <string>Generate Bipole Stimulation excel file</string>
                </property>
-              </item>
+              </item -->
               <item>
                <property name="text">
                 <string>Generate screenshot</string>
