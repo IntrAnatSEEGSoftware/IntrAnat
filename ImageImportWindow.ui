@@ -825,13 +825,13 @@
           </property>
          </widget>
         </item>
-        <item>
+        <!-- item>
          <widget class="QPushButton" name="runMarsAtlasFreesurferButton">
           <property name="text">
            <string>Run Hip Hop on Freesurfer Mesh</string>
           </property>
          </widget>
-        </item>
+        </item -->
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_18">
           <item>

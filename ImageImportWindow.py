@@ -26,7 +26,6 @@
 # j'ai ajouté l'insertion des répertoires dans data/neuroDiskItems.py (fonction createParentDirectory) mais ça ne marche pas (import circulaires !)
 # Donc à chaque ajout de référentiel ou de transfo, j'ai ajouté une ligne neuroHierarchy.databases.createDiskItemFromFileName A SUPPRIMER quand BrainVisa sera corrigé (après BV 4.3)
         #dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
-# import pdb;pdb.set_trace() -> pour lancer le debugger quand on arrive sur cette ligne (sorte de breakpoint)
 # ipython -q4thread  locateElectrodes.py # Pour avoir ipython et Qt actifs en même temps au cours du debug
 
 
@@ -429,7 +428,7 @@ class ImageImportWindow (QDialog):
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.segmentationHIPHOP)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
-        self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
+        # self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
     
         self.warningMEDIC()
 
@@ -912,7 +911,6 @@ class ImageImportWindow (QDialog):
             self.ui.regProtocolCombo.setCurrentIndex(currentIndex)
             selectSubj(self.ui.regSubjectCombo)
         if tab == 2 or tab is None: # Tab 2 is Patient Information tab
-            #pdb.set_trace()
             #self.ui.patProtocolCombo.currentIndexChanged.disconnect(self._pathologyinfo)
             self.ui.patProtocolCombo.clear()
             self.ui.patProtocolCombo.addItems(protocols)
@@ -922,7 +920,6 @@ class ImageImportWindow (QDialog):
             self.ui.patProtocolCombo.setCurrentIndex(currentIndex)
             self.pathologypatientInfo = pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)
             selectSubj(self.ui.patSubjectCombo)
-            #pdb.set_trace()
             #self.pathologypatientInfo = pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)
         if tab == 6 or tab is None: # Tab 6 is SEEG tab
             self.ui.seegProtocolCombo.clear()
@@ -1449,7 +1446,6 @@ class ImageImportWindow (QDialog):
     
         aims.write(temp_nii,destination)
     
-        #pdb.set_trace()
         if (filetype != 'fMRI-epile') & (filetype != 'PET') & (filetype != 'Statistic-Data'):  # or filetype != 'MTT'
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
             if ret < 0:
@@ -1457,7 +1453,6 @@ class ImageImportWindow (QDialog):
                 QtGui.QMessageBox.warning(self, "Error", "Importation error : BrainVisa / AimsFileConvert")
                 return
         elif filetype == 'PET':
-            #pdb.set_trace()
             print "conversion PET float to S16"
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
             if ret < 0:
@@ -1561,7 +1556,6 @@ class ImageImportWindow (QDialog):
 
         Destrieuxfound = list(FreesurferDestrieux.findValues({},None,False))
 
-        pdb.set_trace()
         #generer tous les writediskitem
         context = brainvisa.processes.defaultContext()
         context.write("convert output from freesurfer")
@@ -1979,11 +1973,10 @@ class ImageImportWindow (QDialog):
     
         for image in images:
 
-        # A T1pre is there, coregister all images to it
+            # A T1pre is there, coregister all images to it
             if image == t1preImage:
                 continue
             elif image.attributes()['modality'] == 'statistic_data' or image.attributes()['modality'] == 'freesurfer_atlas' or image.attributes()['modality'] == 'hippofreesurfer_atlas':
-                #pdb.set_trace()
                 print "attribute T1pre referential to this modality {}".format(image.attributes()['modality'])
                 self.transfoManager.setReferentialTo(image, t1preImage.attributes()['referential'] )
                 continue
@@ -2016,7 +2009,6 @@ class ImageImportWindow (QDialog):
     
             elif self.coregMethod == 'Aims':
                 print("Aims coregistration used")
-                pdb.set_trace()
                 #ret = subprocess.call(['AimsMIRegister', '-r', str(t1preImage.fullPath()), '-t', str(image.fullPath()), '--dir', tmp_trm_path, '--inv',tmp_trm_path2])
                 #if ret < 0:
                 #   print "coregistration error: "+ str(image.fullPath())#terminal
@@ -2246,7 +2238,7 @@ class ImageImportWindow (QDialog):
         self.taskfinished(u'Segmentation et maillages BrainVisa')
         self.setStatus(u"Starting of HIP/HOP")
         attr = self.mriAcPc.attributes()
-        #pdb.set_trace()
+
         Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'left','subject':attr['subject'] , 'center':attr['center']})
         Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'right' ,'subject':attr['subject'] , 'center':attr['center']})
         Lrdi = list( Lrdi._findValues( {}, None, False ) )
@@ -2267,7 +2259,6 @@ class ImageImportWindow (QDialog):
         """ Coregisters an image (ReadDiskItem) to a target image (filepath) - rigid registration"""
         # Temporary txt file to store the trm transformation
         tmpOutput = getTmpFilePath('txt')
-        #pdb.set_trace()
         #truc = subprocess.call(['AimsFileInfo', '-i', str(image.fileName())])
         #someinfo_keys = image._minfAttributes.keys()
         #IndexDataType = someinfo_keys.index('data_type')
@@ -2285,14 +2276,12 @@ class ImageImportWindow (QDialog):
         if 'brainCenter' not in image.attributes() or 'brainCenter' not in target.attributes():
             call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
         else:
-            #pdb.set_trace()
             call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(target.attributes()['brainCenter']), str(target.attributes()['SB_Transform']), "'"+tmpOutput+"'")
     
     
         # TODO CHECK REGISTRATION AT THE END !
         thr = matlabRunNB(call)#, lambda: self.taskfinished("spm coregister")) #matlabRunNB(call)
         thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister done", thr))
-        #pdb.set_trace()
         thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
         if image.attributes()['data_type'] == 'RGB':
             thr.finished.connect(lambda im=imageFileName:os.remove(im) and os.remove(im+'.minf'))
@@ -2306,7 +2295,6 @@ class ImageImportWindow (QDialog):
            !!! Replaces the original image with the resampled image in the database !!!
            If the registration is faulty, the image must be imported again.
         """
-        #pdb.set_trace()
         call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(target)+",1'}", "{'"+str(image.fileName())+",1'}")
         spl = os.path.split(image.fileName())
         registeredPath = os.path.join(spl[0], 'r'+spl[1])
@@ -2318,13 +2306,11 @@ class ImageImportWindow (QDialog):
         return thr
 
     def spm_template_t1(self):
-        #pdb.set_trace()
         spm_version = checkSpmVersion(str(self.prefs['spm']))
         if spm_version == '(SPM12)':
             return "{'"+str(self.ui.prefSpmTemplateEdit.text())+os.sep+'tpm/TPM.nii'+",1'}"  #ou tpm/TPM.nii' parce que pour la normalisation dartel c'est tpm.nii /'toolbox/OldNorm/T1.nii'
         elif spm_version == '(SPM8)':
             return "{'"+str(self.ui.prefSpmTemplateEdit.text())+os.sep+'templates/T1.nii'+",1'}"
-        #return "{'"+str(self.ui.prefSpmTemplateEdit.text())+",1'}"
 
     def spmNormalize(self, image, protocol, patient, acq):
         """ Normalize one image (filepath of nifti file) to the T1 template MNI referential"""
@@ -2374,7 +2360,6 @@ class ImageImportWindow (QDialog):
             return
         # TODO # Should destroy existing referentials for this image
         # The referential of this image is the same as the T1 pre
-        #pdb.set_trace()
         self.transfoManager.setReferentialTo(image, self.getT1preNativeRef(image.attributes()['center'], image.attributes()['subject'])) #replace self.getT1preNativeRef(image.attributes()['center'], image.attributes()['subject']) by talairachMNIReferentialId
         os.remove(registeredPath)
 
@@ -2413,7 +2398,6 @@ class ImageImportWindow (QDialog):
     def insertSPMdeformationFile(self, protocol, patient, acq):
         """ Should be called when a _sn file (SPM normalization transformation file) was created to update it in the database """
         spm_version = checkSpmVersion(str(self.prefs['spm']))
-        #pdb.set_trace()
         if spm_version == '(SPM8)':
             print 'SPM8 used'
             wdi = WriteDiskItem('SPM2 normalization matrix',  'Matlab file')#'gz compressed NIFTI-1 image' )
@@ -2436,7 +2420,6 @@ class ImageImportWindow (QDialog):
             self.setNormalizedToT1pre(di_write,di_write.fileName())
     
         # The file should already be there : if it is not, abort with an error, otherwise declare it in the DB
-        #pdb.set_trace()
         if os.path.isfile(di.fileName()):
             print "Declaring SPM normalization in BrainVisa DB : " + di.fileName()
             neuroHierarchy.databases.insertDiskItem( di, update=True )
@@ -2979,11 +2962,9 @@ class ImageImportWindow (QDialog):
 
         self.importFSoutput(subject=subj)
 
-    def runMarsAtlasFreesurfer(self):
-
-        print("not finished")
-        return
-        pdb.set_trace()
+#     def runMarsAtlasFreesurfer(self):
+#         print("not finished")
+#         return
 
     def fitvolumebyellipse(self,volumeposition):
 
@@ -3218,7 +3199,6 @@ class ImageImportWindow (QDialog):
 
         #read choice2 list from intersubject database
         write_filters = { 'center': self.currentProtocol, 'subject' : self.currentSubject }
-        #pdb.set_trace()
         wdi_global = ReadDiskItem('PatientInfoTemplate','Patient Template format')
         di_global = list(wdi_global.findValues({}, None, False))
 
@@ -3269,7 +3249,6 @@ class ImageImportWindow (QDialog):
                 PatInfo.update({kk:vv.isChecked()})
             else:
                 print "qtgui format not recognized"
-                #pdb.set_trace()
     
         patPatInfo = {}
         for kk, vv in self.pathologypatientInfo.iteritems():
@@ -3298,8 +3277,6 @@ class ImageImportWindow (QDialog):
                 patPatInfo.update({kk:vv.isChecked()})
             else:
                 print "qtgui format not recognized"
-                #pdb.set_trace()
-    
     
         wdi = WriteDiskItem('SubjectInfo','Subject Information format')
         di = wdi.findValue(write_filters)
@@ -3307,7 +3284,6 @@ class ImageImportWindow (QDialog):
             print('Can t generate files')
             return
     
-        #pdb.set_trace()
         full_dictio = {'notPathoSpecific':PatInfo,'PathoSpecific':patPatInfo}
         fout = open(di.fullPath(),'w')
         fout.write(json.dumps(full_dictio, ensure_ascii=False))

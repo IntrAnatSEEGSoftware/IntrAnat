@@ -28,72 +28,46 @@
 # Valider les templates d'electrodes avant de les utiliser : un plot doit TOUJOURS se nommer "Plot152" et pas "Element 21" ou "Plot 152" -> modifier l'éditeur de template
 
 # for DTI : ./AimsMeshDistance --help
-
+ 
+ 
+# Standard Python imports
 import sys, os, pickle, numpy, re, string, time, subprocess, json
-# import glob
-# import openpyxl
-# import pdb
-
 from numpy import *
+from scipy import ndimage
 from collections import OrderedDict
+from PIL import Image
 
+# BrainVISA/anatomist imports
 from soma import aims
-from brainvisa import axon
-
+from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
 neuroConfig.gui = True
-from brainvisa import anatomist
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
+from brainvisa.processes import *
+from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 
+# IntrAnat local imports
 from externalprocesses import *
-from MicromedListener import MicromedListener as ML
 from referentialconverter import ReferentialConverter
-from checkSpmVersion import *
-from readSulcusLabelTranslationFile import *
-from readFreesurferLabelFile import *
+from checkSpmVersion import checkSpmVersion
+from readSulcusLabelTranslationFile import readSulcusLabelTranslationFile
+from readFreesurferLabelFile import readFreesurferLabelFile
 from TimerMessageBox import *
 from generate_contact_colors import *
 from bipoleSEEGColors import bipoleSEEGColors
 from DeetoMaison import DeetoMaison
-#from neuroProcesses import *
+import ImportTheoreticalImplentation
+# from MicromedListener import MicromedListener as ML
 
-from scipy import ndimage
-from brainvisa.processes import *
-from PIL import Image
-
-from soma.qt_gui.qt_backend import QtGui, QtCore, uic
-
-# import gc  #gc.get_referrers pour trouver où est encore déclarer une variable (pour problem quand variable déclarer en python et en c++)
+# import glob
+# import pdb
+ 
 
 
 # =============================================================================
-# Fonction principale qui lance l'interface
+# ===== SPM CALLS =============================================================
 # =============================================================================
-def main(noapp=0):
-    app = None
-    if noapp == 0:
-        print "NO APP"
-        app = QtGui.QApplication(sys.argv)
-        axon.initializeProcesses()
-        from brainvisa.data.readdiskitem import ReadDiskItem
-        from brainvisa.data.writediskitem import WriteDiskItem
-    print "CREATE DIALOG"
-    window = LocateElectrodes(app = app)
-    window.show()
-    if noapp == 0:
-        sys.exit(app.exec_())
-
-
-if __name__ == "__main__":
-  print "LAUNCHING ELECTRODE LOCATE"
-  print "MAIN"
-  # Allow pdb to work for debugging !
-  QtCore.pyqtRemoveInputHook()
-  main()
-
-
-########## SPM calls
 # Convert SPM normalization _sn.mat to vector field
 spm_SnToField8 = """try
     addpath(genpath(%s));
@@ -285,15 +259,6 @@ catch
 end
 quit;"""
 
-def viewFile(filepath):
-    """ Launches an external app to display the provided file (windows/linux/mac-specific methods) """
-    if sys.platform.startswith('darwin'):
-        subprocess.call(('open', filepath))
-    elif os.name == 'nt':
-        os.startfile(filepath)
-    elif os.name == 'posix':
-        subprocess.call(('xdg-open', filepath))
-
 
 # Functions to sort the contacts A1,A2...,A10 and not A1, A10, A2..
 def atoi(text):
@@ -456,7 +421,7 @@ def createItemDirs(item):
                 # filter out 'File exists' exception, if the same dir has
                 # been created concurrently by another instance of BrainVisa
                 # or another thread
-                raise
+                raise e
         for d in dirs:
             dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
 
@@ -756,8 +721,7 @@ class LocateElectrodes(QtGui.QDialog):
                  print 'SPM12 used'
                  matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
             if spm_version == '(SPM8)':
-                 print 'SPM8 used: NOT SUPPORTED'
-                 raise
+                 raise Exception("SPM8 used: NOT SUPPORTED")
                  # matlabRun(spm_inverse_y_field8%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
     
             self.t1preMniFieldPath = di_inverse.fileName()
@@ -1233,8 +1197,7 @@ class LocateElectrodes(QtGui.QDialog):
                 try:
                     pos_bipol = (numpy.array(plotsT1Ref_sorted[i_bipole.split()[0].title()]) + numpy.array(plotsT1Ref_sorted[i_bipole.split()[2].title()]))/2
                 except:
-                    print("problem plotsT1Ref")
-                    pdb.set_trace()
+                    raise Exception("problem plotsT1Ref")
                 entry_bipole = numpy.array(plotsT1Ref_sorted[i_bipole.split()[0].title()])
                 #orient_vector_bip = (numpy.array(plotsT1Ref_sorted[i_bipole.split()[0]]) - numpy.array(plotsT1Ref_sorted[i_bipole.split()[2]]))/linalg.norm((numpy.array(plotsT1Ref_sorted[i_bipole.split()[0]]) - numpy.array(plotsT1Ref_sorted[i_bipole.split()[2]])))
                 #il faut un orient vector
@@ -3496,10 +3459,10 @@ class LocateElectrodes(QtGui.QDialog):
                     try:
                         most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
                     except:
-                        pdb.set_trace()
+                        raise Exception("???")
                     label_freesurfer = most_common
                     if label_freesurfer == 3403:
-                        pdb.set_trace()
+                        raise Exception("?????")
                     label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
                 else:
                     label_freesurfer = most_common
@@ -4337,58 +4300,82 @@ class LocateElectrodes(QtGui.QDialog):
         print("MarsAtlas resulting files suppressed")
       
       
-#   def importRosaImplantation(self):
-#        import ImportTheoreticalImplentation
-#
-#        TheoElectrodes = ImportTheoreticalImplentation.importRosaImplantation(self)
-#        #wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-#        #self.t1pre2ScannerBasedTransform
-#        print("not finished")
-#        return
-#        for cle, valeur in TheoElectrodes.items():
-# 
-#            pdb.set_trace()
-#            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True,  requiredAttributes={'modality':'t1mri','subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']})
-#            newvalTarget=[float(x) for x in valeur["target"]]
-#            newvalTarget=tuple(newvalTarget)
-#            newvalEntry=[float(x) for x in valeur["entry"]]
-#            newvalEntry=tuple(newvalEntry)
-#            volume = aims.read(str(self.diskItems['T1pre']))
-#            size=volume.getVoxelSize()
-#            sizex=size[0]
-#            sizey=size[1]
-#            sizez=size[2]
-#            xt=float(newvalTarget[0])/sizex
-#            yt=float(newvalTarget[1])/sizey
-#            zt=float(newvalTarget[2])/sizez
-#            xe=float(newvalEntry[0])/sizex
-#            ye=float(newvalEntry[1])/sizey
-#            ze=float(newvalEntry[2])/sizez
-#            #correctTarget=(xt,yt,zt)
-#            #correctEntry=(xe,ye,ze)
-#            #di = rdi.findValue(self.diskItems['T1pre'])
-#            #matriceTransfo = aims.read(di.fullPath())
-#            #newXYZentry = matriceTransfo.transform(correctTarget)
-#            #newXYZtarget= matriceTransfo.transform(correctEntry)
-#            #matriceTransfoT = numpy.array([[-volume.getSizeX()/2, -volume.getSizeY()/2, -volume.getSizeZ()/2, 0]])
-#            #correctTarget=numpy.array(newXYZtarget)
-#            #correctTarget=numpy.insert(correctTarget,3,1) 
-#            #newXYZtarget=numpy.add(correctTarget,matriceTransfoT)
-#            #correctEntry=numpy.array(newXYZentry)
-#            #correctEntry=numpy.insert(correctEntry,3,1) 
-#            #newXYZentry=numpy.add(correctEntry,matriceTransfoT)
-#            #xtf=newXYZtarget[0][0]
-#            #ytf=newXYZtarget[0][1]
-#            #ztf=newXYZtarget[0][2]
-#            #xef=newXYZentry[0][0]
-#            #yef=newXYZentry[0][1]
-#            #zef=newXYZentry[0][2]
-#            #self.t1pre2ScannerBasedTransform.transform((xt,yt,zt))
-#            self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze])      
-
+    def importRosaImplantation(self):
+         import ImportTheoreticalImplentation
+        
+         TheoElectrodes = ImportTheoreticalImplentation.importRosaImplantation(self)
+         #wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+         #self.t1pre2ScannerBasedTransform
+         print("not finished")
+         return
+         for cle, valeur in TheoElectrodes.items():
+        
+             raise Exception("???")
+             rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True,  requiredAttributes={'modality':'t1mri','subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']})
+             newvalTarget=[float(x) for x in valeur["target"]]
+             newvalTarget=tuple(newvalTarget)
+             newvalEntry=[float(x) for x in valeur["entry"]]
+             newvalEntry=tuple(newvalEntry)
+             volume = aims.read(str(self.diskItems['T1pre']))
+             size=volume.getVoxelSize()
+             sizex=size[0]
+             sizey=size[1]
+             sizez=size[2]
+             xt=float(newvalTarget[0])/sizex
+             yt=float(newvalTarget[1])/sizey
+             zt=float(newvalTarget[2])/sizez
+             xe=float(newvalEntry[0])/sizex
+             ye=float(newvalEntry[1])/sizey
+             ze=float(newvalEntry[2])/sizez
+             #correctTarget=(xt,yt,zt)
+             #correctEntry=(xe,ye,ze)
+             #di = rdi.findValue(self.diskItems['T1pre'])
+             #matriceTransfo = aims.read(di.fullPath())
+             #newXYZentry = matriceTransfo.transform(correctTarget)
+             #newXYZtarget= matriceTransfo.transform(correctEntry)
+             #matriceTransfoT = numpy.array([[-volume.getSizeX()/2, -volume.getSizeY()/2, -volume.getSizeZ()/2, 0]])
+             #correctTarget=numpy.array(newXYZtarget)
+             #correctTarget=numpy.insert(correctTarget,3,1) 
+             #newXYZtarget=numpy.add(correctTarget,matriceTransfoT)
+             #correctEntry=numpy.array(newXYZentry)
+             #correctEntry=numpy.insert(correctEntry,3,1) 
+             #newXYZentry=numpy.add(correctEntry,matriceTransfoT)
+             #xtf=newXYZtarget[0][0]
+             #ytf=newXYZtarget[0][1]
+             #ztf=newXYZtarget[0][2]
+             #xef=newXYZentry[0][0]
+             #yef=newXYZentry[0][1]
+             #zef=newXYZentry[0][2]
+             #self.t1pre2ScannerBasedTransform.transform((xt,yt,zt))
+             self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze])
+        
     def approximateElectrode(self):      
         self.deetoMaison=DeetoMaison(self)
         self.deetoMaison.show()
 
+
+
+# =============================================================================
+# MAIN: Fonction principale qui lance l'interface
+# =============================================================================
+def main(noapp=0):
+    app = None
+    if noapp == 0:
+        print "NO APP"
+        app = QtGui.QApplication(sys.argv)
+        axon.initializeProcesses()
+        from brainvisa.data.readdiskitem import ReadDiskItem
+        from brainvisa.data.writediskitem import WriteDiskItem
+    print "CREATE DIALOG"
+    window = LocateElectrodes(app = app)
+    window.show()
+    if noapp == 0:
+        sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    print "LAUNCHING ELECTRODE LOCATE"
+    print "MAIN"
+    #QtCore.pyqtRemoveInputHook()  # Allow pdb to work for debugging !
+    main()
 
 
