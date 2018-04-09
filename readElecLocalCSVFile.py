@@ -127,12 +127,12 @@ def readElecLocalCSVFile(infile = None):
               #pass 
             
             #try:
-              #ContactsInfos[nametmp].update({'ALL':contents[startl+i][contents[savel].index('ALL')]})
+              #ContactsInfos[nametmp].update({'AAL':contents[startl+i][contents[savel].index('AAL')]})
             #except:
               #pass
           
             #try:
-              #ContactsInfos[nametmp].update({'ALLDilate':contents[startl+i][contents[savel].index('ALLDilate')]})
+              #ContactsInfos[nametmp].update({'AALDilate':contents[startl+i][contents[savel].index('AALDilate')]})
             #except:
               #pass          
 

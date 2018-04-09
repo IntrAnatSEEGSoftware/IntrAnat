@@ -8,7 +8,7 @@ from soma.qt_gui.qt_backend import QtGui, QtCore, uic, Qt
 
 
 
-#self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
+# self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
 
 
 def importRosaImplantation(locate_env):

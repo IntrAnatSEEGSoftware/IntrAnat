@@ -2919,7 +2919,7 @@ class LocateElectrodes(QtGui.QDialog):
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
                 list_by_default = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
                 diff_list = list(list_to_write.difference(list_by_default))
-                full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'ALL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
+                full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
                 full_list.extend(diff_list)
                 writer.writerow(full_list)
                 
