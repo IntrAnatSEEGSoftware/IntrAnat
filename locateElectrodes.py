@@ -1030,7 +1030,9 @@ class LocateElectrodes(QtGui.QDialog):
         #currentwin=params['window']
         coords = [0.0,0.0,0.0]
         if 'T1pre' in self.dispObj:
-            pT1Pre = self.a.linkCursorLastClickedPosition(self.dispObj['T1pre'].getReferential()).items()
+            # pT1Pre = self.a.linkCursorLastClickedPosition(self.dispObj['T1pre'].getReferential()).items()
+            pT1Pre = self.positionPreRef()
+
             if self.coordsDisplayRef == 'Natif':
                 coords = pT1Pre
             elif self.coordsDisplayRef == 'Scanner-based':
@@ -1057,7 +1059,20 @@ class LocateElectrodes(QtGui.QDialog):
             return None
 
     def positionPreRef(self):
-        return list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
+# TODO: FIX THE REFERENTIAL CORRECTLY:
+#    Right now, there is a bug in BrainVISA 4.6 that causes linkCursorLastClickedPosition() to return coordinates in the 
+#    referential currently selected in the window, instead of the central referential of anatomist; and when called with an
+#    argument, the function returns something completely random.
+#    Solutions proposed by Denis Riviere:
+#    * if you know in which window the click has been done, you can query the position in a specific window (window.getPosition())
+#       get the window, get its window.position(), get its referential (window.getReferential()), then you can find a transformation to 
+#       any other referential, ex: a.getTransformation(window.getReferential(), a.centralReferential()) and use it to transform coordinates.
+#    * listen clicks on your side and storing their coordinates on your own. This can be done using an event handler. 
+#      See this example (http://brainvisa.info/pyanatomist/sphinx/pyanatomist_examples.html#events-handling). 
+#      You will have to take the referential of the click coordinates into account (using the referential of the clicked window).
+        #return list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
+        print "TODO: GET THE REFERENTIAL CORRECTLY: See function positionPreRef()"
+        return list(self.a.linkCursorLastClickedPosition().items())
 
     def t1pre2ScannerBased(self):
         """ Returns a Transformation object that transforms T1pre referential to T1pre Scanner-Based referential """
@@ -4092,7 +4107,8 @@ class LocateElectrodes(QtGui.QDialog):
         center_seg.exec_()
         
         #convert brainvisa voxel position into spm_voxel position
-        ResecCenterCoord = list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
+        # ResecCenterCoord = list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
+        ResecCenterCoord = self.positionPreRef()
         print ResecCenterCoord
         
         if method == 'T1':
