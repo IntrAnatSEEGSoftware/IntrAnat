@@ -427,12 +427,16 @@ def createItemDirs(item):
 
 
 
-######################### FENETRE PRINCIPALE ############################
 
+# ==========================================================================
+# ===== MAIN WINDOW ========================================================
+# ==========================================================================
 class LocateElectrodes(QtGui.QDialog):
 
     def __init__(self, app=None, loadAll = True):
 
+        
+        
         # UI init
         if loadAll == True:
             QtGui.QWidget.__init__(self)
@@ -586,9 +590,10 @@ class LocateElectrodes(QtGui.QDialog):
                 pass
     
             self.warningMEDIC()
-    
-        # Reload options, check brainvisa and matlab/SPM
 
+    # ==========================================================================
+    # ===== WINDOW EVENTS ======================================================
+    # ==========================================================================
     def closeEvent(self, event):
         self.quit(event)
 
@@ -609,31 +614,22 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             event.ignore()
 
+    
+    def keyPressEvent( self, event ) :
+        if (event.key()==QtCore.Qt.Key_Return):
+            print self.app.focusWidget()
+            if hasattr(self, 'app') and (self.app.focusWidget() == self.nameEdit):
+                self.editElectrodeName()
+            event.accept()
+
+    # ==========================================================================
+    # ===== OTHER FUNCTIONS ====================================================
+    # ==========================================================================
 
     def warningMEDIC(self):
      
         shortwarning = TimerMessageBox(5,self)
         shortwarning.exec_()
-     
-        #messagebox = QtGui.QMessageBox(self)
-        #messagebox.setWindowTitle("NOT FOR MEDICAL USAGE")
-        #messagebox.setText("NOT FOR MEDICAL USAGE\n (closing automatically in {0} secondes.)".format(3))
-        #messagebox.setStandardButtons(messagebox.NoButton)
-        #self.timer2 = QtCore.QTimer()
-        #self.time_to_wait = 3
-        #def close_messagebox(e):
-           #e.accept()
-           #self.timer2.stop()
-           #self.time_to_wait = 10
-        #def decompte():
-           #messagebox.setText("NOT FOR MEDICAL USAGE\n (closing automatically in {0} secondes.)".format(self.time_to_wait))
-           #if self.time_to_wait <= 0:
-              #messagebox.closeEvent = close_messagebox
-              #messagebox.close()
-           #self.time_to_wait -= 1
-        #self.connect(self.timer2,QtCore.SIGNAL("timeout()"),decompte)
-        #self.timer2.start(1000)
-        #messagebox.exec_()
 
     def loadFromBrainVisa(self):
         # Find available patients in BV database
@@ -769,6 +765,8 @@ class LocateElectrodes(QtGui.QDialog):
             self.t1preMniFieldPath = None
 
     def changePatient(self):
+        print "CHANGE"
+        return
         self.loadPatientButton.setEnabled(True)
         self.patientList.setEnabled(True)
         self.a.removeObjects(self.a.getObjects(), self.wins[0])
@@ -1248,6 +1246,8 @@ class LocateElectrodes(QtGui.QDialog):
 
     def updateElectrodeMeshes(self, clear=False, bipole=False):
         if clear:
+            if 'electrodes' not in self.dispObj.keys():
+                return
             print "UPDATE CLEAR -> remove electrodes from windows and delete them"
             #traceback.print_stack(limit=4)
             self.a.removeObjects(self.dispObj['electrodes'], self.wins)
@@ -1428,6 +1428,10 @@ class LocateElectrodes(QtGui.QDialog):
         """Update the electrode name of the selected contact"""
         name = str(self.nameEdit.text())
         idx = self.electrodeList.currentRow()
+        # No electrode selected
+        if idx == -1:
+            return
+
         sameNameItems = self.electrodeList.findItems(name, QtCore.Qt.MatchFixedString)
         if len(sameNameItems) != 0:
             if sameNameItems[0] == self.electrodeList.item(idx): # Name was not changed
