@@ -765,8 +765,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.t1preMniFieldPath = None
 
     def changePatient(self):
-        print "CHANGE"
-        return
         self.loadPatientButton.setEnabled(True)
         self.patientList.setEnabled(True)
         self.a.removeObjects(self.a.getObjects(), self.wins[0])
