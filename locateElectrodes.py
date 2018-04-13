@@ -435,8 +435,6 @@ class LocateElectrodes(QtGui.QDialog):
 
     def __init__(self, app=None, loadAll = True):
 
-        
-        
         # UI init
         if loadAll == True:
             QtGui.QWidget.__init__(self)
@@ -482,9 +480,10 @@ class LocateElectrodes(QtGui.QDialog):
         self.transf2Mni = {} # Transformation from T1 pre referential to MNI referential
         self.threads = [] # List of running threads
         self.t1pre2ScannerBasedTransform = None #Transfo from T1pre native to scanner-based referential (Anatomist Transformation object)
+        self.t1preCenter = []
         self.brainvisaPatientAttributes = None # Attributes of a BrainVisa ReadDiskItem MRI of the loaded patient
         self.spmpath = None
-    
+        
         #self.MicromedListener = ML()
     
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
@@ -769,7 +768,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.patientList.setEnabled(True)
         self.a.removeObjects(self.a.getObjects(), self.wins[0])
         self.a.removeObjects(self.a.getObjects(), self.wins[1])
-        self.a.config()[ 'linkedCursor' ] = 0
+        # self.a.config()[ 'linkedCursor' ] = 0
         referentials = self.a.getReferentials()
         for element in referentials:
             if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
@@ -891,6 +890,16 @@ class LocateElectrodes(QtGui.QDialog):
             
             self.loadAndDisplayObject(t, na)
             if na == 'T1pre':
+                # Save volume center (in mm)
+                if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
+                    self.t1preCenter = t.get('brainCenter')
+                elif (t.get('volume_dimension') is not None) and (t.get('volume_dimension') is not empty)\
+                      and (t.get('voxel_size') is not None) and (t.get('voxel_size') is not empty):
+                    volSize = t.get('volume_dimension')
+                    voxSize = t.get('voxel_size')
+                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+                else:
+                    self.t1preCenter = [128, 128, 128]
                 # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
                 try:
                     self.refConv.loadACPC(t)
@@ -956,6 +965,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.refreshAvailableDisplayReferentials()
         # Display all
         self.allWindowsUpdate()
+        # Center view on AC
+        self.centerCursor()
         # Disable the button because no cleanup is attempted when loading a patient when one is already loaded -> there may be a mixup
         self.loadPatientButton.setEnabled(False)
         self.patientList.setEnabled(False)
@@ -1497,6 +1508,13 @@ class LocateElectrodes(QtGui.QDialog):
                 print "Warning : Current window referential is not T1pre referential ! Cannot set the linkedCursor on the selected electrode contact..."
         except:
             print "Error moving the cursor to the contact"
+
+    # Center the cursor on all the anatomist views
+    def centerCursor(self):
+#         if self.refConv.isRefAvailable('AC-PC'):
+#             xyz = self.refConv.AcPc2Real(0.0, 0.0, 0.0)
+        if (self.t1preCenter) and (self.currentWindowRef == self.preReferential()):
+            self.wins[0].moveLinkedCursor(self.t1preCenter)
 
     def addElectrodeLabel(self, label, position, ref, elecId, bipole=False):
         props = Props()
