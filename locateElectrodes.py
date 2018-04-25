@@ -58,6 +58,7 @@ from generate_contact_colors import *
 from bipoleSEEGColors import bipoleSEEGColors
 from DeetoMaison import DeetoMaison
 import ImportTheoreticalImplentation
+from DialogCheckbox import DialogCheckbox
 # from MicromedListener import MicromedListener as ML
 
 # import glob
@@ -131,24 +132,26 @@ quit;"""
 
 # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
 spm_normalizePoints = """try
-    disp('Reading inverse MNI transformation...');
+    fprintf('Reading inverse MNI transformation... ');
     addpath(genpath(%s));
     P='%s';
     P1=spm_vol([P ',1,1']);
     P2=spm_vol([P ',1,2']);
     P3=spm_vol([P ',1,3']);
-    disp('Reading inverse MNI transformation: X...');
+    fprintf(' X '); drawnow('update');
     [V1,XYZ]=spm_read_vols(P1);
-    disp('Reading inverse MNI transformation: Y...');
+    fprintf(' Y '); drawnow('update');
     V2=spm_read_vols(P2);
-    disp('Reading inverse MNI transformation: Z...');
+    fprintf(' Z\\n'); drawnow('update');
     V3=spm_read_vols(P3);
 
     %% Apply tranformation to electrodes
     PosElectrode = dlmread('%s');
     wPosElectrode=PosElectrode;
+    fprintf('Processing %%d contacts... ', size(PosElectrode,1));
     for i1=1:size(PosElectrode,1)
-        fprintf('Processing contact: %%d / %%d...\\n', i1, size(PosElectrode,1));
+        fprintf('%%d ', i1); drawnow('update');
+        if (mod(i1, 20) == 0), fprintf('\\n'); end
         %% Compute distance
         D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
         [tmp,order]=sort(D);
@@ -557,7 +560,7 @@ class LocateElectrodes(QtGui.QDialog):
             # itemClicked(QListWidgetItem*) , currentItemChanged ( QListWidgetItem * current, QListWidgetItem * previous ), currentRowChanged ( int currentRow )
             self.connect(self.electrodeLoadButton, QtCore.SIGNAL('clicked()'), self.loadElectrodes)
             self.connect(self.electrodeSaveButton, QtCore.SIGNAL('clicked()'), self.saveElectrodes)
-            self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.normalizeExportElectrodes)
+            self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.exportElectrodes)
             #self.connect(self.marsatlasExportButton, QtCore.SIGNAL('clicked()'),self.parcelsExportElectrodes)
             self.connect(self.colorConfigButton, QtCore.SIGNAL('clicked()'), self.configureColors)
             self.connect(self.dispModeCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateDispMode)
@@ -572,7 +575,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.generateResectionArray,QtCore.SIGNAL('clicked()'),self.generateResection)
             self.connect(self.validateROIresection,QtCore.SIGNAL('clicked()'),self.ROIResectiontoNiftiResection)
             self.connect(self.deleteMarsAtlasfiles,QtCore.SIGNAL('clicked()'),self.DeleteMarsAtlasFiles)
-            self.connect(self.generateDictionariesComboBox,QtCore.SIGNAL('activated(QString)'),self.generateDictionaries)
             self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
             self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
     
@@ -1836,203 +1838,240 @@ class LocateElectrodes(QtGui.QDialog):
             neuroHierarchy.databases.insertDiskItem( di, update=True )
         QtGui.QMessageBox.information(self, u'Implantation saved', u"Implantation has been saved in database. Careful, it deleted MNI information if there was any. you'll have to do the normalization again")
 
-    def convertT1ScannerBasedToMni(self, points):
-        """Converts an array of points [x,y,z] in scanner-based coords to MNI coords if deformation field is available"""
-        field = self.getT1preMniTransform()
-        if field is None:
-            print "MNI deformation field not found"
-            return None
-        tmpOutput = getTmpFilePath('csv')
-        arr = numpy.asarray(points)#([ [1,2,3], [4,5,6], [7,8,9] ])
-        numpy.savetxt(tmpOutput, arr, delimiter=",")
-        matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
-        out = numpy.loadtxt(tmpOutput, delimiter=",")
-        os.remove(tmpOutput)
-    
-        if numpy.array_equal(out, arr):
-            print "Points to MNI : Error, result read is identical to input"
-            return None
-        if out.shape != arr.shape:
-            print "Points to MNI : Error, result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr))
-            return None
-        return out.tolist()
-
-    # Non blocking wrapper of getAllPlotsCentersMNIRef
-    def getAllPlotsCentersMNIRefNB(self, plots, toKeep=None):
-        """ Computes the MNI coordinates of plots from t1 pre scanner-based coordinaotes in a thread (non-blocking)
-            then call finishAllPlotsCentersMNIRef with the toKeep elements : these will determine how the data is saved
-
-        """
-        pe = PythonExecutor(lambda myself=self, thePlots=plots: myself.getAllPlotsCentersMNIRef(thePlots), toKeep=toKeep)
-        self.threads.append(pe)
-        # Remove it from the list of threads when finished
-        pe.finished.connect(lambda th=pe:self.finishAllPlotsCentersMNIRef(th))
-        pe.start()
+#     # Non blocking wrapper of getAllPlotsCentersMNIRef
+#     def getAllPlotsCentersMNIRefNB(self, plots, toKeep=None):
+#         """ Computes the MNI coordinates of plots from t1 pre scanner-based coordinaotes in a thread (non-blocking)
+#             then call finishAllPlotsCentersMNIRef with the toKeep elements : these will determine how the data is saved
+# 
+#         """
+#         pe = PythonExecutor(lambda myself=self, thePlots=plots: myself.getAllPlotsCentersMNIRef(thePlots), toKeep=toKeep)
+#         self.threads.append(pe)
+#         # Remove it from the list of threads when finished
+#         pe.finished.connect(lambda th=pe:self.finishAllPlotsCentersMNIRef(th))
+#         pe.start()
 
 
-    def finishAllPlotsCentersMNIRef(self, thread):
-        """ Callback function when MNI coordinates of plots are computed. Will save to basepath
-            or to provided diskItems (in 'kept' objects of the thread - which must be a PythonExecutor)
-         """
-        plotsMNI = thread.output()
-        kept = thread.kept()
-        try:
-            self.threads.remove(thread)
-        except:
-            pass
-        if plotsMNI is None:
-            QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization failed !.")
-            return
+#     def finishAllPlotsCentersMNIRef(self, thread):
+#         """ Callback function when MNI coordinates of plots are computed. Will save to basepath
+#             or to provided diskItems (in 'kept' objects of the thread - which must be a PythonExecutor)
+#          """
+#         plotsMNI = thread.output()
+#         kept = thread.kept()
+#         try:
+#             self.threads.remove(thread)
+#         except:
+#             pass
+#         if plotsMNI is None:
+#             QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization failed !.")
+#             return
+#     
+#         if 'basepath' in kept:# custom path
+#             self.saveTXT(path=kept['basepath']+'_MNI.txt', referential='MNI')
+#             self.savePTS(path=kept['basepath']+'_MNI.pts', referential='MNI')
+#         elif all (k in kept for k in ('wdiptsmni','timestamp','wditxtmnipos', 'wditxtmniname')): # find and save in DB
+#             try:
+#                 self.savePTS(path = kept['wdiptsmni'].fullPath(), contacts = plotsMNI)
+#                 kept['wdiptsmni'].setMinf('referential', self.mniReferentialId())
+#                 kept['wdiptsmni'].setMinf('timestamp', kept['timestamp'])
+#                 neuroHierarchy.databases.insertDiskItem(kept['wdiptsmni'], update=True )
+#                 self.saveTXT(pathPos=kept['wditxtmnipos'].fullPath(), pathName=kept['wditxtmniname'].fullPath(), contacts = plotsMNI)
+#                 neuroHierarchy.databases.insertDiskItem(kept['wditxtmniname'], update=True )
+#                 kept['wditxtmnipos'].setMinf('referential', self.mniReferentialId())
+#                 kept['wditxtmnipos'].setMinf('timestamp', kept['timestamp'])
+#                 neuroHierarchy.databases.insertDiskItem(kept['wditxtmnipos'], update=True )
+#             except:
+#                 QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nThe saving of the MNI normalization failed.")
+#                 return
+#         else:
+#             print "Erreur lors de l'exportation PTS/TXT dans le référentiel MNI"
+#             QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization failed.")
+#             return
+#     
+#         QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization has been applied")
+#     
+#         #add to the elecimplant file
+#         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format' ,requiredAttributes={'center':self.brainvisaPatientAttributes['center'],'subject':self.brainvisaPatientAttributes['subject']})
+#         di=rdi.findValues({},None,False)
+#         ldi = list(rdi.findValues({},None,False))
+#     
+#         if len(ldi) >0:
+#            if (os.path.exists(str(ldi[0]))):
+#                 filein = open(str(ldi[0]), 'rb')
+#                 try:
+#                     previous_data = json.loads(filein.read())
+#                 except:
+#                     filein.close()
+#                     filein = open(str(ldi[0]), 'rb')
+#                     previous_data = pickle.load(filein)
+#     
+#                 filein.close()
+#     
+#         info_plotMNI= []
+#         for k,v in plotsMNI.iteritems():
+#             plot_name_split = k.split('-$&_&$-')
+#             info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
+#             #plots_label[k]=(label,label_name)
+#     
+#         plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
+#         previous_data.update({'plotsMNI':info_plotMNI})
+#     
+#         #resave as json file
+#         fout = open(str(ldi[0]),'w')
+#         fout.write(json.dumps(previous_data))
+#         fout.close()
+#         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True )
+#         print ".elecimplant done with MNI"
     
-        if 'basepath' in kept:# custom path
-            self.saveTXT(path=kept['basepath']+'_MNI.txt', referential='MNI')
-            self.savePTS(path=kept['basepath']+'_MNI.pts', referential='MNI')
-        elif all (k in kept for k in ('wdiptsmni','timestamp','wditxtmnipos', 'wditxtmniname')): # find and save in DB
-            try:
-                self.savePTS(path = kept['wdiptsmni'].fullPath(), contacts = plotsMNI)
-                kept['wdiptsmni'].setMinf('referential', self.mniReferentialId())
-                kept['wdiptsmni'].setMinf('timestamp', kept['timestamp'])
-                neuroHierarchy.databases.insertDiskItem(kept['wdiptsmni'], update=True )
-                self.saveTXT(pathPos=kept['wditxtmnipos'].fullPath(), pathName=kept['wditxtmniname'].fullPath(), contacts = plotsMNI)
-                neuroHierarchy.databases.insertDiskItem(kept['wditxtmniname'], update=True )
-                kept['wditxtmnipos'].setMinf('referential', self.mniReferentialId())
-                kept['wditxtmnipos'].setMinf('timestamp', kept['timestamp'])
-                neuroHierarchy.databases.insertDiskItem(kept['wditxtmnipos'], update=True )
-            except:
-                QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nThe saving of the MNI normalization failed.")
-                return
-        else:
-            print "Erreur lors de l'exportation PTS/TXT dans le référentiel MNI"
-            QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization failed.")
-            return
     
-        QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization has been applied")
-    
-        #add to the elecimplant file
-        rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format' ,requiredAttributes={'center':self.brainvisaPatientAttributes['center'],'subject':self.brainvisaPatientAttributes['subject']})
-        di=rdi.findValues({},None,False)
-        ldi = list(rdi.findValues({},None,False))
-    
-        if len(ldi) >0:
-           if (os.path.exists(str(ldi[0]))):
-                filein = open(str(ldi[0]), 'rb')
-                try:
-                    previous_data = json.loads(filein.read())
-                except:
-                    filein.close()
-                    filein = open(str(ldi[0]), 'rb')
-                    previous_data = pickle.load(filein)
-    
-                filein.close()
-    
-        info_plotMNI= []
-        for k,v in plotsMNI.iteritems():
-            plot_name_split = k.split('-$&_&$-')
-            info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-            #plots_label[k]=(label,label_name)
-    
-        plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
-        previous_data.update({'plotsMNI':info_plotMNI})
-    
-        #resave as json file
-        fout = open(str(ldi[0]),'w')
-        fout.write(json.dumps(previous_data))
-        fout.close()
-        neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True )
-        print ".elecimplant done with MNI"
-    
-#         print("start generate dictionaries")
-#         self.parcelsExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex(),self.generateTemplateBipoleStimulationFile(),self.screenshot(),self.makeMP4(),self.calculParcel()]) 
-
-    def normalizeExportElectrodes(self, saveInDB=True):
-        """ Normalize the coordinates and export them in PTS format and TXT format """
-        timestamp = time.time()
+    def exportElectrodes(self, selOptions=None):
+        """ Normalize and export the contact coordinates """
+        
+        # Get coordinates of SEEG contact centers
         plots = self.getAllPlotsCentersT1preScannerBasedRef()
-        if not saveInDB: # Choose the output file name
-            basepath = str(QtGui.QFileDialog.getSaveFileName(self, 'Choose a file name for exported files', "", "Electrode implantation TXT files (*.txt)"))
-            if not basepath:
-                return
-            basepath = os.path.splitext(basepath)[0]
-            self.saveTXT(path=basepath+'.txt', contacts=plots)
-            self.savePTS(path=basepath+'.pts', contacts=plots)
-            plotsMNI = self.getAllPlotsCentersMNIRefNB(plots, toKeep={'basepath':basepath})
+        if not plots:
+            QtGui.QMessageBox.critical(self, u'Error', "No electrodes available.")
             return
-        else: # Find the right places in the Database
-            # T1-pre scanner-based referential
+        
+        # Ask which options needed to be executed before the export
+        if selOptions is None:
+            dialog = DialogCheckbox([\
+                "Compute MNI coordinates for all contacts",\
+                "Compute MarsAtlas contacts positions",\
+                "Compute MarsAtlas resection position",\
+                # "Generate mapping contact - hemi mesh",\
+                # "Generate Bipole Stimulation excel file",\
+                "Compute parcel metrics",\
+                # "Compute fiber contact distance",\
+                "Save contact coordinates (.pts/.txt files)",\
+                "Save contact info (CSV file)",\
+                "Save screenshots",\
+                "Save video (MP4)"],\
+                "Export", "Select options to run:",\
+                [True, True, True, False, True, True, False, False])
+            selOptions = dialog.exec_()
+        if selOptions is None:
+            return
+        # Get options from selection
+        isComputeMni = selOptions[0]
+        isMarsatlasContacts = selOptions[1]
+        isMarsatlasResection = selOptions[2]
+        isParcelMetrics = selOptions[3]
+        isSavePts = selOptions[4]
+        isSaveCsv = selOptions[5]
+        isScreenshot = selOptions[6]
+        isVideo = selOptions[7]
+        # List of new files that are added to the database
+        newFiles = []
+
+        # ===== MNI COORDINATES =====
+        if isComputeMni and (self.getT1preMniTransform() is not None):
+            [plotsMNI, mniFiles] = self.computeMniPlotsCenters()
+            if (mniFiles is not None) and (mniFiles is not empty):
+                newFiles = [newFiles, mniFiles]
+            
+        # ===== Save TXT/PTS files ======
+        if isSavePts:
+            # ===== T1-pre scanner-based referential ======
+            # Get current time stamp
+            timestamp = time.time()
+            # Get output files from the database
             wdipts = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'no_ref_name':'True'}).findValue(self.diskItems['T1pre'])#,_debug= sys.stdout requiredAttributes={'ref_name':'default'}
             wditxtpos = WriteDiskItem('Electrode Implantation Position TXT', 'Text file', requiredAttributes={'no_ref_name':'True'}).findValue(self.diskItems['T1pre'])
             wditxtname = WriteDiskItem('Electrode Implantation Name TXT', 'Text file', requiredAttributes={'no_ref_name':'True'}).findValue(self.diskItems['T1pre'])
-            if wdipts is None or wditxtpos is None or wditxtname is None:
-                print "Cannot find a path to save PTS or TXT files in the database !"
-                return
-            if plots is None:
-                print "Cannot get the scanner-based plots coords"
-                return
-            self.savePTS(path = wdipts.fullPath(), contacts=plots)
-            wdipts.setMinf('referential', self.t1pre2ScannerBasedId)
-            wdipts.setMinf('timestamp', timestamp)
-            neuroHierarchy.databases.insertDiskItem(wdipts, update=True )
-            self.saveTXT(pathPos=wditxtpos.fullPath(), pathName=wditxtname.fullPath(), contacts=plots)
-            neuroHierarchy.databases.insertDiskItem(wditxtname, update=True )
-            wditxtpos.setMinf('referential', self.t1pre2ScannerBasedId)
-            wditxtpos.setMinf('timestamp', timestamp)
-            neuroHierarchy.databases.insertDiskItem(wditxtpos, update=True )
-            
-            # MNI referential
-            if self.getT1preMniTransform() is None:
-                QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normlization is not available (not found in database).")
-                return
+            # Save PTS and TXT files
+            if (wdipts is not None) and (wditxtpos is not None) and (wditxtname is not None):
+                # Save PTS
+                self.savePTS(path = wdipts.fullPath(), contacts=plots)
+                wdipts.setMinf('referential', self.t1pre2ScannerBasedId)
+                wdipts.setMinf('timestamp', timestamp)
+                neuroHierarchy.databases.insertDiskItem(wdipts, update=True )
+                # Save TXT files
+                self.saveTXT(pathPos=wditxtpos.fullPath(), pathName=wditxtname.fullPath(), contacts=plots)
+                neuroHierarchy.databases.insertDiskItem(wditxtname, update=True )
+                wditxtpos.setMinf('referential', self.t1pre2ScannerBasedId)
+                wditxtpos.setMinf('timestamp', timestamp)
+                neuroHierarchy.databases.insertDiskItem(wditxtpos, update=True )
+                # List of new registered files
+                newFiles = [newFiles, wdipts, wditxtpos, wditxtname]
+            else:
+                print "ERROR: Cannot find a path to save T1pre PTS or TXT files in the database."
+                
+            # ===== MNI referential =====
+            # Get MNI coordinates if computation was not enforced previously
+            if not isComputeMni:
+                plotsMNI = self.getAllPlotsCentersMNIRef()
+            # Get output files from the database
             wdiptsmni = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
             wditxtmnipos = WriteDiskItem('Electrode Implantation Position TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
             wditxtmniname = WriteDiskItem('Electrode Implantation Name TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
-            if wdiptsmni is None or wditxtmnipos is None or wditxtmniname is None:
-                print "Cannot find a path to save MNI PTS or TXT files in the database !"
+            # Save PTS and TXT files
+            if (wdiptsmni is not None) and (wditxtmnipos is not None) and (wditxtmniname is not None):
+                # Save PTS
+                self.savePTS(path = wdiptsmni.fullPath(), contacts = plotsMNI)
+                wdiptsmni.setMinf('referential', self.mniReferentialId())
+                wdiptsmni.setMinf('timestamp', timestamp)
+                neuroHierarchy.databases.insertDiskItem(wdiptsmni, update=True )
+                # Save TXT files
+                self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = plotsMNI)
+                neuroHierarchy.databases.insertDiskItem(wditxtmniname, update=True )
+                wditxtmnipos.setMinf('referential', self.mniReferentialId())
+                wditxtmnipos.setMinf('timestamp', timestamp)
+                neuroHierarchy.databases.insertDiskItem(wditxtmnipos, update=True )
+                # List of new registered files
+                newFiles = [newFiles, wdiptsmni, wditxtmnipos, wditxtmniname]
             else:
-                plotsMNI = self.getAllPlotsCentersMNIRefNB(plots, toKeep={'wdiptsmni':wdiptsmni, 'timestamp':timestamp, 'wditxtmnipos':wditxtmnipos, 'wditxtmniname':wditxtmniname})
-            
-            # AC-PC referential
+                print "ERROR: Cannot find a path to save MNI PTS or TXT files in the database."
+
+            # ===== AC-PC referential =====
             if self.refConv.isRefAvailable('AC-PC'):
+                # Get output files from the database
                 wdiptsacpc = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'ACPC'}).findValue(self.diskItems['T1pre'])
-                if wdiptsacpc is None:
-                    print "Cannot find a path to save AC-PC PTS file in the database !"
-                else:
+                # Save PTS
+                if (wdiptsacpc is not None):
                     plotsACPC = self.getAllPlotsCentersAnyReferential('AC-PC')
                     self.savePTS(path = wdiptsacpc.fullPath(), contacts=plotsACPC)
                     wdiptsacpc.setMinf('referential', 'AC-PC')
                     wdiptsacpc.setMinf('timestamp', timestamp)
                     neuroHierarchy.databases.insertDiskItem(wdiptsacpc, update=True )
-            
-            #return
-            
-            #print("start generate dictionaries")
-            #self.marsatlasExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex()])
-
-    def generateDictionaries(self):
-
-        if self.generateDictionariesComboBox.currentIndex()==1:
+                    # List of new registered files
+                    newFiles = [newFiles, wdiptsacpc]
+                else:    
+                    print "ERROR: Cannot find a path to save AC-PC PTS file in the database."
+                
+                
+        # ===== MARS ATLAS =====
+        # Compute MarsAtlas parcels
+        if isMarsatlasContacts:
             self.parcelsExportElectrodes()
-        elif self.generateDictionariesComboBox.currentIndex()==0:
-            #Pour que l'exportResection et l'exportCSVdictionaries attendent que export electrodes soit fini
-            #self.parcelsExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex(),self.generateTemplateBipoleStimulationFile(),self.screenshot(),self.makeMP4(),self.calculParcel()])
-            self.parcelsExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex(),self.screenshot(),self.makeMP4(),self.calculParcel()])
-            #self.marsatlasExportResection()
-            #self.exportCSVdictionaries()
-        elif self.generateDictionariesComboBox.currentIndex()==2:
+            # self.parcelsExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex(),self.screenshot(),self.makeMP4(),self.calculParcel()])
+        # Compute MarsAtlas resection
+        if isMarsatlasResection:
             self.marsatlasExportResection()
-        elif self.generateDictionariesComboBox.currentIndex()==3:
-            self.exportCSVdictionaries()
-        elif self.generateDictionariesComboBox.currentIndex()==4:
-            self.generateMappingContactCortex()
-#         elif self.generateDictionariesComboBox.currentIndex()==5:
-#             self.generateTemplateBipoleStimulationFile()
-        elif self.generateDictionariesComboBox.currentIndex()==6:
-            self.screenshot()
-        elif self.generateDictionariesComboBox.currentIndex()==7:
-            self.makeMP4()    
-        elif self.generateDictionariesComboBox.currentIndex()==8:
+        # Compute MarsAtlas parcel metrics
+        if isParcelMetrics:
             self.calculParcel()
-        elif self.generateDictionariesComboBox.currentIndex()==9:
-            self.generateFiberContactDistance()
+            
+        # ===== OTHER EXPORTS =====
+        # Save CSV
+        if isSaveCsv:
+            self.exportCSVdictionaries()
+        # Save screenshots
+        if isScreenshot:
+            self.screenshot()
+        # Save video
+        if isVideo:
+            self.makeMP4()
+
+        # Compute fiber contact distance
+        #    self.generateFiberContactDistance()
+        # Compute MarsAtlas contacts positions
+        #     self.generateMappingContactCortex()
+        # Generate Bipole Stimulation excel file
+        #    self.generateMappingContactCortex()
+
+        QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: ")
+    
+
 
     def screenshot(self):
         #Check if all the volumes are available.
@@ -2872,44 +2911,18 @@ class LocateElectrodes(QtGui.QDialog):
             info_label_elec = json.loads(fin.read())
             fin.close()
             
+            # Get scanner-based coordinates
             plots = self.getAllPlotsCentersT1preScannerBasedRef()
             
-            #look for mni position, are there already calculated ?
-            rdi_elecimplant = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
-            impl = list(rdi_elecimplant.findValues({},None,False))
-            
-            if len(impl) == 0:
-                print "Cannot find implantation"
-                plotsMNI = self.getAllPlotsCentersMNIRef(plots)
-                info_plotMNI= []
-                for k,v in plotsMNI.iteritems():
-                    plot_name_split = k.split('-$&_&$-')
-                    info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-            
-            elif os.path.exists(str(impl[0])):
-                filein = open(str(impl[0]), 'rb')
-                try:
-                    dic_impl = json.loads(filein.read())
-                except:
-                    filein.close()
-                    filein = open(str(impl[0]), 'rb')
-                    dic_impl = pickle.load(filein)
-                    filein.close()
-                
-                if 'plotsMNI' in dic_impl.keys():
-                    print "MNI position already estimated, ok"
-                    plot_dict_MNIinter = dict(dic_impl['plotsMNI'])
-                    info_plotMNI = [(k, v) for k, v in plot_dict_MNIinter.iteritems()]
-                
-                else:
-                    plotsMNI = self.getAllPlotsCentersMNIRef(plots)
-                
-                    info_plotMNI= []
-                    for k,v in plotsMNI.iteritems():
-                        plot_name_split = k.split('-$&_&$-')
-                        info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-                    #plots_label[k]=(label,label_name)
-            
+            # Get MNI coordinates
+            plotsMNI = self.getAllPlotsCentersMNIRef()
+            if plotsMNI is None:
+                QtGui.QMessageBox.critical(self, "Error", "MNI coordinates are not available.")
+                return
+            info_plotMNI= []
+            for k,v in plotsMNI.iteritems():
+                plot_name_split = k.split('-$&_&$-')
+                info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
             plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
             
             #montage bipolaire
@@ -3166,34 +3179,8 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             TemplateHippoSubfieldFreesurfer = False
         
-        
-        #if TemplateMarsAtlas or TemplateFreeSurfer or TemplateHippoSubfieldFreesurfer: #plus besoin de if vu qu'il faut maintenant forcément passer par le mni pour les atlas mni
-        rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
-        impl = list(rdi.findValues({},None,False))
-        
-        if len(impl) == 0:
-            print "Cannot find implantation"
-            QtGui.QMessageBox.warning(self,"Error","Can't find implantation, you have to click on save and after on normalize/export to generate MNI position first")
-            return
-        elif os.path.exists(str(impl[0])):
-            filein = open(str(impl[0]), 'rb')
-            try:
-                dic_impl = json.loads(filein.read())
-            except:
-                filein.close()
-                filein = open(str(impl[0]), 'rb')
-                dic_impl = pickle.load(filein)
-                filein.close()
-            
-            if 'plotsMNI' in dic_impl.keys():
-                print "MNI position already estimated, ok"
-                plot_dict_MNIinter = dict(dic_impl['plotsMNI'])
-            else:
-                print "you have to click on normalize/export to generate MNI position first"
-                QtGui.QMessageBox.warning(self,"Error","A template will have to be used, you have to click on normalize/export to generate MNI position first")
-                return
-        #else:
-            #plot_dict_MNIinter=None
+        # Get MNI coordinates for all the plots
+        plot_dict_MNIinter = self.getAllPlotsCentersMNIRef()
         
         brainvisaContext = defaultContext()
         
@@ -3832,15 +3819,114 @@ class LocateElectrodes(QtGui.QDialog):
             return None
         return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getAllPlotsCentersT1preRef().iteritems())
 
-    def getAllPlotsCentersMNIRef(self, plots=None):
+    def getAllPlotsCentersMNIRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential"""
-        if plots is None:
-            plots = self.getAllPlotsCentersT1preScannerBasedRef()
-        coords = [plots[k] for k in sorted(plots.keys())]
-        newCoords = self.convertT1ScannerBasedToMni(coords)
-        if newCoords is None:
+
+        # Get elecimplant file
+        rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
+        impl = list(rdi.findValues({},None,False))
+        if len(impl) == 0:
+            QtGui.QMessageBox.critical(self, "Error", "Can't find implantation, you have to add electrodes and save your modifications first.")
             return None
-        return dict(zip(sorted(plots.keys()), newCoords))
+        elif not os.path.exists(str(impl[0])):
+            QtGui.QMessageBox.critical(self, "Error", "Can't find implantation file. Update your BrainVISA database.")
+            return None
+        # Read implantation file
+        filein = open(str(impl[0]), 'rb')
+        try:
+            dic_impl = json.loads(filein.read())
+        except:
+            filein.close()
+            filein = open(str(impl[0]), 'rb')
+            dic_impl = pickle.load(filein)
+            filein.close()
+        # Return existing coordinates
+        if 'plotsMNI' in dic_impl.keys():
+            print "MNI position already estimated, ok"
+            fileMNI = dict(dic_impl['plotsMNI'])
+            plotsMNI = dict()
+            # Convert keys: eg. "A01" => "A-$&_&$-Plot1"
+            for el in self.electrodes:
+                for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems():
+                    contactName = el['name'] + plotName[4:].zfill(2)
+                    if contactName in fileMNI:
+                        plotsMNI[el['name']+'-$&_&$-'+plotName] = fileMNI[contactName]
+
+            # plotsMNI = dict(zip(sorted(plots.keys()), mniCoords))
+            
+            return plotsMNI
+        # If not available: Compute MNI coordinates
+        else:
+            print "WARNING: MNI position not available, computing now..."
+            return computeMniPlotsCenters(self)
+
+        
+    def computeMniPlotsCenters(self):
+        """Compute MNI coordinates for the all the SEEG contacts, save them in database"""
+
+        # Get contacts coordinates
+        plots = self.getAllPlotsCentersT1preScannerBasedRef()
+        coords = [plots[k] for k in sorted(plots.keys())]
+        # Get MNI transformation field
+        field = self.getT1preMniTransform()
+        if field is None:
+            print "ERROR: MNI deformation field not found."
+            return [None,None]
+        
+        # Save coordinates in a .csv file, to be passed to MATLAB/SPM
+        tmpOutput = getTmpFilePath('csv')
+        arr = numpy.asarray(coords)
+        numpy.savetxt(tmpOutput, arr, delimiter=",")
+        # Run SPM normalization
+        matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
+        # Read MNI coordinates from output .csv file
+        out = numpy.loadtxt(tmpOutput, delimiter=",")
+        os.remove(tmpOutput)
+        if numpy.array_equal(out, arr):
+            print "ERROR: Points to MNI: Result is identical to input"
+            return [None,None]
+        if (out.shape != arr.shape):
+            print "ERROR: Points to MNI: Result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr))
+            return [None,None]
+        mniCoords = out.tolist()
+        if mniCoords is None:
+            return [None,None]
+        # Convert back to an electrode dictionnary
+        plotsMNI = dict(zip(sorted(plots.keys()), mniCoords))
+
+        # Get elecimplant file
+        rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format', requiredAttributes={'center':self.brainvisaPatientAttributes['center'],'subject':self.brainvisaPatientAttributes['subject']})
+        di = rdi.findValues({},None,False)
+        ldi = list(rdi.findValues({},None,False))
+        # If there is already a elecimplant file: load the existing file
+        if (len(ldi) > 0):
+            if (os.path.exists(str(ldi[0]))):
+                filein = open(str(ldi[0]), 'rb')
+                try:
+                    previous_data = json.loads(filein.read())
+                except:
+                    filein.close()
+                    filein = open(str(ldi[0]), 'rb')
+                    previous_data = pickle.load(filein)
+                filein.close()
+    
+        # Add new coordinates to the existing json
+        info_plotMNI= []
+        for k,v in plotsMNI.iteritems():
+            plot_name_split = k.split('-$&_&$-')
+            info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
+        plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
+        previous_data.update({'plotsMNI':info_plotMNI})
+    
+        # Resave as json file
+        fout = open(str(ldi[0]),'w')
+        fout.write(json.dumps(previous_data))
+        fout.close()
+        neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True )
+        print ".elecimplant saved with MNI"
+
+        return [plotsMNI, [str(ldi[0])+" (MNI)"]]
+
 
     def saveTXT(self, contacts=None, path=None, pathPos=None, pathName=None):
         """ Saves two txt files electrode_Name.txt and electrode_Pos.txt. Path should be supplied as /myPath/electrode.txt
@@ -4288,7 +4374,7 @@ class LocateElectrodes(QtGui.QDialog):
         brainvisaContext = defaultContext()
         brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
 
-    def  removeFromDB(self, file, db=None):
+    def removeFromDB(self, file, db=None):
         """
         If the file is a directory, recursive call to remove all its content before removing the directory.
         Corresponding diskitem is removed from the database if it exists.
@@ -4404,7 +4490,9 @@ def main(noapp=0):
         from brainvisa.data.writediskitem import WriteDiskItem
     print "CREATE DIALOG"
     window = LocateElectrodes(app = app)
+    window.setWindowFlags(QtCore.Qt.Window)
     window.show()
+    # window.showMaximized()
     if noapp == 0:
         sys.exit(app.exec_())
 

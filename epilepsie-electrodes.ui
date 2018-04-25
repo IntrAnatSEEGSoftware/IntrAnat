@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1167</width>
+    <width>1172</width>
     <height>888</height>
    </rect>
   </property>
@@ -18,6 +18,9 @@
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>false</bool>
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout_8">
    <item>
@@ -343,29 +346,42 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="electrodeSaveButton">
-            <property name="font">
-             <font>
-              <weight>75</weight>
-              <bold>true</bold>
-             </font>
-            </property>
-            <property name="toolTip">
-             <string>Enregistrer l'implantation du patient dans la base de données</string>
-            </property>
-            <property name="text">
-             <string>Save</string>
-            </property>
-            <property name="autoDefault">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <property name="sizeConstraint">
              <enum>QLayout::SetMinimumSize</enum>
             </property>
+            <item>
+             <widget class="QPushButton" name="electrodeSaveButton">
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>Enregistrer l'implantation du patient dans la base de données</string>
+              </property>
+              <property name="text">
+               <string>Save modifications</string>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
             <item>
              <widget class="QPushButton" name="electrodeLoadButton">
               <property name="toolTip">
@@ -390,60 +406,6 @@
               <property name="autoDefault">
                <bool>false</bool>
               </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QComboBox" name="generateDictionariesComboBox">
-              <item>
-               <property name="text">
-                <string>Generate All Dictionaries</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Mars Atlas Contact Position</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Mars Atlas Resection Position</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Export to csv file</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Generate mapping contact - hemi mesh</string>
-               </property>
-              </item>
-              <!-- item>
-               <property name="text">
-                <string>Generate Bipole Stimulation excel file</string>
-               </property>
-              </item -->
-              <item>
-               <property name="text">
-                <string>Generate screenshot</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Generate MP4</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Compute parcel metrics</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Generate Fiber Contact Distance</string>
-               </property>
-              </item>
              </widget>
             </item>
            </layout>
@@ -744,7 +706,6 @@
   <tabstop>entryButton</tabstop>
   <tabstop>electrodeList</tabstop>
   <tabstop>contactList</tabstop>
-  <tabstop>electrodeSaveButton</tabstop>
   <tabstop>electrodeLoadButton</tabstop>
   <tabstop>colorConfigButton</tabstop>
   <tabstop>dispModeCombo</tabstop>
