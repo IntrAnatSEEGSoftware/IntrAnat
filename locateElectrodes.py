@@ -2000,7 +2000,7 @@ class LocateElectrodes(QtGui.QDialog):
             # ===== MNI referential =====
             # Get MNI coordinates if computation was not enforced previously
             if not isComputeMni:
-                plotsMNI = self.getAllPlotsCentersMNIRef()
+                dict_plotsMNI = self.getAllPlotsCentersMNIRef(False)
             # Get output files from the database
             wdiptsmni = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
             wditxtmnipos = WriteDiskItem('Electrode Implantation Position TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
@@ -2008,12 +2008,12 @@ class LocateElectrodes(QtGui.QDialog):
             # Save PTS and TXT files
             if (wdiptsmni is not None) and (wditxtmnipos is not None) and (wditxtmniname is not None):
                 # Save PTS
-                self.savePTS(path = wdiptsmni.fullPath(), contacts = plotsMNI)
+                self.savePTS(path = wdiptsmni.fullPath(), contacts = dict_plotsMNI)
                 wdiptsmni.setMinf('referential', self.mniReferentialId())
                 wdiptsmni.setMinf('timestamp', timestamp)
                 neuroHierarchy.databases.insertDiskItem(wdiptsmni, update=True )
                 # Save TXT files
-                self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = plotsMNI)
+                self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = dict_plotsMNI)
                 neuroHierarchy.databases.insertDiskItem(wditxtmniname, update=True )
                 wditxtmnipos.setMinf('referential', self.mniReferentialId())
                 wditxtmnipos.setMinf('timestamp', timestamp)
@@ -2916,15 +2916,10 @@ class LocateElectrodes(QtGui.QDialog):
             plots = self.getAllPlotsCentersT1preScannerBasedRef()
             
             # Get MNI coordinates
-            plotsMNI = self.getAllPlotsCentersMNIRef()
-            if plotsMNI is None:
+            info_plotMNI = self.getAllPlotsCentersMNIRef(True)
+            if info_plotMNI is None:
                 QtGui.QMessageBox.critical(self, "Error", "MNI coordinates are not available.")
                 return
-            info_plotMNI= []
-            for k,v in plotsMNI.iteritems():
-                plot_name_split = k.split('-$&_&$-')
-                info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-            plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
             
             #montage bipolaire
             info_plotMNI_bipolaire= []
@@ -3181,15 +3176,15 @@ class LocateElectrodes(QtGui.QDialog):
             TemplateHippoSubfieldFreesurfer = False
         
         # Get MNI coordinates for all the plots
-        plot_dict_MNIinter = self.getAllPlotsCentersMNIRef()
+        dict_plotsMNI = self.getAllPlotsCentersMNIRef(False)
         
         brainvisaContext = defaultContext()
         
         #pour que lorsque le thread Brainvisa ça appelle parcellationdone ET les autres export si il y a besoin
         if Callback is not None:
-            Callback2= lambda x=None,plotMNI = plot_dict_MNIinter, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
+            Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
         else:
-            Callback2 = lambda x=None,plotMNI = plot_dict_MNIinter, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
+            Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
         
         try:
             brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
@@ -3820,8 +3815,9 @@ class LocateElectrodes(QtGui.QDialog):
             return None
         return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getAllPlotsCentersT1preRef().iteritems())
 
-    def getAllPlotsCentersMNIRef(self):
-        """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential"""
+    def getAllPlotsCentersMNIRef(self, isShortName=True):
+        """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential
+           or a list of pairs (contactName,[x,y,x]) if isShortName=True"""
 
         # Get elecimplant file
         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
@@ -3844,18 +3840,20 @@ class LocateElectrodes(QtGui.QDialog):
         # Return existing coordinates
         if 'plotsMNI' in dic_impl.keys():
             print "MNI position already estimated, ok"
-            fileMNI = dict(dic_impl['plotsMNI'])
-            plotsMNI = dict()
-            # Convert keys: eg. "A01" => "A-$&_&$-Plot1"
-            for el in self.electrodes:
-                for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems():
-                    contactName = el['name'] + plotName[4:].zfill(2)
-                    if contactName in fileMNI:
-                        plotsMNI[el['name']+'-$&_&$-'+plotName] = fileMNI[contactName]
-
-            # plotsMNI = dict(zip(sorted(plots.keys()), mniCoords))
-            
-            return plotsMNI
+            fileMNI_dict = dict(dic_impl['plotsMNI'])
+            # Convert keys to long plot names: eg. "A01" => "A-$&_&$-Plot1"
+            if not isShortName:
+                dict_plotsMNI = dict()
+                for el in self.electrodes:
+                    for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems():
+                        contactName = el['name'] + plotName[4:].zfill(2)
+                        if contactName in fileMNI_dict:
+                            dict_plotsMNI[el['name']+'-$&_&$-'+plotName] = fileMNI_dict[contactName]
+                return dict_plotsMNI
+            else:
+                plotsMNI = [(k, v) for k, v in fileMNI_dict.iteritems()]
+                plotsMNI = sorted(plotsMNI, key=lambda plot_number: plot_number[0])
+                return plotsMNI
         # If not available: Compute MNI coordinates
         else:
             print "WARNING: MNI position not available, computing now..."
