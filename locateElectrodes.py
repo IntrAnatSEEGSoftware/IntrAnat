@@ -2916,10 +2916,13 @@ class LocateElectrodes(QtGui.QDialog):
             plots = self.getAllPlotsCentersT1preScannerBasedRef()
             
             # Get MNI coordinates
-            info_plotMNI = self.getAllPlotsCentersMNIRef(True)
-            if info_plotMNI is None:
+            dict_plotMNI = self.getAllPlotsCentersMNIRef()
+            if dict_plotMNI is None:
                 QtGui.QMessageBox.critical(self, "Error", "MNI coordinates are not available.")
                 return
+            # Convert to list and sort contacts
+            plotMNI = [(k, v) for k, v in dict_plotMNI.iteritems()]
+            plotMNI_sorted = sorted(plotMNI, key=lambda plot_number: plot_number[0])
             
             #montage bipolaire
             info_plotMNI_bipolaire= []
@@ -3176,7 +3179,7 @@ class LocateElectrodes(QtGui.QDialog):
             TemplateHippoSubfieldFreesurfer = False
         
         # Get MNI coordinates for all the plots
-        dict_plotsMNI = self.getAllPlotsCentersMNIRef(False)
+        dict_plotsMNI = self.getAllPlotsCentersMNIRef()
         
         brainvisaContext = defaultContext()
         
@@ -3816,8 +3819,7 @@ class LocateElectrodes(QtGui.QDialog):
         return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getAllPlotsCentersT1preRef().iteritems())
 
     def getAllPlotsCentersMNIRef(self, isShortName=True):
-        """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential
-           or a list of pairs (contactName,[x,y,x]) if isShortName=True"""
+        """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential"""
 
         # Get elecimplant file
         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
@@ -3840,20 +3842,18 @@ class LocateElectrodes(QtGui.QDialog):
         # Return existing coordinates
         if 'plotsMNI' in dic_impl.keys():
             print "MNI position already estimated, ok"
-            fileMNI_dict = dict(dic_impl['plotsMNI'])
+            dict_fileMNI = dict(dic_impl['plotsMNI'])
             # Convert keys to long plot names: eg. "A01" => "A-$&_&$-Plot1"
             if not isShortName:
                 dict_plotsMNI = dict()
                 for el in self.electrodes:
                     for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems():
                         contactName = el['name'] + plotName[4:].zfill(2)
-                        if contactName in fileMNI_dict:
-                            dict_plotsMNI[el['name']+'-$&_&$-'+plotName] = fileMNI_dict[contactName]
+                        if contactName in dict_fileMNI:
+                            dict_plotsMNI[el['name']+'-$&_&$-'+plotName] = dict_fileMNI[contactName]
                 return dict_plotsMNI
             else:
-                plotsMNI = [(k, v) for k, v in fileMNI_dict.iteritems()]
-                plotsMNI = sorted(plotsMNI, key=lambda plot_number: plot_number[0])
-                return plotsMNI
+                return dict_fileMNI
         # If not available: Compute MNI coordinates
         else:
             print "WARNING: MNI position not available, computing now..."
