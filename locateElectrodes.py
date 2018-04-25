@@ -485,7 +485,6 @@ class LocateElectrodes(QtGui.QDialog):
         self.t1pre2ScannerBasedTransform = None #Transfo from T1pre native to scanner-based referential (Anatomist Transformation object)
         self.t1preCenter = []
         self.brainvisaPatientAttributes = None # Attributes of a BrainVisa ReadDiskItem MRI of the loaded patient
-        self.spmpath = None
         
         #self.MicromedListener = ML()
     
@@ -579,6 +578,8 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
     
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
+            self.fileNoDBpath = None
+            self.spmpath = None
             try:
                 if (os.path.exists(prefpath_imageimport)):
                     filein = open(prefpath_imageimport, 'rb')
