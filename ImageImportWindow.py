@@ -2161,7 +2161,9 @@ class ImageImportWindow (QDialog):
             splittedName = '/'.join(splittedName)
             call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
                    "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+str(splittedName)+"'")
-            matlabRunNB(call, lambda x='':self.morphologistGado3())
+            thr = matlabRunNB(call, lambda x='':self.morphologistGado3())
+            self.threads.append(thr)
+            thr.start()
             
     def morphologistGado3(self):         
             print self.currentSubject + ": Segmentation gado done."
