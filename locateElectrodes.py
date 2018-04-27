@@ -2916,14 +2916,13 @@ class LocateElectrodes(QtGui.QDialog):
             plots = self.getAllPlotsCentersT1preScannerBasedRef()
             
             # Get MNI coordinates
-            dict_plotMNI = self.getAllPlotsCentersMNIRef()
+            dict_plotMNI = self.getAllPlotsCentersMNIRef(False)
             if dict_plotMNI is None:
                 QtGui.QMessageBox.critical(self, "Error", "MNI coordinates are not available.")
                 return
-            # Convert to list and sort contacts
-            plotMNI = [(k, v) for k, v in dict_plotMNI.iteritems()]
-            plotMNI_sorted = sorted(plotMNI, key=lambda plot_number: plot_number[0])
-            
+            # Sort contacts by name and index
+            plotMNI_sorted = self.sortContacts(dict_plotMNI)
+
             #montage bipolaire
             info_plotMNI_bipolaire= []
             for pindex in range(1,len(plotMNI_sorted)):
@@ -2937,12 +2936,12 @@ class LocateElectrodes(QtGui.QDialog):
             
             
             plotsSB = self.getAllPlotsCentersT1preScannerBasedRef()
-            info_plotSB = []
-            for k,v in plotsSB.iteritems():
-                plot_name_split = k.split('-$&_&$-')
-                info_plotSB.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-                
-            plotSB_sorted = sorted(info_plotSB, key=lambda plot_number:plot_number[0])
+#             info_plotSB = []
+#             for k,v in plotsSB.iteritems():
+#                 plot_name_split = k.split('-$&_&$-')
+#                 info_plotSB.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
+#             plotSB_sorted = sorted(info_plotSB, key=lambda plot_number:plot_number[0])
+            plotSB_sorted = self.sortContacts(plotsSB)
             
             #montage bipolaire
             info_plotSB_bipolaire = []
@@ -3050,6 +3049,21 @@ class LocateElectrodes(QtGui.QDialog):
     
         #wdi = WriteDiskItem('PatientInfoTemplate','Patient Template format')
         #di = wdi.findValue(self.diskItems['T1pre'])
+
+    def sortContacts(self, dict_contacts):
+        contacts = []
+        for plotName, plotCoords in dict_contacts.iteritems():
+            plotName_split = plotName.split('-$&_&$-')
+            ct = dict()
+            ct['elecc'] = plotName_split[0]
+            ct['ind'] = int(float(plotName_split[1][4:]))
+            ct['name'] = plotName_split[0] + plotName_split[1][4:].zfill(2)
+            ct['coord'] = plotCoords
+            contacts.append(ct)
+        contacts = sorted(contacts, key=lambda ct:(ct['elecc'], ct['ind']))
+        contacts_sorted = [(ct['name'], ct['coord']) for ct in contacts] 
+        return contacts_sorted
+    
 
     def marsatlasExportResection(self):
 
