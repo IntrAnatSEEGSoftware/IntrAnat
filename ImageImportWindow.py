@@ -2100,7 +2100,6 @@ class ImageImportWindow (QDialog):
             QtGui.QMessageBox.warning(self, 'Missing points', u"You have entered the following points %s, You have to enter AC, PC, IH and LH"%repr(self.AcPc.keys()))
             return
 
-
         # reset buttons color
         self.ui.regAcButton.setStyleSheet("")
         self.ui.regPcButton.setStyleSheet("")
@@ -2112,11 +2111,6 @@ class ImageImportWindow (QDialog):
             self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , 'Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
             self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
-            # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
-            self.clearAnatomist()
-            self.enableACPCButtons(False)
-            self.AcPc = {}
-            
         # Gado
         else:
             # Morphologist step #1: Prepare subject
@@ -2128,15 +2122,21 @@ class ImageImportWindow (QDialog):
             processPrepare.Interhemispheric_Point = self.AcPc['IH']
             processPrepare.Left_Hemisphere_Point = self.AcPc['LH']
             processPrepare.allow_flip_initial_MRI = True
-            self.brainvisaContext.runProcess(processPrepare)
-    
+            self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado1(), processPrepare)
+        # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
+        self.clearAnatomist()
+        self.enableACPCButtons(False)
+        self.AcPc = {}
+            
+    def morphologistGado1(self):
             # Morphologist step #2: Bias correction
-            processBias = processes.getProcessInstance('vipbiascorrection')
-            processBias.mri = self.mriAcPc
-            self.brainvisaContext.runProcess(processBias)
+            processBias = processes.getProcessInstance('t1biascorrection')
+            processBias.t1mri = self.mriAcPc
+            self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado2(), processBias)
 
+    def morphologistGado2(self):
             # Remove GADO with SPM
-            print "Running segmentation to remove Gado on T1 no bias..."
+            print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
             nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
             nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
             id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
@@ -2161,11 +2161,12 @@ class ImageImportWindow (QDialog):
             splittedName = '/'.join(splittedName)
             call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
                    "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+str(splittedName)+"'")
-            matlabRun(call)
-            print "Segmentation gado done."
+            matlabRunNB(call, lambda x='':self.morphologistGado3())
             
+    def morphologistGado3(self):         
+            print self.currentSubject + ": Segmentation gado done."
             # Replace segmented nobias image with segmented image
-            print "Replacing nobias.nii with segmented image..."
+            print self.currentSubject + ": Replacing nobias.nii with segmented image..."
             nobiasBak = os.path.join(getTmpDir(),self.currentSubject+'backup.nii')
             cmd1 = ['mv', nobiasPre, nobiasBak]
             cmd2 = ['cp', str(splittedName), nobiasPre]
@@ -2188,23 +2189,23 @@ class ImageImportWindow (QDialog):
             morphologist.executionNode().HemispheresProcessing.setSelected(True)
             morphologist.executionNode().SulcalMorphometry.setSelected(True)
             # Synchronous computation
-            self.brainvisaContext.runProcess(morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+            self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado4(), t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+
+    def morphologistGado4(self):       
             # Task finishesd
-            self.taskfinished(u'BrainVISA segmentation and meshes generation')
-            
+            self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
             # Restore initial nobias image
-            print "Restoring original nobias.nii..."
+            print self.currentSubject + ": Restoring original nobias.nii..."
             cmd = ['mv', nobiasBak, nobiasPre]
             line1 = runCmd(cmd)
-            
             # Compute MarsAtlas segmentation
             self.hiphopStart()
             
             
     def hiphopStart(self):
-        self.taskfinished(u'Segmentation et maillages BrainVisa')
-        self.setStatus(u"Starting of HIP/HOP")
+        self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
+        self.setStatus(self.currentSubject + u": Starting Hip-Hop")
         attr = self.mriAcPc.attributes()
 
         Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'left','subject':attr['subject'] , 'center':attr['center']})
@@ -2221,7 +2222,7 @@ class ImageImportWindow (QDialog):
             return
     
         self.brainvisaContext.runProcess('Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
-        self.taskfinished(u'hip hop done')
+        self.taskfinished(u'Hip-Hop done')
 
     #def spmRegisterPatient(self, protocol, patient, acq):
         ## Comment choisir le moment pour recaler les post avec les pre, si l'import est fait dans l'ordre post puis pre ?

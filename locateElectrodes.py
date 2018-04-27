@@ -1966,7 +1966,7 @@ class LocateElectrodes(QtGui.QDialog):
 
         # ===== MNI COORDINATES =====
         if isComputeMni and (self.getT1preMniTransform() is not None):
-            [plotsMNI, mniFiles] = self.computeMniPlotsCenters()
+            [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
             if (mniFiles is not None) and (mniFiles is not empty):
                 newFiles = [newFiles, mniFiles]
             
