@@ -2057,7 +2057,7 @@ class ImageImportWindow (QDialog):
         rot_mat = info_mat[:3,:3]
         tr_mat = info_mat[:3,3]
         result_mat = numpy.vstack((tr_mat,rot_mat))
-        #info_mat = scipy.io.loadmat(file_to_open)
+        #info_mat = scipy.io.loadmat(file_to_open)setANTstrm_database
         #matrix_unshaped = info_mat['AffineTransform_double_3_3']
         #matrix_shaped = matrix_unshaped.reshape(4,3)
         #matrix_shaped = numpy.roll(matrix_shaped,3)
@@ -2107,49 +2107,170 @@ class ImageImportWindow (QDialog):
         self.ui.regIhButton.setStyleSheet("")
         self.ui.regLhButton.setStyleSheet("")
 
-
-        #morphologist = processes.getProcessInstance('morphologist')
-        #morphologist.executionNode().PrepareSubject.setSelected(False)
-        #morphologist.executionoNode().BiasCorrection.setSelected(False)
-        #self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-        #                       posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
-    
-    
-        if 'Gado' in self.mriAcPc.attributes().keys():
-            if not self.mriAcPc.attributes()['Gado']:
-                self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , 'Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-                        posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
-                self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
-                # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
-                self.clearAnatomist()
-                self.enableACPCButtons(False)
-                self.AcPc = {}
-    
-        if not 'Gado' in self.mriAcPc.attributes().keys():
+        # No gado
+        if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
             self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , 'Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-                        posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+                    posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
             self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
             # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
             self.clearAnatomist()
             self.enableACPCButtons(False)
             self.AcPc = {}
+            
+        # Gado
+        else:
+            # Morphologist step #1: Prepare subject
+            processPrepare = processes.getProcessInstance('preparesubject')
+            processPrepare.T1mri = self.mriAcPc
+            processPrepare.Normalised = "No"
+            processPrepare.Anterior_Commissure = self.AcPc['AC']
+            processPrepare.Posterior_Commissure = self.AcPc['PC']
+            processPrepare.Interhemispheric_Point = self.AcPc['IH']
+            processPrepare.Left_Hemisphere_Point = self.AcPc['LH']
+            processPrepare.allow_flip_initial_MRI = True
+            self.brainvisaContext.runProcess(processPrepare)
     
-        if 'Gado' in self.mriAcPc.attributes().keys():
-            if self.mriAcPc.attributes()['Gado']:
-                morphologist = processes.getProcessInstance('morphologist')
-                morphologist.executionNode().PrepareSubject.setSelected(True)
-                morphologist.executionNode().BiasCorrection.setSelected(True)
-                morphologist.executionNode().HistoAnalysis.setSelected(False)
-                morphologist.executionNode().BrainSegmentation.setSelected(False)
-                morphologist.executionNode().Renorm.setSelected(False)
-                morphologist.executionNode().SplitBrain.setSelected(False)
-                morphologist.executionNode().TalairachTransformation.setSelected(False)
-                morphologist.executionNode().HeadMesh.setSelected(False)
-                morphologist.executionNode().HemispheresProcessing.setSelected(False)
-                morphologist.executionNode().SulcalMorphometry.setSelected(False)
+            # Morphologist step #2: Bias correction
+            processBias = processes.getProcessInstance('vipbiascorrection')
+            processBias.mri = self.mriAcPc
+            self.brainvisaContext.runProcess(processBias)
+
+            # Remove GADO with SPM
+            print "Running segmentation to remove Gado on T1 no bias..."
+            nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
+            nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
+            id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
+            nobiasPre = str(nobiasimages[id_pre[0]])
+            # Run SPM segmentation
+            pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
+            import copy
+            splittedName = nobiasPre.split('/')
+            c1Name = copy.deepcopy(splittedName)
+            c2Name = copy.deepcopy(splittedName)
+            c3Name = copy.deepcopy(splittedName)
+            c4Name = copy.deepcopy(splittedName)
+            c1Name[-1] = str("c1")+c1Name[-1]
+            c1Name = '/'.join(c1Name)
+            c2Name[-1] = str("c2")+c2Name[-1]
+            c2Name = '/'.join(c2Name)
+            c3Name[-1] = str("c3")+c3Name[-1]
+            c3Name = '/'.join(c3Name)
+            c4Name[-1] = str("c4")+c4Name[-1]
+            c4Name = '/'.join(c4Name)
+            splittedName[-1]=str("WithoutGado.nii")
+            splittedName = '/'.join(splittedName)
+            call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
+                   "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+str(splittedName)+"'")
+            matlabRun(call)
+            print "Segmentation gado done."
+            
+            # Replace segmented nobias image with segmented image
+            print "Replacing nobias.nii with segmented image..."
+            nobiasBak = os.path.join(getTmpDir(),self.currentSubject+'backup.nii')
+            cmd1 = ['mv', nobiasPre, nobiasBak]
+            cmd2 = ['cp', str(splittedName), nobiasPre]
+            line1 = runCmd(cmd1)
+            line2 = runCmd(cmd2)
+            # Force SPM volume to be saved in S16 (otherwise brainvisa4.6 crashes)
+            cmd3 = ['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16']
+            line3 = runCmd(cmd3)
+
+            # Execute the rest of the Morphologist pipeline
+            morphologist = processes.getProcessInstance('morphologist')
+            morphologist.executionNode().PrepareSubject.setSelected(False)
+            morphologist.executionNode().BiasCorrection.setSelected(False)
+            morphologist.executionNode().HistoAnalysis.setSelected(True)
+            morphologist.executionNode().BrainSegmentation.setSelected(True)
+            morphologist.executionNode().Renorm.setSelected(True)
+            morphologist.executionNode().SplitBrain.setSelected(True)
+            morphologist.executionNode().TalairachTransformation.setSelected(False)
+            morphologist.executionNode().HeadMesh.setSelected(True)
+            morphologist.executionNode().HemispheresProcessing.setSelected(True)
+            morphologist.executionNode().SulcalMorphometry.setSelected(True)
+            # Synchronous computation
+            self.brainvisaContext.runProcess(morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+                    posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+            # Task finishesd
+            self.taskfinished(u'BrainVISA segmentation and meshes generation')
+            
+            # Restore initial nobias image
+            print "Restoring original nobias.nii..."
+            cmd = ['mv', nobiasBak, nobiasPre]
+            line1 = runCmd(cmd)
+            
+            # Compute MarsAtlas segmentation
+            self.hiphopStart()
+            
+            
+#     def run2ndpartMorphologist(self):
+# 
+#         print "run segmentation to remove Gado on T1 no bias"
+#         nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
+#         nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
+#         id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
+#         #je change le .nii par le segmenté et je le rechange à la fin ? c'est moche ...
+#         pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
+#         import copy
+#         splittedName = str(nobiasimages[id_pre[0]]).split('/')
+#         c1Name = copy.deepcopy(splittedName)
+#         c2Name = copy.deepcopy(splittedName)
+#         c3Name = copy.deepcopy(splittedName)
+#         c4Name = copy.deepcopy(splittedName)
+#         c1Name[-1] = str("c1")+c1Name[-1]
+#         c1Name = '/'.join(c1Name)
+#         c2Name[-1] = str("c2")+c2Name[-1]
+#         c2Name = '/'.join(c2Name)
+#         c3Name[-1] = str("c3")+c3Name[-1]
+#         c3Name = '/'.join(c3Name)
+#         c4Name[-1] = str("c4")+c4Name[-1]
+#         c4Name = '/'.join(c4Name)
+#         splittedName[-1]=str("WithoutGado.nii")
+#         splittedName = '/'.join(splittedName)
+#         call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+str( str(nobiasimages[id_pre[0]]))+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
+#                "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+str(nobiasimages[id_pre[0]])+"'","'"+str(splittedName)+"'")
+#         matlabRun(call)
+#         print "segmentation gado done"
+#     
+#         cmd1 = ['mv', str(nobiasimages[id_pre[0]]), os.path.join(getTmpDir(),self.currentSubject+'backup.nii')]
+#         cmd2 = ['cp',str(splittedName), str(nobiasimages[id_pre[0]])]
+#         line1 = runCmd(cmd1)
+#         line2 = runCmd(cmd2)
+#         morphologist = processes.getProcessInstance('morphologist')
+#         morphologist.executionNode().PrepareSubject.setSelected(False)
+#         morphologist.executionNode().BiasCorrection.setSelected(False)
+#         morphologist.executionNode().HistoAnalysis.setSelected(True)
+#         morphologist.executionNode().BrainSegmentation.setSelected(True)
+#         morphologist.executionNode().Renorm.setSelected(True)
+#         morphologist.executionNode().SplitBrain.setSelected(True)
+#         morphologist.executionNode().TalairachTransformation.setSelected(False)
+#         morphologist.executionNode().HeadMesh.setSelected(True)
+#         morphologist.executionNode().HemispheresProcessing.setSelected(True)
+#         morphologist.executionNode().SulcalMorphometry.setSelected(True)
+#     
+#         self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+#                 posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+
+    def hiphopStart(self):
+        self.taskfinished(u'Segmentation et maillages BrainVisa')
+        self.setStatus(u"Starting of HIP/HOP")
+        attr = self.mriAcPc.attributes()
+
+        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'left','subject':attr['subject'] , 'center':attr['center']})
+        Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'right' ,'subject':attr['subject'] , 'center':attr['center']})
+        Lrdi = list( Lrdi._findValues( {}, None, False ) )
     
-                self.brainvisaContext.runInteractiveProcess(lambda x='':self.run2ndpartMorphologist() , morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-                        posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+        if len(Lrdi) == 0:
+            print('no left sulci label found, CANNOT RUN HIP HOP')
+            return
+    
+        Rrdi = list( Rrdi._findValues( {}, None, False ) )
+        if len(Rrdi) == 0:
+            print('no right sulci label found, CANNOT RUN HIP HOP')
+            return
+    
+        self.brainvisaContext.runInteractiveProcess(lambda x='':self.taskfinished(u'hip hop done'),'Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
+
+
     #def spmRegisterPatient(self, protocol, patient, acq):
         ## Comment choisir le moment pour recaler les post avec les pre, si l'import est fait dans l'ordre post puis pre ?
         ## Solution :
@@ -2175,84 +2296,6 @@ class ImageImportWindow (QDialog):
         #thrs.append(self.spmNormalize(current.fileName(), protocol, patient, acq))
     
         #return thrs
-
-    def run2ndpartMorphologist(self):
-
-        print "run segmentation to remove Gado on T1 no bias"
-        nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
-        nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-        id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
-        #je change le .nii par le segmenté et je le rechange à la fin ? c'est moche ...
-        pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
-        import copy
-        splittedName = str(nobiasimages[id_pre[0]]).split('/')
-        c1Name = copy.deepcopy(splittedName)
-        c2Name = copy.deepcopy(splittedName)
-        c3Name = copy.deepcopy(splittedName)
-        c4Name = copy.deepcopy(splittedName)
-        c1Name[-1] = str("c1")+c1Name[-1]
-        c1Name = '/'.join(c1Name)
-        c2Name[-1] = str("c2")+c2Name[-1]
-        c2Name = '/'.join(c2Name)
-        c3Name[-1] = str("c3")+c3Name[-1]
-        c3Name = '/'.join(c3Name)
-        c4Name[-1] = str("c4")+c4Name[-1]
-        c4Name = '/'.join(c4Name)
-        splittedName[-1]=str("WithoutGado.nii")
-        splittedName = '/'.join(splittedName)
-        call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+str( str(nobiasimages[id_pre[0]]))+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
-               "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+str(nobiasimages[id_pre[0]])+"'","'"+str(splittedName)+"'")
-        matlabRun(call)
-        print "segmentation gado done"
-    
-        cmd1 = ['mv', str(nobiasimages[id_pre[0]]), os.path.join(getTmpDir(),self.currentSubject+'backup.nii')]
-        cmd2 = ['cp',str(splittedName), str(nobiasimages[id_pre[0]])]
-        line1 = runCmd(cmd1)
-        line2 = runCmd(cmd2)
-        morphologist = processes.getProcessInstance('morphologist')
-        morphologist.executionNode().PrepareSubject.setSelected(False)
-        morphologist.executionNode().BiasCorrection.setSelected(False)
-        morphologist.executionNode().HistoAnalysis.setSelected(True)
-        morphologist.executionNode().BrainSegmentation.setSelected(True)
-        morphologist.executionNode().Renorm.setSelected(True)
-        morphologist.executionNode().SplitBrain.setSelected(True)
-        morphologist.executionNode().TalairachTransformation.setSelected(False)
-        morphologist.executionNode().HeadMesh.setSelected(True)
-        morphologist.executionNode().HemispheresProcessing.setSelected(True)
-        morphologist.executionNode().SulcalMorphometry.setSelected(True)
-    
-        self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-                posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
-
-    def hiphopStart(self):
-
-        if 'Gado' in self.mriAcPc.attributes().keys():
-            if self.mriAcPc.attributes()['Gado']:
-                print "gado has been removed"
-                nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
-                nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-                id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
-                cmd = ['mv',os.path.join(getTmpDir(),self.currentSubject+'backup.nii'),str(nobiasimages[id_pre[0]])]
-                line1 = runCmd(cmd)
-
-        self.taskfinished(u'Segmentation et maillages BrainVisa')
-        self.setStatus(u"Starting of HIP/HOP")
-        attr = self.mriAcPc.attributes()
-
-        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'left','subject':attr['subject'] , 'center':attr['center']})
-        Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'right' ,'subject':attr['subject'] , 'center':attr['center']})
-        Lrdi = list( Lrdi._findValues( {}, None, False ) )
-    
-        if len(Lrdi) == 0:
-            print('no left sulci label found, CANNOT RUN HIP HOP')
-            return
-    
-        Rrdi = list( Rrdi._findValues( {}, None, False ) )
-        if len(Rrdi) == 0:
-            print('no right sulci label found, CANNOT RUN HIP HOP')
-            return
-    
-        self.brainvisaContext.runInteractiveProcess(lambda x='':self.taskfinished(u'hip hop done'),'Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
 
 
     def spmCoregister(self, image, target):
