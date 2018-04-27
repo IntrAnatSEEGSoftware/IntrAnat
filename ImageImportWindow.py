@@ -2161,7 +2161,7 @@ class ImageImportWindow (QDialog):
         nogadoPre = str('/'.join(splittedName))
         call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
                "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+nogadoPre+"'")
-        thr = matlabRunNB(call, lambda x='':self.morphologistGado3(nobiasPre, nogadoPre))
+        thr = matlabRunNB(call, lambda :self.morphologistGado3(nobiasPre, nogadoPre))
         self.threads.append(thr)
         thr.start()
             
@@ -2191,18 +2191,18 @@ class ImageImportWindow (QDialog):
         morphologist.executionNode().HemispheresProcessing.setSelected(True)
         morphologist.executionNode().SulcalMorphometry.setSelected(True)
         # Synchronous computation
-        self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado4(nobiasPre, nobiasBak), t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+        self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado4(nobiasPre, nobiasBak), morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
                 posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
 
-    def morphologistGado4(self, nobiasPre, nobiasBak):       
-            # Task finishesd
-            self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
-            # Restore initial nobias image
-            print self.currentSubject + ": Restoring original nobias.nii..."
-            cmd = ['mv', nobiasBak, nobiasPre]
-            line1 = runCmd(cmd)
-            # Compute MarsAtlas segmentation
-            self.hiphopStart()
+    def morphologistGado4(self, nobiasPre, nobiasBak):
+        # Task finishesd
+        self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
+        # Restore initial nobias image
+        print self.currentSubject + ": Restoring original nobias.nii..."
+        cmd = ['mv', nobiasBak, nobiasPre]
+        line1 = runCmd(cmd)
+        # Compute MarsAtlas segmentation
+        self.hiphopStart()
             
             
     def hiphopStart(self):
