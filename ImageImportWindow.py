@@ -1088,6 +1088,7 @@ class ImageImportWindow (QDialog):
             im2 = self.a.loadObject(win2Path)
             self.a.addObjects(im2, self.wins[1])
             self.dispObj.append(win2Path)
+        
 
     def setStatus(self, text):
         """ Sets the status text displayed at the bottom of the dialog"""
@@ -1987,7 +1988,6 @@ class ImageImportWindow (QDialog):
                 print("ANTs coregistration used")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
         
-#                ants_call = '{}/antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(self.prefs['ants'],str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
                 thr = Executor(ants_call.split())
                 thr.finished.connect(lambda:self.taskfinished(u"ANTs Coregister done", thr))
@@ -2202,54 +2202,6 @@ class ImageImportWindow (QDialog):
             self.hiphopStart()
             
             
-#     def run2ndpartMorphologist(self):
-# 
-#         print "run segmentation to remove Gado on T1 no bias"
-#         nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
-#         nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-#         id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
-#         #je change le .nii par le segmenté et je le rechange à la fin ? c'est moche ...
-#         pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
-#         import copy
-#         splittedName = str(nobiasimages[id_pre[0]]).split('/')
-#         c1Name = copy.deepcopy(splittedName)
-#         c2Name = copy.deepcopy(splittedName)
-#         c3Name = copy.deepcopy(splittedName)
-#         c4Name = copy.deepcopy(splittedName)
-#         c1Name[-1] = str("c1")+c1Name[-1]
-#         c1Name = '/'.join(c1Name)
-#         c2Name[-1] = str("c2")+c2Name[-1]
-#         c2Name = '/'.join(c2Name)
-#         c3Name[-1] = str("c3")+c3Name[-1]
-#         c3Name = '/'.join(c3Name)
-#         c4Name[-1] = str("c4")+c4Name[-1]
-#         c4Name = '/'.join(c4Name)
-#         splittedName[-1]=str("WithoutGado.nii")
-#         splittedName = '/'.join(splittedName)
-#         call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+str( str(nobiasimages[id_pre[0]]))+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
-#                "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+str(nobiasimages[id_pre[0]])+"'","'"+str(splittedName)+"'")
-#         matlabRun(call)
-#         print "segmentation gado done"
-#     
-#         cmd1 = ['mv', str(nobiasimages[id_pre[0]]), os.path.join(getTmpDir(),self.currentSubject+'backup.nii')]
-#         cmd2 = ['cp',str(splittedName), str(nobiasimages[id_pre[0]])]
-#         line1 = runCmd(cmd1)
-#         line2 = runCmd(cmd2)
-#         morphologist = processes.getProcessInstance('morphologist')
-#         morphologist.executionNode().PrepareSubject.setSelected(False)
-#         morphologist.executionNode().BiasCorrection.setSelected(False)
-#         morphologist.executionNode().HistoAnalysis.setSelected(True)
-#         morphologist.executionNode().BrainSegmentation.setSelected(True)
-#         morphologist.executionNode().Renorm.setSelected(True)
-#         morphologist.executionNode().SplitBrain.setSelected(True)
-#         morphologist.executionNode().TalairachTransformation.setSelected(False)
-#         morphologist.executionNode().HeadMesh.setSelected(True)
-#         morphologist.executionNode().HemispheresProcessing.setSelected(True)
-#         morphologist.executionNode().SulcalMorphometry.setSelected(True)
-#     
-#         self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-#                 posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
-
     def hiphopStart(self):
         self.taskfinished(u'Segmentation et maillages BrainVisa')
         self.setStatus(u"Starting of HIP/HOP")
@@ -2268,8 +2220,8 @@ class ImageImportWindow (QDialog):
             print('no right sulci label found, CANNOT RUN HIP HOP')
             return
     
-        self.brainvisaContext.runInteractiveProcess(lambda x='':self.taskfinished(u'hip hop done'),'Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
-
+        self.brainvisaContext.runProcess('Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
+        self.taskfinished(u'hip hop done')
 
     #def spmRegisterPatient(self, protocol, patient, acq):
         ## Comment choisir le moment pour recaler les post avec les pre, si l'import est fait dans l'ordre post puis pre ?
