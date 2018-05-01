@@ -1967,8 +1967,7 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== MNI COORDINATES =====
         if isComputeMni and (self.getT1preMniTransform() is not None):
             [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
-            if (mniFiles is not None) and (mniFiles is not empty):
-                newFiles = [newFiles, mniFiles]
+            newFiles += mniFiles
             
         # ===== Save TXT/PTS files ======
         if isSavePts:
@@ -1993,7 +1992,7 @@ class LocateElectrodes(QtGui.QDialog):
                 wditxtpos.setMinf('timestamp', timestamp)
                 neuroHierarchy.databases.insertDiskItem(wditxtpos, update=True )
                 # List of new registered files
-                newFiles = [newFiles, wdipts, wditxtpos, wditxtname]
+                newFiles += [wdipts.fullPath(), wditxtpos.fullPath(), wditxtname.fullPath()]
             else:
                 print "ERROR: Cannot find a path to save T1pre PTS or TXT files in the database."
                 
@@ -2001,27 +2000,28 @@ class LocateElectrodes(QtGui.QDialog):
             # Get MNI coordinates if computation was not enforced previously
             if not isComputeMni:
                 dict_plotsMNI = self.getAllPlotsCentersMNIRef(False)
-            # Get output files from the database
-            wdiptsmni = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
-            wditxtmnipos = WriteDiskItem('Electrode Implantation Position TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
-            wditxtmniname = WriteDiskItem('Electrode Implantation Name TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
-            # Save PTS and TXT files
-            if (wdiptsmni is not None) and (wditxtmnipos is not None) and (wditxtmniname is not None):
-                # Save PTS
-                self.savePTS(path = wdiptsmni.fullPath(), contacts = dict_plotsMNI)
-                wdiptsmni.setMinf('referential', self.mniReferentialId())
-                wdiptsmni.setMinf('timestamp', timestamp)
-                neuroHierarchy.databases.insertDiskItem(wdiptsmni, update=True )
-                # Save TXT files
-                self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = dict_plotsMNI)
-                neuroHierarchy.databases.insertDiskItem(wditxtmniname, update=True )
-                wditxtmnipos.setMinf('referential', self.mniReferentialId())
-                wditxtmnipos.setMinf('timestamp', timestamp)
-                neuroHierarchy.databases.insertDiskItem(wditxtmnipos, update=True )
-                # List of new registered files
-                newFiles = [newFiles, wdiptsmni, wditxtmnipos, wditxtmniname]
-            else:
-                print "ERROR: Cannot find a path to save MNI PTS or TXT files in the database."
+            if dict_plotsMNI is not None:
+                # Get output files from the database
+                wdiptsmni = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
+                wditxtmnipos = WriteDiskItem('Electrode Implantation Position TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
+                wditxtmniname = WriteDiskItem('Electrode Implantation Name TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
+                # Save PTS and TXT files
+                if (wdiptsmni is not None) and (wditxtmnipos is not None) and (wditxtmniname is not None):
+                    # Save PTS
+                    self.savePTS(path = wdiptsmni.fullPath(), contacts = dict_plotsMNI)
+                    wdiptsmni.setMinf('referential', self.mniReferentialId())
+                    wdiptsmni.setMinf('timestamp', timestamp)
+                    neuroHierarchy.databases.insertDiskItem(wdiptsmni, update=True )
+                    # Save TXT files
+                    self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = dict_plotsMNI)
+                    neuroHierarchy.databases.insertDiskItem(wditxtmniname, update=True )
+                    wditxtmnipos.setMinf('referential', self.mniReferentialId())
+                    wditxtmnipos.setMinf('timestamp', timestamp)
+                    neuroHierarchy.databases.insertDiskItem(wditxtmnipos, update=True )
+                    # List of new registered files
+                    newFiles += [wdiptsmni.fullPath(), wditxtmnipos.fullPath(), wditxtmniname.fullPath()]
+                else:
+                    print "ERROR: Cannot find a path to save MNI PTS or TXT files in the database."
 
             # ===== AC-PC referential =====
             if self.refConv.isRefAvailable('AC-PC'):
@@ -2035,33 +2035,35 @@ class LocateElectrodes(QtGui.QDialog):
                     wdiptsacpc.setMinf('timestamp', timestamp)
                     neuroHierarchy.databases.insertDiskItem(wdiptsacpc, update=True )
                     # List of new registered files
-                    newFiles = [newFiles, wdiptsacpc]
+                    newFiles += [wdiptsacpc.fullPath()]
                 else:    
                     print "ERROR: Cannot find a path to save AC-PC PTS file in the database."
                 
                 
         # ===== MARS ATLAS =====
-        # Compute MarsAtlas parcels
+        # Compute MarsAtlas parcels 
         if isMarsatlasContacts:
-            self.parcelsExportElectrodes()
             # self.parcelsExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex(),self.screenshot(),self.makeMP4(),self.calculParcel()])
+            newFiles += self.parcelsExportElectrodes()
         # Compute MarsAtlas resection
         if isMarsatlasResection:
-            self.marsatlasExportResection()
+            newFiles += self.marsatlasExportResection()
+                
         # Compute MarsAtlas parcel metrics
         if isParcelMetrics:
-            self.calculParcel()
+            newFiles += self.calculParcel()
+
             
         # ===== OTHER EXPORTS =====
         # Save CSV
         if isSaveCsv:
-            self.exportCSVdictionaries()
+            newFiles += self.exportCSVdictionaries()
         # Save screenshots
         if isScreenshot:
-            self.screenshot()
+            newFiles += self.screenshot()
         # Save video
         if isVideo:
-            self.makeMP4()
+            newFiles += self.makeMP4()
 
         # Compute fiber contact distance
         #    self.generateFiberContactDistance()
@@ -2069,8 +2071,8 @@ class LocateElectrodes(QtGui.QDialog):
         #     self.generateMappingContactCortex()
         # Generate Bipole Stimulation excel file
         #    self.generateMappingContactCortex()
-
-        QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: ")
+        
+        QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(newFiles))
     
 
 
@@ -2092,7 +2094,7 @@ class LocateElectrodes(QtGui.QDialog):
         if diMaskleft is None or diMaskright is None or diMaskGW_right is None or diMaskGW_left is None :
             #if a parcellation is missing we won't be able to make the screenshot, so we exit the function
             print "No parcellisation found."  
-            return
+            return []
         else:
             #we take out the cursor
             self.a.config()[ 'linkedCursor' ] = 0
@@ -2182,7 +2184,6 @@ class LocateElectrodes(QtGui.QDialog):
                 new_im.paste(im, (0,y_offset))
                 y_offset += im.size[1]  
             
-            
             new_im.save(os.path.join(getTmpDir(), 'associated.png'))
             #verification that the path is creatable
             wdi = WriteDiskItem('Screenshot of Mars Atlas','PNG image')
@@ -2190,7 +2191,7 @@ class LocateElectrodes(QtGui.QDialog):
         
             if di is None:
                 print "Can't generate file"
-                return
+                return []
             else:
                 try:
                     os.mkdir(os.path.dirname(di.fullPath()))                                                          
@@ -2203,10 +2204,13 @@ class LocateElectrodes(QtGui.QDialog):
                 neuroHierarchy.databases.insertDiskItem(di, update=True )
         #puts back the realistic electrode model        
         self.updateDispMode(0)
+        return [di.fullPath()]
+          
           
     def makeMP4(self):
         from brainvisa import quaternion
         
+        newFiles = []
         #takes the voxel size of the T1
         volume = aims.read(str(self.diskItems['T1pre']))
         sizeT1=volume.getVoxelSize()
@@ -2241,7 +2245,7 @@ class LocateElectrodes(QtGui.QDialog):
             warning = QtGui.QMessageBox(self)
             warning.setText("No CT post or MRI post found")
             warning.setWindowTitle("Warning")
-            return
+            return []
         
         #finding the brainMask if there is one
         try:
@@ -2333,7 +2337,7 @@ class LocateElectrodes(QtGui.QDialog):
               
         if di is None:
             print "Can't generate file"
-            return
+            return []
         else:
             try:
                os.mkdir(os.path.dirname(di.fullPath()))
@@ -2343,6 +2347,7 @@ class LocateElectrodes(QtGui.QDialog):
             cmd1 = ['mv', os.path.join(getTmpDir(),"animationElec.mp4"), str(di.fullPath())]
             line1 = runCmd(cmd1)
             neuroHierarchy.databases.insertDiskItem(di, update=True )
+            newFiles.append(di.fullPath())
             
         #mpegConfig.mpegFormats[3]    
         #Mars Atlas GIF
@@ -2462,7 +2467,7 @@ class LocateElectrodes(QtGui.QDialog):
 
             if di is None:
                 print "Can't generate file"
-                return
+                return []
             else:
                 try:
                   os.mkdir(os.path.dirname(di.fullPath()))
@@ -2472,13 +2477,15 @@ class LocateElectrodes(QtGui.QDialog):
                 cmd1 = ['mv', os.path.join(getTmpDir(),'animationMA.mp4'), str(di.fullPath())]
                 line1 = runCmd(cmd1)
                 neuroHierarchy.databases.insertDiskItem(di, update=True )
+                newFiles.append(di.fullPath())
                 
         self.updateDispMode(0)
         self.a.config()[ 'linkedCursor' ] = 1     
         self.a.execute('WindowConfig',windows = [self.wins[0]],clipping=0)
         
         print("MP4 done")
-
+        return newFiles
+    
 
     def fitvolumebyellipse(self,volumeposition):
 
@@ -2551,7 +2558,7 @@ class LocateElectrodes(QtGui.QDialog):
             nprightMarsAtlas = Maskright.arraydata()
         except:
             print "No parcellation found"
-            return
+            return []
         #take voxel size of T1 pre
         volume = aims.read(str(self.diskItems['T1pre']))
         sizeT1=volume.getVoxelSize()
@@ -2644,7 +2651,7 @@ class LocateElectrodes(QtGui.QDialog):
         field = self.getT1preMniTransform()
         if field is None:
             print "MNI deformation field not found"
-            return None
+            return []
         tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
@@ -2669,6 +2676,8 @@ class LocateElectrodes(QtGui.QDialog):
         neuroHierarchy.databases.insertDiskItem(di, update=True )
         
         print "parcel metrics done"
+        return [di.fullPath()]
+    
   
 #     def generateTemplateBipoleStimulationFile(self):
 #         import openpyxl
@@ -2919,7 +2928,7 @@ class LocateElectrodes(QtGui.QDialog):
             dict_plotMNI = self.getAllPlotsCentersMNIRef(False)
             if dict_plotMNI is None:
                 QtGui.QMessageBox.critical(self, "Error", "MNI coordinates are not available.")
-                return
+                return []
             # Sort contacts by name and index
             plotMNI_sorted = self.sortContacts(dict_plotMNI)
 
@@ -3046,6 +3055,7 @@ class LocateElectrodes(QtGui.QDialog):
         neuroHierarchy.databases.insertDiskItem(di, update=True )
         print "export csv done"
     
+        return [di.fullPath()]
     
         #wdi = WriteDiskItem('PatientInfoTemplate','Patient Template format')
         #di = wdi.findValue(self.diskItems['T1pre'])
@@ -3072,7 +3082,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         if len(di_resec)==0:
             print('no resection image found')
-            return
+            return []
         
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
@@ -3085,13 +3095,13 @@ class LocateElectrodes(QtGui.QDialog):
         
         if diMaskleft is None:
             print('left gyri volume failed, perform export mars atlas export contact first')
-            #return
+            #return []
         else:
             vol_left = aims.read(diMaskleft.fileName())
         
         if diMaskright is None:
             print('right gyri volume failed, perform export mars atlas export contact first')
-            #return
+            #return []
         else:
             vol_right = aims.read(diMaskright.fileName())
         
@@ -3144,7 +3154,7 @@ class LocateElectrodes(QtGui.QDialog):
         di = wdi.findValue(self.diskItems['Resection'])
         if di is None:
             print('Can t generate files')
-            return
+            return []
         
         fout = open(di.fullPath(),'w')
         fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info,'Volume resection (mm3): ':Vol_resection_mm,'Freesurfer':resection_freesurfer_info})) #ici il faut ajouter l'ajout de la key volume mais je sais pas pourquoi des fois ca fait planter l'export en csv
@@ -3153,7 +3163,7 @@ class LocateElectrodes(QtGui.QDialog):
         neuroHierarchy.databases.insertDiskItem(di, update=True )
         
         print "export resection info done"
-
+        return [di.fullPath()]
 
 
     def parcelsExportElectrodes(self, saveInDBmarsatlas = True, Callback = None):
@@ -3194,20 +3204,34 @@ class LocateElectrodes(QtGui.QDialog):
         
         # Get MNI coordinates for all the plots
         dict_plotsMNI = self.getAllPlotsCentersMNIRef()
+        if dict_plotsMNI is None:
+            QtGui.QMessageBox.information(self, u'Export error', u"No MNI coordinates available, compute SPM normalization first.")
+            return
         
         brainvisaContext = defaultContext()
-        
-        #pour que lorsque le thread Brainvisa ça appelle parcellationdone ET les autres export si il y a besoin
-        if Callback is not None:
-            Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
-        else:
-            Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
-        
-        try:
-            brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
-        except:
-            Callback2()
 
+        ######################
+        # Asynchronous process
+        ######################
+        #pour que lorsque le thread Brainvisa ça appelle parcellationdone ET les autres export si il y a besoin
+        #if Callback is not None:
+        #    Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
+        #else:
+        #    Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
+        #try:
+        #    brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
+        #except:
+        #    Callback2()
+            
+        ######################
+        # Synchronous process
+        ######################
+        brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+        newFiles = self.parcellationDone(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
+        if Callback is not None:
+            Callback()
+        return newFiles
+        
 
     def parcellationDone(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False,plot_dict_MNI=None):
 
@@ -3279,7 +3303,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots = self.getAllPlotsCentersT1preRef() #coordonnées en mm à convertir en voxel
         if len(plots)==0:
             print("no contact found")
-            return
+            return []
         
         if not useTemplateMarsAtlas:
             vol_left = aims.read(diMaskleft.fileName())
@@ -3600,7 +3624,6 @@ class LocateElectrodes(QtGui.QDialog):
         for pindex in range(len(info_plot_bipolaire)):
             plot_pos_pix_indi= [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(info_plot_bipolaire_MNI[info_plot_bipolaire[pindex][0]][i]) for i in range(3)]
-            
             #on regarde si une sphère de x mm de rayon touche une parcel
             #mars atlas:
             if not useTemplateMarsAtlas:
@@ -3799,7 +3822,7 @@ class LocateElectrodes(QtGui.QDialog):
         di = wdi.findValue(self.diskItems['T1pre'])
         if di is None:
             print('Can t generate files')
-            return
+            return []
         
         UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer,'HippocampalSubfield Freesurfer':useTemplateHippoSubFreesurfer}
         
@@ -3813,8 +3836,8 @@ class LocateElectrodes(QtGui.QDialog):
         #dictée['plots_label']
         
         print "export electrode done"
-
-
+        # QtGui.QMessageBox.information(self, u'Export done', u"Electrode labels saved in the database: \n" + di.fullPath())
+        return [di.fullPath()]
 
     def getAllPlotsCentersT1preRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the T1pre native referential"""
@@ -3870,9 +3893,10 @@ class LocateElectrodes(QtGui.QDialog):
                 return dict_fileMNI
         # If not available: Compute MNI coordinates
         else:
-            print "WARNING: MNI position not available, computing now..."
-            return computeMniPlotsCenters(self)
-
+            print "WARNING: MNI position not available. Compute SPM normalization first."
+            # return self.computeMniPlotsCenters()
+            return None
+        
         
     def computeMniPlotsCenters(self):
         """Compute MNI coordinates for the all the SEEG contacts, save them in database"""
@@ -3884,7 +3908,7 @@ class LocateElectrodes(QtGui.QDialog):
         field = self.getT1preMniTransform()
         if field is None:
             print "ERROR: MNI deformation field not found."
-            return [None,None]
+            return [None,[]]
         
         # Save coordinates in a .csv file, to be passed to MATLAB/SPM
         tmpOutput = getTmpFilePath('csv')
@@ -3897,13 +3921,13 @@ class LocateElectrodes(QtGui.QDialog):
         os.remove(tmpOutput)
         if numpy.array_equal(out, arr):
             print "ERROR: Points to MNI: Result is identical to input"
-            return [None,None]
+            return [None,[]]
         if (out.shape != arr.shape):
             print "ERROR: Points to MNI: Result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr))
-            return [None,None]
+            return [None,[]]
         mniCoords = out.tolist()
         if mniCoords is None:
-            return [None,None]
+            return [None,[]]
         # Convert back to an electrode dictionnary
         plotsMNI = dict(zip(sorted(plots.keys()), mniCoords))
 
@@ -3938,7 +3962,7 @@ class LocateElectrodes(QtGui.QDialog):
         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True )
         print ".elecimplant saved with MNI"
 
-        return [plotsMNI, [str(ldi[0])+" (MNI)"]]
+        return [plotsMNI, [ldi[0].fullPath() + u"\xa0(MNI)"]]
 
 
     def saveTXT(self, contacts=None, path=None, pathPos=None, pathName=None):
