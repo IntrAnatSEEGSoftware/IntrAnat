@@ -51,8 +51,6 @@ from checkSpmVersion import *
 from freesurfer.brainvisaFreesurfer import *
 from TimerMessageBox import *
 
-import pdb
-
 from soma.qt_gui.qt_backend import uic, QtGui, QtCore
 
 #  Matlab code : coregister file1 to file2
@@ -2175,9 +2173,11 @@ class ImageImportWindow (QDialog):
         line1 = runCmd(cmd1)
         line2 = runCmd(cmd2)
         # Force SPM volume to be saved in S16 (otherwise brainvisa4.6 crashes)
-        cmd3 = ['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16']
-        line3 = runCmd(cmd3)
-
+        ret = subprocess.call(['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16'])
+        if ret < 0:
+            QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
+            return
+        
         # Execute the rest of the Morphologist pipeline
         morphologist = processes.getProcessInstance('morphologist')
         morphologist.executionNode().PrepareSubject.setSelected(False)
