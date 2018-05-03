@@ -540,9 +540,9 @@ class LocateElectrodes(QtGui.QDialog):
     
         if loadAll == True:
             # Linking UI elements to functions
-            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, False, self, "Processing...", "Load patient"))
+            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
-            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:ProgressDialog.call(self.loadPatient, False, self, "Processing...", "Load patient"))
+            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
             self.connect(self.protocolCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateBrainvisaProtocol)
             self.connect(self.filterSiteCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
             self.connect(self.filterYearCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
@@ -1957,9 +1957,10 @@ class LocateElectrodes(QtGui.QDialog):
         if selOptions is None:
             return
         # Run export with a progress bar
-        newFiles = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), False, self, "Processing...", "Export")
+        newFiles = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), True, self, "Processing...", "Export")
         # Display new files
-        QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(newFiles))
+        if (newFiles is not empty) and (newFiles is not None):
+            QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(newFiles))
 
 
     def exportElectrodes(self, selOptions, thread=None):
