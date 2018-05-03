@@ -59,6 +59,7 @@ from bipoleSEEGColors import bipoleSEEGColors
 from DeetoMaison import DeetoMaison
 import ImportTheoreticalImplentation
 from DialogCheckbox import DialogCheckbox
+from progressbar import ProgressDialog
 # from MicromedListener import MicromedListener as ML
 
 # import glob
@@ -430,14 +431,13 @@ def createItemDirs(item):
 
 
 
-
 # ==========================================================================
 # ===== MAIN WINDOW ========================================================
 # ==========================================================================
+
 class LocateElectrodes(QtGui.QDialog):
 
-    def __init__(self, app=None, loadAll = True):
-
+    def __init__(self, app=None, loadAll = True):        
         # UI init
         if loadAll == True:
             QtGui.QWidget.__init__(self)
@@ -514,7 +514,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo1.addItems(sorted(self.windowContent.keys()))
         self.windowCombo2.clear()
         self.windowCombo2.addItems(sorted(self.windowContent.keys()))
-    
+
         # Anatomist windows
         if loadAll == True:
             self.wins=[]
@@ -540,9 +540,9 @@ class LocateElectrodes(QtGui.QDialog):
     
         if loadAll == True:
             # Linking UI elements to functions
-            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), self.loadPatient)
+            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, False, self, "Processing...", "Load patient"))
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
-            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:self.loadPatient())
+            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:ProgressDialog.call(self.loadPatient, False, self, "Processing...", "Load patient"))
             self.connect(self.protocolCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateBrainvisaProtocol)
             self.connect(self.filterSiteCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
             self.connect(self.filterYearCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
@@ -559,7 +559,7 @@ class LocateElectrodes(QtGui.QDialog):
             # itemClicked(QListWidgetItem*) , currentItemChanged ( QListWidgetItem * current, QListWidgetItem * previous ), currentRowChanged ( int currentRow )
             self.connect(self.electrodeLoadButton, QtCore.SIGNAL('clicked()'), self.loadElectrodes)
             self.connect(self.electrodeSaveButton, QtCore.SIGNAL('clicked()'), self.saveElectrodes)
-            self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.exportElectrodes)
+            self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.exportElectrodesInteractive)
             #self.connect(self.marsatlasExportButton, QtCore.SIGNAL('clicked()'),self.parcelsExportElectrodes)
             self.connect(self.colorConfigButton, QtCore.SIGNAL('clicked()'), self.configureColors)
             self.connect(self.dispModeCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateDispMode)
@@ -817,9 +817,9 @@ class LocateElectrodes(QtGui.QDialog):
         
         self.__init__(loadAll=False)
   
-    def loadPatient(self, patient=None):   
-        if patient is None:
-            patient = str(self.patientList.selectedItems()[0].text())
+    def loadPatient(self, thread=None):   
+        # Get current patient
+        patient = str(self.patientList.selectedItems()[0].text())
           
         volumes = []
         self.t1pre2ScannerBasedTransform = None
@@ -841,6 +841,8 @@ class LocateElectrodes(QtGui.QDialog):
         for t in volumes:
             if "skull_stripped" in t.fullName():
                 continue
+            if thread is not None:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading volume: " + t.attributes()['modality'] + "...")
             self.brainvisaPatientAttributes = t.attributes()
             if (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'IRM pre T2':['T2pre', 'electrodes']})
@@ -893,6 +895,8 @@ class LocateElectrodes(QtGui.QDialog):
             
             self.loadAndDisplayObject(t, na)
             if na == 'T1pre':
+                if thread is not None:
+                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading referentials...")
                 # Save volume center (in mm)
                 if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
                     self.t1preCenter = t.get('brainCenter')
@@ -930,6 +934,8 @@ class LocateElectrodes(QtGui.QDialog):
                 rdi3 = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
                 hemis = list(rdi3._findValues({}, None, False))
                 
+                if thread is not None:
+                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
                 for hh in hemis:
                     self.loadAndDisplayObject(hh, na + '-' + hh.attributes()['side'] + 'Hemi', color=[0.8, 0.7, 0.4, 0.7])
                     print "Found hemisphere " + str(na + '-' + hh.attributes()['side'] + 'Hemi')
@@ -940,17 +946,21 @@ class LocateElectrodes(QtGui.QDialog):
                 wm_di = ReadDiskItem('Hemisphere White Mesh', 'aims mesh formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol })
                 
                 if len(atlas_di_list) > 0:
+                    if thread is not None:
+                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading MarsAtlas parcels...")
                     for atl in atlas_di_list:
                         wm_side = wm_di.findValue(atl)
                         self.loadAndDisplayObject(wm_side, na + '-' + atl.attributes()['side'] + 'MARSATLAS', texture_item=atl, palette='MarsAtlas', color=[0.8, 0.7, 0.4, 0.7])
                         print "Found hemisphere " + str(na + '-' + atl.attributes()['side'] + 'MARSATLAS')
                         dictionnaire_list_images.update({'IRM pre + MARS ATLAS ' + atl.attributes()['side']:['T1pre', 'T1pre-' + atl.attributes()['side'] + 'MARSATLAS', 'electrodes']})
 
+
                 # Get head mesh for the acquisition
-                # probleme
                 rdi3 = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
                 head = list(rdi3._findValues({}, None, False))
                 if len(head) > 0:  # Only if there is one !
+                    if thread is not None:
+                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading head mesh...")
                     self.loadAndDisplayObject(head[0], na + '-' + 'head', color=[0.0, 0.0, 0.8, 0.3])
     
         self.windowContent = dictionnaire_list_images;
@@ -964,6 +974,8 @@ class LocateElectrodes(QtGui.QDialog):
     
         # Display referential informations
         self.setWindowsReferential()
+        if thread is not None:
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
         self.loadElectrodes(self.brainvisaPatientAttributes)
         self.refreshAvailableDisplayReferentials()
         # Display all
@@ -1924,34 +1936,41 @@ class LocateElectrodes(QtGui.QDialog):
 #         print ".elecimplant done with MNI"
     
     
-    def exportElectrodes(self, selOptions=None):
+    def exportElectrodesInteractive(self):
+        # Ask which options needed to be executed before the export
+        dialog = DialogCheckbox([\
+            "Compute MNI coordinates for all contacts",\
+            "Compute MarsAtlas contacts positions",\
+            "Compute MarsAtlas resection position",\
+            # "Generate mapping contact - hemi mesh",\
+            # "Generate Bipole Stimulation excel file",\
+            "Compute parcel metrics",\
+            # "Compute fiber contact distance",\
+            "Save contact coordinates (.pts/.txt files)",\
+            "Save contact info (CSV file)",\
+            "Save screenshots",\
+            "Save video (MP4)"],\
+            "Export", "Select options to run:",\
+            [True, True, True, False, True, True, False, False])
+        selOptions = dialog.exec_()
+        # If user cancelled the selection
+        if selOptions is None:
+            return
+        # Run export with a progress bar
+        newFiles = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), False, self, "Processing...", "Export")
+        # Display new files
+        QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(newFiles))
+
+
+    def exportElectrodes(self, selOptions, thread=None):
         """ Normalize and export the contact coordinates """
         
         # Get coordinates of SEEG contact centers
         plots = self.getAllPlotsCentersT1preScannerBasedRef()
         if not plots:
             QtGui.QMessageBox.critical(self, u'Error', "No electrodes available.")
-            return
-        
-        # Ask which options needed to be executed before the export
-        if selOptions is None:
-            dialog = DialogCheckbox([\
-                "Compute MNI coordinates for all contacts",\
-                "Compute MarsAtlas contacts positions",\
-                "Compute MarsAtlas resection position",\
-                # "Generate mapping contact - hemi mesh",\
-                # "Generate Bipole Stimulation excel file",\
-                "Compute parcel metrics",\
-                # "Compute fiber contact distance",\
-                "Save contact coordinates (.pts/.txt files)",\
-                "Save contact info (CSV file)",\
-                "Save screenshots",\
-                "Save video (MP4)"],\
-                "Export", "Select options to run:",\
-                [True, True, True, False, True, True, False, False])
-            selOptions = dialog.exec_()
-        if selOptions is None:
-            return
+            return []
+
         # Get options from selection
         isComputeMni = selOptions[0]
         isMarsatlasContacts = selOptions[1]
@@ -1966,11 +1985,15 @@ class LocateElectrodes(QtGui.QDialog):
 
         # ===== MNI COORDINATES =====
         if isComputeMni and (self.getT1preMniTransform() is not None):
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
             [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
             newFiles += mniFiles
             
         # ===== Save TXT/PTS files ======
         if isSavePts:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Exporting PTS files...")
             # ===== T1-pre scanner-based referential ======
             # Get current time stamp
             timestamp = time.time()
@@ -2043,36 +2066,44 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== MARS ATLAS =====
         # Compute MarsAtlas parcels 
         if isMarsatlasContacts:
-            # self.parcelsExportElectrodes(Callback=lambda:[self.marsatlasExportResection(),self.exportCSVdictionaries(),self.generateMappingContactCortex(),self.screenshot(),self.makeMP4(),self.calculParcel()])
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
             newFiles += self.parcelsExportElectrodes()
         # Compute MarsAtlas resection
         if isMarsatlasResection:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing resection parcels...")
             newFiles += self.marsatlasExportResection()
-                
         # Compute MarsAtlas parcel metrics
         if isParcelMetrics:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing parcel metrics...")
             newFiles += self.calculParcel()
-
             
         # ===== OTHER EXPORTS =====
         # Save CSV
         if isSaveCsv:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
             newFiles += self.exportCSVdictionaries()
         # Save screenshots
         if isScreenshot:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 80)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating screenshots...")
             newFiles += self.screenshot()
         # Save video
         if isVideo:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 90)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
             newFiles += self.makeMP4()
-
+            
         # Compute fiber contact distance
         #    self.generateFiberContactDistance()
         # Compute MarsAtlas contacts positions
         #     self.generateMappingContactCortex()
         # Generate Bipole Stimulation excel file
         #    self.generateMappingContactCortex()
-        
-        QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(newFiles))
+        return newFiles
     
 
 
@@ -4521,6 +4552,7 @@ def main(noapp=0):
     app = None
     if noapp == 0:
         print "NO APP"
+        QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
         app = QtGui.QApplication(sys.argv)
         axon.initializeProcesses()
         from brainvisa.data.readdiskitem import ReadDiskItem

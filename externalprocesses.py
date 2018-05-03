@@ -10,9 +10,9 @@
 # TODO : redo using QRunnable instead of QThread with QThreadPool.globalInstancer().start(myRunnable)
 
 import subprocess, traceback, os, types, tempfile, time, random, string,sys
-from soma.qt_gui.qt_backend import QtCore
+from soma.qt_gui.qt_backend import QtGui, QtCore
 from os.path import expanduser
-import pdb
+# import pdb
 
 
 # Set the environment for external commands without BrainVisa interference (remove brainvisa-specific paths)
@@ -208,3 +208,6 @@ def formatExternalPath(fullpath):
         return str(fullpath).replace(expanduser("~"), "L:").replace("/", "\\")
     else:
         return str(fullpath)
+    
+
+    

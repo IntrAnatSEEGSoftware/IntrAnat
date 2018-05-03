@@ -21,6 +21,7 @@ from soma.qt_gui.qt_backend.QtGui import *
 if __name__ == '__main__':
 
     # create application
+    QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
     app = QApplication(sys.argv)
     app.setApplicationName('Image Import')
 
