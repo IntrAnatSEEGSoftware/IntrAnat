@@ -660,7 +660,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.filterYearCombo.clear()
         self.filterYearCombo.addItems(years)
         # Loading electrode models
-        rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format', requiredAttributes={'center':self.currentProtocol})
+        # rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format', requiredAttributes={'center':self.currentProtocol})
+        rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format')
         self.elecModelList = list (rdiEM._findValues( {}, None, False ) )
         elecNames = [e.attributes()['model_name'] for e in self.elecModelList]
         self.elecModelListByName = dict((e.attributes()['model_name'], e) for e in self.elecModelList)
@@ -976,7 +977,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.setWindowsReferential()
         if thread is not None:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
-        self.loadElectrodes(self.brainvisaPatientAttributes)
+        self.loadElectrodes(patient, self.currentProtocol)
         self.refreshAvailableDisplayReferentials()
         # Display all
         self.allWindowsUpdate()
@@ -1288,7 +1289,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.allWindowsUpdate()
 
     # Add an electrode from a template
-    def addElectrode(self, name=None, model=None, target=[0,0,0], entry=[0,0,-1], refId = None):
+    def addElectrode(self, name=None, model=None, target=[0,0,0], entry=[0,0,-1], refId=None, isUpdate=True):
         if name is None:
             name = str(self.nameEdit.text())
         if model is None:
@@ -1307,7 +1308,9 @@ class LocateElectrodes(QtGui.QDialog):
         #index = self.elecCombo.findText("Electrode "+str(self.elecname))
         self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.electrodes) - 1)
-        self.updateElectrodeMeshes()
+        # Redraw electrodes
+        if isUpdate:
+            self.updateElectrodeMeshes()
 
     def addBipole(self, name=None, positionbip=[0,0,0], refId = None,entry_bipole = None):
         if name is None:
@@ -1751,11 +1754,14 @@ class LocateElectrodes(QtGui.QDialog):
         return (refId, els)
 
 
-    def loadElectrodes(self, patient=None):
+    def loadElectrodes(self, patientName=None, patientCenter=None):
         """Load electrode implantation (if already entered) from BrainVisa or from a file"""
         path = None
-        if patient is not None:
-            rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format', requiredAttributes={'subject':patient['subject'], 'center':patient['center']} )
+        
+        if patientCenter is None:
+            path = str(QtGui.QFileDialog.getOpenFileName(self, "Open electrode implantation", "", "All implantations(*.elecimplant *.pts *.txt);;Electrode implantation (*.elecimplant);;PTS file (*.pts);;Electrode.txt (*.txt)"))
+        else:
+            rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format', requiredAttributes={'subject':patientName, 'center':patientCenter} )
             elecs = list(rdi._findValues( {}, None, False ) )
             if len(elecs) == 1:
                 path = elecs[0].fileName()
@@ -1765,8 +1771,6 @@ class LocateElectrodes(QtGui.QDialog):
             else: # No implantation available
                 print "no electrode implantation found"
                 return
-        if not path:
-            path = str(QtGui.QFileDialog.getOpenFileName(self, "Open electrode implantation", "", "All implantations(*.elecimplant *.pts *.txt);;Electrode implantation (*.elecimplant);;PTS file (*.pts);;Electrode.txt (*.txt)"))
     
         if not path:
             return
@@ -1803,8 +1807,9 @@ class LocateElectrodes(QtGui.QDialog):
             #trsf = dic['2mni']
             #self.transf2Mni['T1pre'] = self.a.createTransformation([trsf[i] for i in indices], self.preReferential(), self.mniReferential())
         for e in els:
-            self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId)
-
+            self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False)
+        # Update display
+        self.updateElectrodeMeshes()
 
     def saveElectrodes(self):
         """Save electrode implantation in BrainVisa Database"""
