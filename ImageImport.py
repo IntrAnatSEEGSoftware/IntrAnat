@@ -29,11 +29,10 @@
 # ipython -q4thread  locateElectrodes.py # Pour avoir ipython et Qt actifs en même temps au cours du debug
 
 
-import os, subprocess, re, pickle, shutil, tempfile, scipy.io, json, numpy
+import os, subprocess, pickle, shutil, tempfile, json, numpy
 from scipy import ndimage
 
 from brainvisa import axon, processes
-
 from soma import aims
 from soma.wip.application.api import Application
 from brainvisa.data.writediskitem import ReadDiskItem, WriteDiskItem
@@ -43,6 +42,7 @@ from brainvisa.configuration import neuroConfig
 neuroConfig.gui = True
 from brainvisa import anatomist
 import brainvisa.registration as registration
+from soma.qt_gui.qt_backend import uic, QtGui, QtCore
 
 from externalprocesses import *
 from dicomutilities import *
@@ -50,8 +50,8 @@ import seegprocessing, patientinfo, pathologypatientinfo
 from checkSpmVersion import *
 from freesurfer.brainvisaFreesurfer import *
 from TimerMessageBox import *
+from progressbar import ProgressDialog
 
-from soma.qt_gui.qt_backend import uic, QtGui, QtCore
 
 #  Matlab code : coregister file1 to file2
 def matlab_cellstr(listOfStrings):
@@ -300,18 +300,17 @@ end
 quit;"""
 
 
-(Ui_ImageImport, QDialog) = uic.loadUiType('ImageImport.ui')
-
-
-class ImageImport (QDialog):
+class ImageImport (QtGui.QDialog):
     """ImageImport is the main dialog class of the Image Importer software"""
 
-    def __init__ (self, parent = None):
-        QDialog.__init__(self, parent)
-        self.ui = Ui_ImageImport()
+    def __init__ (self, app=None):
+        QtGui.QWidget.__init__(self)
+        self.ui = uic.loadUi("ImageImport.ui", self)
+        self.setWindowTitle('Image Import - NOT FOR MEDICAL USE')
+        self.app = app
+        
         self.seriesUIDbyName = {}
         self.studiesUIDbyName = {}
-        self.ui.setupUi(self)
         self.currentProtocol = None
         self.currentSubject = None
         self.AcPc = {}
@@ -320,8 +319,6 @@ class ImageImport (QDialog):
         self.ui.acqDate.setDate(self.defaultAcqDate)
         self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR', 'hippofreesurfer_atlas':'HippoFreesurferAtlas'}
 
-        ## Init brainvisa to access the DB
-        axon.initializeProcesses()
         # Allow calling brainvisa processes
         from brainvisa.processes import defaultContext
         self.brainvisaContext = defaultContext()
@@ -396,7 +393,6 @@ class ImageImport (QDialog):
         self.connect(self.ui.niftiOutputButton, QtCore.SIGNAL('clicked()'), lambda :self.selectOutput('Nifti'))
         # PACS tab
         self.connect(self.ui.pacsSearchButton, QtCore.SIGNAL('clicked()'), self.searchPacs)
-    
         self.connect(self.ui.dirPatientList, QtCore.SIGNAL('itemSelectionChanged()'), lambda :self.patientSelectionChanged('dir'))
         self.connect(self.ui.pacsPatientList, QtCore.SIGNAL('itemSelectionChanged()'), lambda :self.patientSelectionChanged('pacs'))
         self.connect(self.ui.dirStudiesList, QtCore.SIGNAL('itemSelectionChanged()'), lambda :self.studiesSelectionChanged('dir'))
@@ -425,7 +421,7 @@ class ImageImport (QDialog):
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.segmentationHIPHOP)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
-        # self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
+        self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
     
         self.warningMEDIC()
 
@@ -500,7 +496,7 @@ class ImageImport (QDialog):
         self.setGuide("Choose on of the tabs to import data in the BrainVisa database")
         self.enableACPCButtons(False)
         # Disable work-in-progress tabs
-        #self.ui.tabWidget.setTabEnabled(6, False)
+        self.ui.tabWidget.setTabEnabled(6, False)
         self.ui.tabWidget.setTabEnabled(7, False)
         self.ui.tabWidget.setTabEnabled(8, False)
         self.ui.tabWidget.setTabEnabled(9, False)
@@ -1026,7 +1022,7 @@ class ImageImport (QDialog):
     def deleteBvSubject(self):
         protocol = str(self.ui.bvProtocolCombo.currentText())
         subj = str(self.ui.bvSubjectCombo.currentText())
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>you are gonna Erase ALL subject datas<br/><b>DELETE THE SUBJECT%s ?</b></font>"%subj, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING</b><br/>You are about to erase ALL the patient data.<br/><br/><b>DELETE PATIENT \"%s\" ?</b></font>"%subj, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if rep == QtGui.QMessageBox.Yes:
             print "Deleting subject %s"%subj
             rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
@@ -1047,7 +1043,7 @@ class ImageImport (QDialog):
             imageName = str(self.ui.bvImageList.currentItem().text())
         except: # Probably no image available or no image selected
             return
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete the selected image and all linked data<br/><b>DELETE THE IMAGE%s ?</b></font>"%imageName, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING</b><br/>You are about to delete the selected image and all linked data.<br/><br/><b>DELETE IMAGE \"%s\" ?</b></font>"%imageName, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if rep == QtGui.QMessageBox.Yes:
     
             path = self.bvImagePaths[imageName] # Gives the path of the image
@@ -1357,7 +1353,6 @@ class ImageImport (QDialog):
             print "brain center not set"
             QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
             return
-    
         if self.ui.acqDate.date() == self.defaultAcqDate:
             QtGui.QMessageBox.warning(self, "Error",u"Acquisition date is not valid!")
             return
@@ -1384,7 +1379,6 @@ class ImageImport (QDialog):
     
         if filetype == 'fMRI-epile' or filetype == 'Statistic-Data':
             text, ok = QtGui.QInputDialog.getText(self, 'Input Dialog', 'Enter the name of the test:')
-    
             if (ok & bool(text)):
                 write_filters.update({'subacquisition':str(text)})
     
@@ -1397,30 +1391,35 @@ class ImageImport (QDialog):
             QtGui.QMessageBox.warning(self, "Error", u"Impossible to find a valid path to import the Image in Brainvisa database (%s, %s)"%(patient, acq))
             return
         # Copy the file : lancer l'importation standard de T1 MRI pour la conversion de format et
-        destination = di.fileName()
-        if os.path.exists(destination):
+        if os.path.exists(di.fileName()):
             reply = QtGui.QMessageBox.question(self, 'Overwrite', u"This image already exists.\nOverwrite the file ?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-
-            if reply ==   QtGui.QMessageBox.No:
+            if reply == QtGui.QMessageBox.No:
                 return
-        print "Importing file as "+destination
+        print "Importing file as "+di.fileName()
     
         #current images loaded for this patient:
         self.selectBvSubject(str(patient))
     
         if filetype != 'fMRI-epile' and filetype != 'Statistic-Data' and filetype != 'FreesurferAtlas':
-    
             if len(self.bvImagePaths) > 0:
                 ImAlreadyHere = [i for i in range(len(self.bvImagePaths)) if str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()+'_') in self.bvImagePaths.keys()[i]]
                 if len(ImAlreadyHere):
-                    QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before if you want to import another one"%str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()))
+                    QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before importing a new one."%str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()))
                     self.setStatus(u"Sequence %s importation not performed (already one equivalent)"%acq)
                     return
+    
+        # Call import in a separate function with a progress bar
+        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, proto, patient, thr), True, self, "Processing...", "Import image")
+        # self.importNiftiWorker(di, path, filetype, proto, patient)
+        self.setStatus(u"Sequence %s importation done"%acq)
+        
+        
+    def importNiftiWorker(self, di, path, filetype, proto, patient, thr=None):
     
         # Create directories that do not exist yet
         self.createItemDirs(di)
     
-        #we check that there is a Scanner based transformation, if not and if both transformations are equal, we rename one as scanner based transformation
+        # We check that there is a Scanner based transformation, if not and if both transformations are equal, we rename one as scanner based transformation
         temp_nii = aims.read(path)
         refs_nii = temp_nii.header()['referentials']
         if len(refs_nii)>1:
@@ -1430,42 +1429,31 @@ class ImageImport (QDialog):
                 if refs_nii[ii] == 'Scanner-based anatomical coordinates':
                     isScannerBased = 1
                 sum_transfo = sum_transfo + temp_nii.header()['transformations'][ii]
-    
             mean_transfo = sum_transfo/len(refs_nii)
             if isScannerBased == 0:
                 diff = mean_transfo - temp_nii.header()['transformations'][0]
                 if numpy.absolute(diff).round(2).sum() <= 0.03:
                     temp_nii.header()['referentials'][0] = 'Scanner-based anatomical coordinates'
-    
-    
         else:
             if refs_nii[0] == 'Coordinates aligned to another file or to anatomical truth':
                 temp_nii.header()['referentials'][0] = 'Scanner-based anatomical coordinates'
     
-        aims.write(temp_nii,destination)
+        destination = di.fileName()
+        aims.write(temp_nii, destination)
     
         if (filetype != 'fMRI-epile') & (filetype != 'PET') & (filetype != 'Statistic-Data'):  # or filetype != 'MTT'
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
-            if ret < 0:
-                print "Importation error"
-                QtGui.QMessageBox.warning(self, "Error", "Importation error : BrainVisa / AimsFileConvert")
-                return
         elif filetype == 'PET':
             print "conversion PET float to S16"
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
-            if ret < 0:
-                print "Importation error"
-                QtGui.QMessageBox.warning(self, "Error", "Importation error : BrainVisa / AimsFileConvert")
-                return
             di.setMinf('ColorPalette','Blue-Red-fusion')
         else:
             print "no conversion to grayscale"
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination)])
-            if ret < 0:
-                print "Importation error"
-                QtGui.QMessageBox.warning(self, "Error", "Importation error : BrainVisa / AimsFileConvert")
-                return
-    
+        if ret < 0:
+            print "Importation error: BrainVisa / AimsFileConvert"
+            return
+
         if str(self.ui.niftiSeqType.currentText()) == 'T1':
             if self.ui.radioButtonGado.isChecked():
                 di.setMinf('Gado',True)
@@ -1473,29 +1461,24 @@ class ImageImport (QDialog):
                 di.setMinf('Gado',False)
             neuroHierarchy.databases.insertDiskItem( di, update=True )
     
-    
         di.setMinf('brainCenter', self.brainCenter)
-    
         if filetype == 'Statistic-Data':
-    
             textMNI, okMNI = QtGui.QInputDialog.getItem(self,'MNI or not','Is the statistic image generated in the MNI',['True','False'])
             if (okMNI & bool(textMNI)):
                 di.setMinf('MNI',str(textMNI))
             di.setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-    
         neuroHierarchy.databases.insertDiskItem( di, update=True )
-        self.setStatus(u"Sequence %s importation done"%acq)
-    
+
         if filetype == 'Statistic-Data':
             try:
                 self.StatisticDataMNItoScannerBased(proto, patient, acq)
             except:
                 pass
-    
         if filetype == 'FreesurferAtlas':
             self.generateAmygdalaHippoMesh(proto, patient, acq, di)
-        # Appeler le process SPMnormalizationPipeline.py de la toolbox t1,  et ajouter sur ce modèle un process coregister
-
+        return None
+    
+        
     def importFSoutput(self,subject=None):
 
         if subject == None:
@@ -2744,7 +2727,6 @@ class ImageImport (QDialog):
                 aims.SurfaceManip.rasterizeMesh(meshantero,hippo_vol_antero,1)
                 aims.SurfaceManip.rasterizeMesh(meshpostero,hippo_vol_postero,1)
                 #fill the insides voxel
-                from scipy import ndimage
                 for zslices in range(hippo_vol_antero.arraydata().shape[1]):
                     hippo_vol_antero.arraydata()[0,zslices,:,:] = ndimage.morphology.binary_fill_holes(hippo_vol_antero.arraydata()[0,zslices,:,:]).astype(int)
 
@@ -2868,7 +2850,6 @@ class ImageImport (QDialog):
                     aims.SurfaceManip.rasterizeMesh(meshantero,hippo_vol_antero,1)
                     aims.SurfaceManip.rasterizeMesh(meshpostero,hippo_vol_postero,1)
                     #fill the insides voxel
-                    from scipy import ndimage
                     for zslices in range(hippo_vol_antero.arraydata().shape[1]):
                         hippo_vol_antero.arraydata()[0,zslices,:,:] = ndimage.morphology.binary_fill_holes(hippo_vol_antero.arraydata()[0,zslices,:,:]).astype(int)
 
@@ -2959,9 +2940,10 @@ class ImageImport (QDialog):
 
         self.importFSoutput(subject=subj)
 
-#     def runMarsAtlasFreesurfer(self):
-#         print("not finished")
-#         return
+
+    def runMarsAtlasFreesurfer(self):
+        QtGui.QMessageBox.warning(self, "Error", u"TODO")
+        
 
     def fitvolumebyellipse(self,volumeposition):
 
@@ -3321,7 +3303,6 @@ class ImageImport (QDialog):
             self.ui.radioButtonNoGado.setEnabled(False)
 
 
-
     def anonymizeTRC_Sys98_t4(filepath, firstname="No", lastname="Name", nowrite=False, overwriteMontage=True, overwriteUndocumentedElectrode = True): # Anonymize Micromed's System 98 type 4 TRC files
         """ Anonymize Micromed's System 98 type 4 TRC files """
         fo=open(filepath, "r+b") # Open read-write binary mode
@@ -3408,16 +3389,16 @@ if __name__ == '__main__':
     # Create application
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
     app = QtGui.QApplication(sys.argv)
-    app.setApplicationName('Image Import')
+    #app.setApplicationName('Image Import')
+    axon.initializeProcesses()
     
     # Show main window
-    w = ImageImport()
-    w.setWindowTitle('Image Import - NOT FOR MEDICAL USE')
+    w = ImageImport(app = app)
     w.setWindowFlags(QtCore.Qt.Window)
     w.show()
     
     # Kill application when windows are closed
-    QtGui.QObject.connect(app, QtCore.SIGNAL('lastWindowClosed()'), app, QtCore.SLOT('quit()'))
+    # QtGui.QObject.connect(app, QtCore.SIGNAL('lastWindowClosed()'), app, QtCore.SLOT('quit()'))
     # Debug -> evite un pb entre ipython, pdb et qt
     # pyqtRemoveInputHook()
     

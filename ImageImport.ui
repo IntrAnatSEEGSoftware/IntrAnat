@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Importation d'images pour BrainVisa</string>
+   <string>Import images</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -52,7 +52,7 @@
       </property>
       <widget class="QWidget" name="tab_5">
        <attribute name="title">
-        <string>BrainVisa</string>
+        <string>Database</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_6">
         <item>
@@ -71,7 +71,7 @@
            </font>
           </property>
           <property name="text">
-           <string>Images existing in the BrainVISA database</string>
+           <string>Images in the BrainVISA database</string>
           </property>
          </widget>
         </item>
@@ -93,7 +93,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="label_17">
             <property name="text">
-             <string>Subjet</string>
+             <string>Patient</string>
             </property>
            </widget>
           </item>
@@ -123,7 +123,7 @@
       </widget>
       <widget class="QWidget" name="tab_8">
        <attribute name="title">
-        <string>Add Patient</string>
+        <string>Add</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_10">
         <item>
@@ -317,7 +317,7 @@
           <item>
            <widget class="QLabel" name="label_33">
             <property name="text">
-             <string>Name in the Database</string>
+             <string>Name in the database</string>
             </property>
            </widget>
           </item>
@@ -352,7 +352,7 @@
         <item>
          <widget class="QPushButton" name="subjectAddSubjectButton">
           <property name="text">
-           <string>Add subject (in the local Database)</string>
+           <string>Add to local database</string>
           </property>
           <property name="autoDefault">
            <bool>false</bool>
@@ -362,7 +362,7 @@
         <item>
          <widget class="QPushButton" name="subjectAddProjectDatabase">
           <property name="text">
-           <string>Add subject to distant database (F-Tract ou Neuropsynov database)</string>
+           <string>Add to distant database (f-tract or Neuropsynov)</string>
           </property>
          </widget>
         </item>
@@ -375,7 +375,7 @@
       </widget>
       <widget class="QWidget" name="tab_9">
        <attribute name="title">
-        <string>Infos Patient</string>
+        <string>Info</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_14">
         <item>
@@ -396,7 +396,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="label_39">
             <property name="text">
-             <string>Subjet</string>
+             <string>Patient</string>
             </property>
            </widget>
           </item>
@@ -436,7 +436,7 @@
       </widget>
       <widget class="QWidget" name="tab_2">
        <attribute name="title">
-        <string>Importation NIFTI</string>
+        <string>Import</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_11">
         <item>
@@ -449,7 +449,7 @@
            </font>
           </property>
           <property name="text">
-           <string>Import a NIFTI image or a MGZ image</string>
+           <string>Import NII or MGZ image</string>
           </property>
          </widget>
         </item>
@@ -689,7 +689,7 @@
           <item>
            <widget class="QPushButton" name="niftiSetBraincenterButton">
             <property name="toolTip">
-             <string>Cliquer sur le centre du cerveau dans l'image puis cliquer sur ce bouton</string>
+             <string>Click at the center of the brain, then click on this button</string>
             </property>
             <property name="text">
              <string>Position Brain Center</string>
@@ -758,7 +758,7 @@
       </widget>
       <widget class="QWidget" name="tab_6">
        <attribute name="title">
-        <string>Coregistration and Normalization</string>
+        <string>Coreg</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_12">
         <item>
@@ -779,7 +779,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="label_19">
             <property name="text">
-             <string>Subjet</string>
+             <string>Patient</string>
             </property>
            </widget>
           </item>
@@ -807,31 +807,31 @@
            <bool>true</bool>
           </property>
           <property name="text">
-           <string>Coregister subject images and normalize the T1</string>
+           <string>Coregister images + Normalize T1pre</string>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QPushButton" name="segmentationHIPHOPbutton">
           <property name="text">
-           <string>Run only Segmentation and Hip Hop</string>
+           <string>Run BrainVISA: Morphologist + HipHop</string>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QPushButton" name="FreeSurferReconAllpushButton">
           <property name="text">
-           <string>Run Freesurfer Recon-All (can take up to 24 hours)</string>
+           <string>Run Freesurfer: recon-all (up to 24 hours)</string>
           </property>
          </widget>
         </item>
-        <!-- item>
+        <item>
          <widget class="QPushButton" name="runMarsAtlasFreesurferButton">
           <property name="text">
-           <string>Run Hip Hop on Freesurfer Mesh</string>
+           <string>Run HipHop on Freesurfer mesh</string>
           </property>
          </widget>
-        </item -->
+        </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_18">
           <item>
@@ -839,7 +839,7 @@
             <item row="0" column="0">
              <widget class="QPushButton" name="regAcButton">
               <property name="toolTip">
-               <string>Cliquez sur la commissure antérieure, puis sur ce bouton</string>
+               <string>Click on the anterior commissure, then click on this button</string>
               </property>
               <property name="text">
                <string>AC</string>
@@ -849,7 +849,7 @@
             <item row="0" column="1">
              <widget class="QPushButton" name="regIhButton">
               <property name="toolTip">
-               <string>Cliquez sur un point interhémisphérique au-dessus de CA-CP, puis sur ce bouton</string>
+               <string>Click on an inter-hemispheric point above AC-PC, then click on this button</string>
               </property>
               <property name="text">
                <string>IH</string>
@@ -859,7 +859,7 @@
             <item row="1" column="0">
              <widget class="QPushButton" name="regPcButton">
               <property name="toolTip">
-               <string>Cliquez sur la commissure postérieure, puis sur ce bouton</string>
+               <string>Click on the posterior commissure, then click on this button</string>
               </property>
               <property name="text">
                <string>PC</string>
@@ -869,7 +869,7 @@
             <item row="1" column="1">
              <widget class="QPushButton" name="regLhButton">
               <property name="toolTip">
-               <string>Cliquez dans l'hémisphère gauche (droite de l'image si l'importation a bien fonctionné), puis sur ce bouton</string>
+               <string>Click on the left hemisphere (right side of the image), then click on this button</string>
               </property>
               <property name="text">
                <string>LH</string>
@@ -908,7 +908,7 @@
               <item>
                <widget class="QPushButton" name="regAcPcValidateButton">
                 <property name="toolTip">
-                 <string>Si AC, PC, IH et LH ont été entrés, lance la segmentation du cerveau</string>
+                 <string>If AC, PC, IH and LH were selected, start BrainVISA Morphologist segmentation pipeline</string>
                 </property>
                 <property name="text">
                  <string>Validate</string>
@@ -940,7 +940,7 @@
            <bool>false</bool>
           </property>
           <property name="text">
-           <string>Choisir cette image pour la normalisation vers le template MNI</string>
+           <string>Select this image for the MNI Normalization</string>
           </property>
          </widget>
         </item>
@@ -948,7 +948,7 @@
       </widget>
       <widget class="QWidget" name="tab_4">
        <attribute name="title">
-        <string>Preferences...</string>
+        <string>Prefs</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_5">
         <item>
@@ -1175,7 +1175,7 @@
       </widget>
       <widget class="QWidget" name="tab_10">
        <attribute name="title">
-        <string>Importation SEEG</string>
+        <string>SEEG</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_13">
         <item>
@@ -1774,7 +1774,7 @@
       </widget>
       <widget class="QWidget" name="tab_3">
        <attribute name="title">
-        <string>Importation dossier DICOM</string>
+        <string>Import DICOM</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
@@ -1950,7 +1950,7 @@
       </widget>
       <widget class="QWidget" name="tab">
        <attribute name="title">
-        <string>Importation PACS</string>
+        <string>Import PACS</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>

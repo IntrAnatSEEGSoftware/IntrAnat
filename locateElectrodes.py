@@ -46,7 +46,9 @@ from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
 from brainvisa.processes import *
 from soma.qt_gui.qt_backend import QtGui, QtCore, uic
-
+from brainvisa.data.readdiskitem import ReadDiskItem
+from brainvisa.data.writediskitem import WriteDiskItem
+        
 # IntrAnat local imports
 from externalprocesses import *
 from referentialconverter import ReferentialConverter
@@ -61,10 +63,6 @@ import ImportTheoreticalImplentation
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
 # from MicromedListener import MicromedListener as ML
-
-# import glob
-# import pdb
- 
 
 
 # =============================================================================
@@ -4565,13 +4563,11 @@ def main(noapp=0):
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
         app = QtGui.QApplication(sys.argv)
         axon.initializeProcesses()
-        from brainvisa.data.readdiskitem import ReadDiskItem
-        from brainvisa.data.writediskitem import WriteDiskItem
 
     # Show main window
-    window = LocateElectrodes(app = app)
-    window.setWindowFlags(QtCore.Qt.Window)
-    window.show()
+    w = LocateElectrodes(app = app)
+    w.setWindowFlags(QtCore.Qt.Window)
+    w.show()
     # window.showMaximized()
     
     # Run the application
