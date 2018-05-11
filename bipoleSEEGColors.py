@@ -31,7 +31,7 @@ class bipoleSEEGColors(QtGui.QDialog):
         
         QtGui.QWidget.__init__(self)
         self.ui = uic.loadUi("bipoleLabelsDisplay.ui", self)
-        self.setWindowTitle('Stimulation Observation - NOT FOR MEDICAL USAGE')    
+        self.setWindowTitle('Stimulation Observation - NOT FOR MEDICAL USE')    
         self.locaData =locateData #Data from locatesElectrode.py
         self.a=self.locaData.a #Anatomist Object   
         

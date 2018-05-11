@@ -9,7 +9,7 @@ from soma.qt_gui.qt_backend import QtGui
 class TimerMessageBox(QtGui.QMessageBox):
     def __init__(self, timeout=3, parent=None):
         super(TimerMessageBox, self).__init__(parent)
-        self.setWindowTitle("NOT FOR MEDICAL USAGE")
+        self.setWindowTitle("NOT FOR MEDICAL USE")
         self.time_to_wait = timeout
         self.changeContent()
         #self.setText("wait (closing automatically in {0} secondes.)".format(timeout))
@@ -20,7 +20,7 @@ class TimerMessageBox(QtGui.QMessageBox):
         self.timer.start()
 
     def changeContent(self):
-        self.setText("NOT FOR MEDICAL USAGE (closing automatically in {0} secondes.)".format(self.time_to_wait))
+        self.setText("NOT FOR MEDICAL USE (closing automatically in {0} secondes.)".format(self.time_to_wait))
 
         if self.time_to_wait <= 0:
             self.close()

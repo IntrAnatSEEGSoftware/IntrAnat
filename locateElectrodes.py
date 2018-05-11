@@ -442,7 +442,7 @@ class LocateElectrodes(QtGui.QDialog):
         if loadAll == True:
             QtGui.QWidget.__init__(self)
             self.ui = uic.loadUi("epilepsie-electrodes.ui", self)
-            self.setWindowTitle('Epilepsie - localisation des electrodes - NOT FOR MEDICAL USAGE')
+            self.setWindowTitle('Epilepsie - localisation des electrodes - NOT FOR MEDICAL USE')
             # Widget 0 (buttons panel) will be at minimum size (stretch factor 0), the windows will fill up the rest
             self.splitter_2.setStretchFactor(0,0)
             self.splitter_2.setStretchFactor(1,1)
@@ -818,7 +818,9 @@ class LocateElectrodes(QtGui.QDialog):
         
         self.__init__(loadAll=False)
   
-    def loadPatient(self, thread=None):   
+    def loadPatient(self, thread=None):
+        print self
+        print thread
         # Get current patient
         patient = str(self.patientList.selectedItems()[0].text())
           
@@ -4552,7 +4554,7 @@ class LocateElectrodes(QtGui.QDialog):
 
 
 # =============================================================================
-# MAIN: Fonction principale qui lance l'interface
+# MAIN: Main function that starts the interface
 # =============================================================================
 def main(noapp=0):
     app = None

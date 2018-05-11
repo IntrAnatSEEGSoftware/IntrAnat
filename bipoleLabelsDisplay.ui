@@ -33,7 +33,7 @@
     </font>
    </property>
    <property name="text">
-    <string>clinical observation labels from bipoles  - NOT FOR MEDICAL USAGE</string>
+    <string>clinical observation labels from bipoles  - NOT FOR MEDICAL USE</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignCenter</set>
