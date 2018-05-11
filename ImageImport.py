@@ -300,15 +300,15 @@ end
 quit;"""
 
 
-(Ui_ImageImportWindow, QDialog) = uic.loadUiType('ImageImportWindow.ui')
+(Ui_ImageImport, QDialog) = uic.loadUiType('ImageImport.ui')
 
 
-class ImageImportWindow (QDialog):
-    """ImageImportWindow is the main dialog class of the Image Importer software"""
+class ImageImport (QDialog):
+    """ImageImport is the main dialog class of the Image Importer software"""
 
     def __init__ (self, parent = None):
         QDialog.__init__(self, parent)
-        self.ui = Ui_ImageImportWindow()
+        self.ui = Ui_ImageImport()
         self.seriesUIDbyName = {}
         self.studiesUIDbyName = {}
         self.ui.setupUi(self)
@@ -3404,19 +3404,23 @@ class ImageImportWindow (QDialog):
 # MAIN: Main function that starts the interface
 # =============================================================================
 if __name__ == '__main__':
-    # create application
-    QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
-    app = QApplication(sys.argv)
+    
+    # Create application
+    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
+    app = QtGui.QApplication(sys.argv)
     app.setApplicationName('Image Import')
-
-    # create widget
+    
+    # Show main window
     w = ImageImport()
     w.setWindowTitle('Image Import - NOT FOR MEDICAL USE')
+    w.setWindowFlags(QtCore.Qt.Window)
     w.show()
-
-    # connection
-    QObject.connect(app, SIGNAL('lastWindowClosed()'), app, SLOT('quit()'))
+    
+    # Kill application when windows are closed
+    QtGui.QObject.connect(app, QtCore.SIGNAL('lastWindowClosed()'), app, QtCore.SLOT('quit()'))
     # Debug -> evite un pb entre ipython, pdb et qt
-    pyqtRemoveInputHook()
-    # execute application
+    # pyqtRemoveInputHook()
+    
+    # Run the application
     sys.exit(app.exec_())
+

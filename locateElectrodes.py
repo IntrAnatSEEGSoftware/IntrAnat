@@ -4557,6 +4557,8 @@ class LocateElectrodes(QtGui.QDialog):
 # MAIN: Main function that starts the interface
 # =============================================================================
 def main(noapp=0):
+    
+    # Create application
     app = None
     if noapp == 0:
         print "NO APP"
@@ -4565,17 +4567,20 @@ def main(noapp=0):
         axon.initializeProcesses()
         from brainvisa.data.readdiskitem import ReadDiskItem
         from brainvisa.data.writediskitem import WriteDiskItem
-    print "CREATE DIALOG"
+
+    # Show main window
     window = LocateElectrodes(app = app)
     window.setWindowFlags(QtCore.Qt.Window)
     window.show()
     # window.showMaximized()
+    
+    # Run the application
     if noapp == 0:
         sys.exit(app.exec_())
 
+
 if __name__ == "__main__":
     print "LAUNCHING ELECTRODE LOCATE"
-    print "MAIN"
     #QtCore.pyqtRemoveInputHook()  # Allow pdb to work for debugging !
     main()
 
