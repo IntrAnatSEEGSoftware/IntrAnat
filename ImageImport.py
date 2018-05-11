@@ -32,17 +32,17 @@
 import os, subprocess, pickle, shutil, tempfile, json, numpy
 from scipy import ndimage
 
-from brainvisa import axon, processes
 from soma import aims
-from soma.wip.application.api import Application
-from brainvisa.data.writediskitem import ReadDiskItem, WriteDiskItem
-from brainvisa.data import neuroHierarchy
-#import anatomist.direct.api as anatomist
+from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
 neuroConfig.gui = True
-from brainvisa import anatomist
+from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
+from brainvisa.processes import *
 from soma.qt_gui.qt_backend import uic, QtGui, QtCore
+from brainvisa.data.readdiskitem import ReadDiskItem
+from brainvisa.data.writediskitem import WriteDiskItem
+from soma.wip.application.api import Application
 
 from externalprocesses import *
 from dicomutilities import *
@@ -319,9 +319,7 @@ class ImageImport (QtGui.QDialog):
         self.ui.acqDate.setDate(self.defaultAcqDate)
         self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR', 'hippofreesurfer_atlas':'HippoFreesurferAtlas'}
 
-        # Allow calling brainvisa processes
-        from brainvisa.processes import defaultContext
-        self.brainvisaContext = defaultContext()
+        # Allow calling brainvisa        self.brainvisaContext = defaultContext()
 
         # Get Transformation Manager
         self.transfoManager = registration.getTransformationManager()
@@ -359,7 +357,7 @@ class ImageImport (QtGui.QDialog):
         self.waitingForThreads={}
         # Init the patient informations tab
         self.patientInfo = patientinfo.buildUI(self.ui.patGroupBox)
-        cdate =  self.patientInfo['currentDate'].date()
+        cdate = self.patientInfo['currentDate'].date()
         bdate = self.patientInfo['patientBirthday'].date()
         page = bdate.daysTo(cdate)/365
         self.patientInfo['patientAge'].setText(str(page))
@@ -419,6 +417,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
+        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, True, self, "Processing...", "Coregister and normalize"))
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.segmentationHIPHOP)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
@@ -509,7 +508,7 @@ class ImageImport (QtGui.QDialog):
     def closeEvent(self, event):
         QtGui.QFrame.closeEvent(self, event)
         self.savePreferences()
-        # Kill all processes that may still be running (stuck) or better, wait for them to complete
+        # Kill all hat may still be running (stuck) or better, wait for them to complete
         maxTimeToCompletion = 1000*60*20 # 20min in ms -> maximum duration for any thread (it will be killed after that)
         qthr = [t for t in self.threads if isinstance(t, QtCore.QThread)]
         thr = [t for t in self.threads if not isinstance(t, QtCore.QThread)]
@@ -534,9 +533,9 @@ class ImageImport (QtGui.QDialog):
         print "Closing all threads"
         finished = [checkKill(t, maxTimeToCompletion) for t in thr]
         print "Quitting BrainVisa"
-        axon.processes.cleanup()
+        axon.cleanup()
         print "Quit !"
-        QtGui.qApp.quit()
+        self.app.quit()
 
     def initialize(self):
         """Reads the preference file, checks the available patients and sequences"""
@@ -728,7 +727,7 @@ class ImageImport (QtGui.QDialog):
 
     def createItemDirs(self, item):
         """ Create the directories containing the provided WriteDiskItem and insert them in the BrainVisa database """
-        # Copied from brainvisa.processes, in ExecutionContext._processExecution()
+        # Copied from brainvisa.in ExecutionContext._processExecution()
         dirname = os.path.dirname( item.fullPath() )
         dir=dirname
         dirs = []
@@ -1317,7 +1316,7 @@ class ImageImport (QtGui.QDialog):
     
                 #mri_convert -rl /data/brainvisa/Epilepsy/Gre_2015_BESk/t1mri/T1pre_2015-1-1/Gre_2015_BESk.nii /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/aparc.a2009s+aseg.mgz /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/test.nii -rt nearest -ncD
                 #remplacer par launchFreesurferCommand
-                context = brainvisa.processes.defaultContext()
+                context = defaultContext()
                 context.write("mri_convert from freesurfer")
     
                 launchFreesurferCommand(context, None, 'mri_convert', '-i',path,'-o',tmp_nii_path,'-rl',str(allT1[idxT1pre[0]].fullPath()),'-rt','nearest','-nc')
@@ -1409,12 +1408,29 @@ class ImageImport (QtGui.QDialog):
                     return
     
         # Call import in a separate function with a progress bar
-        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, proto, patient, thr), True, self, "Processing...", "Import image")
+        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, thr), True, self, "Processing...", "Import image", False)
+ 
+        di.setMinf('brainCenter', self.brainCenter)
+        if filetype == 'Statistic-Data':
+            textMNI, okMNI = QtGui.QInputDialog.getItem(self,'MNI or not','Is the statistic image generated in the MNI',['True','False'])
+            if (okMNI & bool(textMNI)):
+                di.setMinf('MNI',str(textMNI))
+            di.setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+        neuroHierarchy.databases.insertDiskItem( di, update=True )
+
+        if filetype == 'Statistic-Data':
+            try:
+                self.StatisticDataMNItoScannerBased(proto, patient, acq)
+            except:
+                pass
+        if filetype == 'FreesurferAtlas':
+            self.generateAmygdalaHippoMesh(proto, patient, acq, di)
+            
         # self.importNiftiWorker(di, path, filetype, proto, patient)
         self.setStatus(u"Sequence %s importation done"%acq)
         
         
-    def importNiftiWorker(self, di, path, filetype, proto, patient, thr=None):
+    def importNiftiWorker(self, di, path, filetype, thr=None):
     
         # Create directories that do not exist yet
         self.createItemDirs(di)
@@ -1442,14 +1458,14 @@ class ImageImport (QtGui.QDialog):
         aims.write(temp_nii, destination)
     
         if (filetype != 'fMRI-epile') & (filetype != 'PET') & (filetype != 'Statistic-Data'):  # or filetype != 'MTT'
-            ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
+            ret = runCmd(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
         elif filetype == 'PET':
             print "conversion PET float to S16"
-            ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
+            ret = runCmd(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
             di.setMinf('ColorPalette','Blue-Red-fusion')
         else:
             print "no conversion to grayscale"
-            ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination)])
+            ret = runCmd(['AimsFileConvert', '-i', str(destination), '-o', str(destination)])
         if ret < 0:
             print "Importation error: BrainVisa / AimsFileConvert"
             return
@@ -1460,24 +1476,7 @@ class ImageImport (QtGui.QDialog):
             if self.ui.radioButtonNoGado.isChecked():
                 di.setMinf('Gado',False)
             neuroHierarchy.databases.insertDiskItem( di, update=True )
-    
-        di.setMinf('brainCenter', self.brainCenter)
-        if filetype == 'Statistic-Data':
-            textMNI, okMNI = QtGui.QInputDialog.getItem(self,'MNI or not','Is the statistic image generated in the MNI',['True','False'])
-            if (okMNI & bool(textMNI)):
-                di.setMinf('MNI',str(textMNI))
-            di.setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-        neuroHierarchy.databases.insertDiskItem( di, update=True )
 
-        if filetype == 'Statistic-Data':
-            try:
-                self.StatisticDataMNItoScannerBased(proto, patient, acq)
-            except:
-                pass
-        if filetype == 'FreesurferAtlas':
-            self.generateAmygdalaHippoMesh(proto, patient, acq, di)
-        return None
-    
         
     def importFSoutput(self,subject=None):
 
@@ -1538,7 +1537,7 @@ class ImageImport (QtGui.QDialog):
         Destrieuxfound = list(FreesurferDestrieux.findValues({},None,False))
 
         #generer tous les writediskitem
-        context = brainvisa.processes.defaultContext()
+        context = defaultContext()
         context.write("convert output from freesurfer")
         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Nufound),'-o',os.path.join(os.path.dirname(str(Nufound)),'nu.nii'),'-rl',str(diT1pre.fullPath()))
         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Ribbonfound),'-o',os.path.join(os.path.dirname(str(Ribbonfound)),'ribbon.nii'),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
@@ -1926,7 +1925,7 @@ class ImageImport (QtGui.QDialog):
         self.a.addObjects(mri, self.wins[2:])
         self.dispObj.append(mri)
 
-    def registerNormalizeSubject(self):
+    def registerNormalizeSubject(self, progressThread=None):
         """ Registers all images of the subject with SPM, then store the transforms in BrainVisa database, and launch T1pre morphologist analysis (brain segmentation) """
         proto = str(self.ui.regProtocolCombo.currentText())
         subj = str(self.ui.regSubjectCombo.currentText())
@@ -2094,7 +2093,7 @@ class ImageImport (QtGui.QDialog):
         # Gado
         else:
             # Morphologist step #1: Prepare subject
-            processPrepare = processes.getProcessInstance('preparesubject')
+            processPrepare = getProcessInstance('preparesubject')
             processPrepare.T1mri = self.mriAcPc
             processPrepare.Normalised = "No"
             processPrepare.Anterior_Commissure = self.AcPc['AC']
@@ -2110,7 +2109,7 @@ class ImageImport (QtGui.QDialog):
             
     def morphologistGado1(self):
         # Morphologist step #2: Bias correction
-        processBias = processes.getProcessInstance('t1biascorrection')
+        processBias = etProcessInstance('t1biascorrection')
         processBias.t1mri = self.mriAcPc
         self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado2(), processBias)
 
@@ -2161,7 +2160,7 @@ class ImageImport (QtGui.QDialog):
             return
         
         # Execute the rest of the Morphologist pipeline
-        morphologist = processes.getProcessInstance('morphologist')
+        morphologist = getProcessInstance('morphologist')
         morphologist.executionNode().PrepareSubject.setSelected(False)
         morphologist.executionNode().BiasCorrection.setSelected(False)
         morphologist.executionNode().HistoAnalysis.setSelected(True)
@@ -2907,7 +2906,7 @@ class ImageImport (QtGui.QDialog):
             print('no T1pre image')
             return
 
-        context = brainvisa.processes.defaultContext()
+        context = defaultContext()
         context.write("recon-all from freesurfer")
 
         if t1preImage and FlairpreImage:
@@ -3389,7 +3388,6 @@ if __name__ == '__main__':
     # Create application
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
     app = QtGui.QApplication(sys.argv)
-    #app.setApplicationName('Image Import')
     axon.initializeProcesses()
     
     # Show main window

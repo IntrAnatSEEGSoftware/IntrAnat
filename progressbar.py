@@ -11,7 +11,7 @@ from soma.qt_gui.qt_backend import QtGui
 # ===== PROGRESS WINDOW =====
 class ProgressDialog(QtGui.QDialog):
     
-    def __init__(self, parent=None, progressText='...', progressTitle='Process'):
+    def __init__(self, parent=None, progressText='...', progressTitle='Process', cancelEnabled=True):
         super(ProgressDialog, self).__init__(parent)
         # Dialog window
         self.setWindowTitle(progressTitle)
@@ -31,8 +31,10 @@ class ProgressDialog(QtGui.QDialog):
         self.progressBar.setMaximum(0)
         vbox.addWidget(self.progressBar)
         # Cancel button
+        self.cancelEnabled = cancelEnabled
         self.buttonCancel = QtGui.QPushButton("Cancel")
         self.buttonCancel.setObjectName("buttonCancel")
+        self.buttonCancel.setEnabled(self.cancelEnabled)
         vbox.addWidget(self.buttonCancel)
         # Set layout
         self.setLayout(vbox)
@@ -46,7 +48,8 @@ class ProgressDialog(QtGui.QDialog):
         self.connect(self.worker, QtCore.SIGNAL("PROGRESS_TEXT"), self.setText)
         self.connect(self.worker, QtCore.SIGNAL("finished()"), self.terminated)
         self.worker.start()
-        self.buttonCancel.clicked.connect(self.cancel)
+        if self.cancelEnabled:
+            self.buttonCancel.clicked.connect(self.cancel)
         if isModal:
             res = self.exec_()
             return self.worker.output()
@@ -62,8 +65,9 @@ class ProgressDialog(QtGui.QDialog):
     
     # Event: Progress dialog closed
     def closeEvent(self, event):
-        QtGui.QFrame.closeEvent(self, event)
-        self.cancel()
+        if self.cancelEnabled:
+            QtGui.QFrame.closeEvent(self, event)
+            self.cancel()
         
     # Event: Thread terminated
     def terminated(self):
@@ -85,8 +89,8 @@ class ProgressDialog(QtGui.QDialog):
         self.labelMessage.setText(text)
     
     @staticmethod
-    def call(func, isModal=True, parent=None, progressText='...', progressTitle='Process'):
-        progress = ProgressDialog(parent, progressText, progressTitle)
+    def call(func, isModal=True, parent=None, progressText='...', progressTitle='Process', cancelEnabled=True):
+        progress = ProgressDialog(parent, progressText, progressTitle, cancelEnabled)
         res = progress.start(func, isModal)
         return res
         
