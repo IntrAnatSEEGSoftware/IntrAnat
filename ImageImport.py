@@ -1945,7 +1945,7 @@ class ImageImport (QtGui.QDialog):
             if acq.startswith('T1'):
                 self.setStatus(u"SPM normalization %s..."%acq)
                 progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
-#                self.spmNormalize(image.fileName(), proto, patient, acq)
+                self.spmNormalize(image.fileName(), proto, patient, acq)
                 self.taskfinished(u"SPM normalization done")
                 # If there is a T1pre, remember the image
                 if acq.find('T1pre') == 0:
