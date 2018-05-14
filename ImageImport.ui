@@ -807,7 +807,7 @@
            <bool>true</bool>
           </property>
           <property name="text">
-           <string>Coregister images + Normalize T1pre</string>
+           <string>Normalize T1pre + Coregister images</string>
           </property>
          </widget>
         </item>

@@ -1955,7 +1955,6 @@ class ImageImport (QtGui.QDialog):
     
         # COREGISTER
         for image in images:
-
             # A T1pre is there, coregister all images to it
             if image == t1preImage:
                 continue
