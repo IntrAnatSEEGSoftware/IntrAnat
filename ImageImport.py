@@ -319,7 +319,8 @@ class ImageImport (QtGui.QDialog):
         self.ui.acqDate.setDate(self.defaultAcqDate)
         self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR', 'hippofreesurfer_atlas':'HippoFreesurferAtlas'}
 
-        # Allow calling brainvisa        self.brainvisaContext = defaultContext()
+        # Allow calling brainvisa
+        self.brainvisaContext = defaultContext()
 
         # Get Transformation Manager
         self.transfoManager = registration.getTransformationManager()
@@ -416,8 +417,8 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
-        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
-        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, True, self, "Processing...", "Coregister and normalize"))
+        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
+        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.segmentationHIPHOP)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
@@ -1930,7 +1931,8 @@ class ImageImport (QtGui.QDialog):
         proto = str(self.ui.regProtocolCombo.currentText())
         subj = str(self.ui.regSubjectCombo.currentText())
         images = self.findAllImagesForSubject(proto, subj)
-        # Find all images, normalize the T1s, find the T1pre if there is one, read image headers, store their referentials and transformations in the DB
+        
+        # NORMALIZE: Find all images, normalize the T1s, find the T1pre if there is one, read image headers, store their referentials and transformations in the DB
         t1preImage = None
         for image in images:
             patient = image.attributes()['subject']
@@ -1942,15 +1944,16 @@ class ImageImport (QtGui.QDialog):
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
             if acq.startswith('T1'):
                 self.setStatus("Normalization of %s to MNI referential in progress ..."%acq)
+                progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 self.spmNormalize(image.fileName(), proto, patient, acq)
                 # If there is a T1pre, remember the image
                 if acq.find('T1pre') == 0:
                     t1preImage = image
-    
         # No T1pre : nothing else to do
         if t1preImage is None:
             return
     
+        # COREGISTER
         for image in images:
 
             # A T1pre is there, coregister all images to it
@@ -1962,17 +1965,19 @@ class ImageImport (QtGui.QDialog):
                 continue
             acq = image.attributes()['acquisition']
             patient = image.attributes()['subject']
+            progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
     
             if self.coregMethod == 'ANTs':
                 print("ANTs coregistration used")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
         
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
-                thr = Executor(ants_call.split())
-                thr.finished.connect(lambda:self.taskfinished(u"ANTs Coregister done", thr))
-                thr.finished.connect(lambda im = image, tmp_folder=temp_folder_ants:self.setANTstrm_database(im, tmp_folder))
-                self.threads.append(thr)
-                thr.start()
+#                 thr = Executor(ants_call.split())
+#                 thr.finished.connect(lambda:self.taskfinished(u"ANTs Coregister done", thr))
+#                 thr.finished.connect(lambda im = image, tmp_folder=temp_folder_ants:self.setANTstrm_database(im, tmp_folder))
+#                 self.threads.append(thr)
+#                 thr.start()
+                runCmd(ants_call.split())
     
                 #to mettre dans la database
                 #thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
@@ -1995,10 +2000,6 @@ class ImageImport (QtGui.QDialog):
                 #   return
                 #self.insertTransformationToT1pre(tmp_trm_path,image)
     
-        return  #### TO REMOVE!!
-        self.mriAcPc = t1preImage # Store the mri for Morphologist
-        self.runBVMorphologist(t1preImage)
-        # Check the registrations with anatomist when threads are done
 
     def segmentationHIPHOP(self):
 
@@ -2079,20 +2080,48 @@ class ImageImport (QtGui.QDialog):
             QtGui.QMessageBox.warning(self, 'Missing points', u"You have entered the following points %s, You have to enter AC, PC, IH and LH"%repr(self.AcPc.keys()))
             return
 
-        # reset buttons color
+        # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
+        self.clearAnatomist()
+        self.enableACPCButtons(False)
+        # Reset buttons color
         self.ui.regAcButton.setStyleSheet("")
         self.ui.regPcButton.setStyleSheet("")
         self.ui.regIhButton.setStyleSheet("")
         self.ui.regLhButton.setStyleSheet("")
-
+        self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
+        # Start computation in a separate thread
+        ProgressDialog.call(lambda thr:self.validateAcPcWorker(thr), True, self, "Processing...", "BrainVISA segmentation")
+        
+#         # No gado
+#         if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
+#             self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , 'Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+#                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+#         # Gado
+#         else:
+#             # Morphologist step #1: Prepare subject
+#             processPrepare = getProcessInstance('preparesubject')
+#             processPrepare.T1mri = self.mriAcPc
+#             processPrepare.Normalised = "No"
+#             processPrepare.Anterior_Commissure = self.AcPc['AC']
+#             processPrepare.Posterior_Commissure = self.AcPc['PC']
+#             processPrepare.Interhemispheric_Point = self.AcPc['IH']
+#             processPrepare.Left_Hemisphere_Point = self.AcPc['LH']
+#             processPrepare.allow_flip_initial_MRI = True
+#             self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado1(), processPrepare)
+        
+        
+    def validateAcPcWorker(self, thread):
         # No gado
         if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
-            self.brainvisaContext.runInteractiveProcess(lambda x='':self.hiphopStart() , 'Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Morphologist 2015...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+            self.brainvisaContext.runProcess('Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
-            self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
         # Gado
         else:
             # Morphologist step #1: Prepare subject
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Preparing subject...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
             processPrepare = getProcessInstance('preparesubject')
             processPrepare.T1mri = self.mriAcPc
             processPrepare.Normalised = "No"
@@ -2101,89 +2130,170 @@ class ImageImport (QtGui.QDialog):
             processPrepare.Interhemispheric_Point = self.AcPc['IH']
             processPrepare.Left_Hemisphere_Point = self.AcPc['LH']
             processPrepare.allow_flip_initial_MRI = True
-            self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado1(), processPrepare)
-        # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
-        self.clearAnatomist()
-        self.enableACPCButtons(False)
-        # self.AcPc = {}
+            self.brainvisaContext.runProcess(processPrepare)
             
-    def morphologistGado1(self):
-        # Morphologist step #2: Bias correction
-        processBias = etProcessInstance('t1biascorrection')
-        processBias.t1mri = self.mriAcPc
-        self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado2(), processBias)
-
-    def morphologistGado2(self):
-        # Remove GADO with SPM
-        print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
-        nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
-        nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-        id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
-        nobiasPre = str(nobiasimages[id_pre[0]])
-        # Run SPM segmentation
-        pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
-        import copy
-        splittedName = nobiasPre.split('/')
-        c1Name = copy.deepcopy(splittedName)
-        c2Name = copy.deepcopy(splittedName)
-        c3Name = copy.deepcopy(splittedName)
-        c4Name = copy.deepcopy(splittedName)
-        c1Name[-1] = str("c1")+c1Name[-1]
-        c1Name = '/'.join(c1Name)
-        c2Name[-1] = str("c2")+c2Name[-1]
-        c2Name = '/'.join(c2Name)
-        c3Name[-1] = str("c3")+c3Name[-1]
-        c3Name = '/'.join(c3Name)
-        c4Name[-1] = str("c4")+c4Name[-1]
-        c4Name = '/'.join(c4Name)
-        splittedName[-1]=str("WithoutGado.nii")
-        nogadoPre = str('/'.join(splittedName))
-        call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
-               "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+nogadoPre+"'")
-        thr = matlabRunNB(call, lambda :self.morphologistGado3(nobiasPre, nogadoPre))
-        self.threads.append(thr)
-        thr.start()
+            # Morphologist step #2: Bias correction
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "T1 Bias correction...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+            processBias = getProcessInstance('t1biascorrection')
+            processBias.t1mri = self.mriAcPc
+            self.brainvisaContext.runProcess(processBias)
             
-    def morphologistGado3(self, nobiasPre, nogadoPre):         
-        print self.currentSubject + ": Segmentation gado done."
-        # Replace segmented nobias image with segmented image
-        print self.currentSubject + ": Replacing nobias.nii with segmented image..."
-        nobiasBak = os.path.join(getTmpDir(),self.currentSubject + 'backup.nii')
-        cmd1 = ['mv', nobiasPre, nobiasBak]
-        cmd2 = ['cp', nogadoPre, nobiasPre]
-        line1 = runCmd(cmd1)
-        line2 = runCmd(cmd2)
-        # Force SPM volume to be saved in S16 (otherwise brainvisa4.6 crashes)
-        ret = subprocess.call(['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16'])
-        if ret < 0:
-            QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
-            return
-        
-        # Execute the rest of the Morphologist pipeline
-        morphologist = getProcessInstance('morphologist')
-        morphologist.executionNode().PrepareSubject.setSelected(False)
-        morphologist.executionNode().BiasCorrection.setSelected(False)
-        morphologist.executionNode().HistoAnalysis.setSelected(True)
-        morphologist.executionNode().BrainSegmentation.setSelected(True)
-        morphologist.executionNode().Renorm.setSelected(True)
-        morphologist.executionNode().SplitBrain.setSelected(True)
-        morphologist.executionNode().TalairachTransformation.setSelected(False)
-        morphologist.executionNode().HeadMesh.setSelected(True)
-        morphologist.executionNode().HemispheresProcessing.setSelected(True)
-        morphologist.executionNode().SulcalMorphometry.setSelected(True)
-        # Synchronous computation
-        self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado4(nobiasPre, nobiasBak), morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
-                posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+            # Remove GADO with SPM
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM image segmentation...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 15)
+            print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
+            nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
+            nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
+            id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
+            nobiasPre = str(nobiasimages[id_pre[0]])
+            # Run SPM segmentation
+            pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
+            import copy
+            splittedName = nobiasPre.split('/')
+            c1Name = copy.deepcopy(splittedName)
+            c2Name = copy.deepcopy(splittedName)
+            c3Name = copy.deepcopy(splittedName)
+            c4Name = copy.deepcopy(splittedName)
+            c1Name[-1] = str("c1")+c1Name[-1]
+            c1Name = '/'.join(c1Name)
+            c2Name[-1] = str("c2")+c2Name[-1]
+            c2Name = '/'.join(c2Name)
+            c3Name[-1] = str("c3")+c3Name[-1]
+            c3Name = '/'.join(c3Name)
+            c4Name[-1] = str("c4")+c4Name[-1]
+            c4Name = '/'.join(c4Name)
+            splittedName[-1]=str("WithoutGado.nii")
+            nogadoPre = str('/'.join(splittedName))
+            call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
+                   "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+nogadoPre+"'")
+            matlabRun(call)
+            print self.currentSubject + ": Segmentation gado done."
+            
+            # Replace segmented nobias image with segmented image
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Saving new segmented image...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
+            print self.currentSubject + ": Replacing nobias.nii with segmented image..."
+            nobiasBak = os.path.join(getTmpDir(),self.currentSubject + 'backup.nii')
+            cmd1 = ['mv', nobiasPre, nobiasBak]
+            cmd2 = ['cp', nogadoPre, nobiasPre]
+            line1 = runCmd(cmd1)
+            line2 = runCmd(cmd2)
+            # Force SPM volume to be saved in S16 (otherwise brainvisa4.6 crashes)
+            ret = subprocess.call(['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16'])
+            if ret < 0:
+                QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
+                return
+            
+            # Execute the rest of the Morphologist pipeline
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Calling Morpologist 2015... (GADO)")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 30)
+            morphologist = getProcessInstance('morphologist')
+            morphologist.executionNode().PrepareSubject.setSelected(False)
+            morphologist.executionNode().BiasCorrection.setSelected(False)
+            morphologist.executionNode().HistoAnalysis.setSelected(True)
+            morphologist.executionNode().BrainSegmentation.setSelected(True)
+            morphologist.executionNode().Renorm.setSelected(True)
+            morphologist.executionNode().SplitBrain.setSelected(True)
+            morphologist.executionNode().TalairachTransformation.setSelected(False)
+            morphologist.executionNode().HeadMesh.setSelected(True)
+            morphologist.executionNode().HemispheresProcessing.setSelected(True)
+            morphologist.executionNode().SulcalMorphometry.setSelected(True)
+            # Synchronous computation
+            self.brainvisaContext.runProcess(morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+                    posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
 
-    def morphologistGado4(self, nobiasPre, nobiasBak):
-        # Task finishesd
-        self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
-        # Restore initial nobias image
-        print self.currentSubject + ": Restoring original nobias.nii..."
-        cmd = ['mv', nobiasBak, nobiasPre]
-        line1 = runCmd(cmd)
-        # Compute MarsAtlas segmentation
+            # Task finishesd
+            self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
+            # Restore initial nobias image
+            print self.currentSubject + ": Restoring original nobias.nii..."
+            cmd = ['mv', nobiasBak, nobiasPre]
+            line1 = runCmd(cmd)
+            
+        # Start hip-hop
+        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
+        thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
         self.hiphopStart()
+        
+            
+            
+#     def morphologistGado1(self):
+#         # Morphologist step #2: Bias correction
+#         processBias = getProcessInstance('t1biascorrection')
+#         processBias.t1mri = self.mriAcPc
+#         self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado2(), processBias)
+
+#     def morphologistGado2(self):
+#         # Remove GADO with SPM
+#         print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
+#         nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
+#         nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
+#         id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
+#         nobiasPre = str(nobiasimages[id_pre[0]])
+#         # Run SPM segmentation
+#         pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
+#         import copy
+#         splittedName = nobiasPre.split('/')
+#         c1Name = copy.deepcopy(splittedName)
+#         c2Name = copy.deepcopy(splittedName)
+#         c3Name = copy.deepcopy(splittedName)
+#         c4Name = copy.deepcopy(splittedName)
+#         c1Name[-1] = str("c1")+c1Name[-1]
+#         c1Name = '/'.join(c1Name)
+#         c2Name[-1] = str("c2")+c2Name[-1]
+#         c2Name = '/'.join(c2Name)
+#         c3Name[-1] = str("c3")+c3Name[-1]
+#         c3Name = '/'.join(c3Name)
+#         c4Name[-1] = str("c4")+c4Name[-1]
+#         c4Name = '/'.join(c4Name)
+#         splittedName[-1]=str("WithoutGado.nii")
+#         nogadoPre = str('/'.join(splittedName))
+#         call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
+#                "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+nogadoPre+"'")
+#         thr = matlabRunNB(call, lambda :self.morphologistGado3(nobiasPre, nogadoPre))
+#         self.threads.append(thr)
+#         thr.start()
+            
+#     def morphologistGado3(self, nobiasPre, nogadoPre):         
+#         print self.currentSubject + ": Segmentation gado done."
+#         # Replace segmented nobias image with segmented image
+#         print self.currentSubject + ": Replacing nobias.nii with segmented image..."
+#         nobiasBak = os.path.join(getTmpDir(),self.currentSubject + 'backup.nii')
+#         cmd1 = ['mv', nobiasPre, nobiasBak]
+#         cmd2 = ['cp', nogadoPre, nobiasPre]
+#         line1 = runCmd(cmd1)
+#         line2 = runCmd(cmd2)
+#         # Force SPM volume to be saved in S16 (otherwise brainvisa4.6 crashes)
+#         ret = subprocess.call(['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16'])
+#         if ret < 0:
+#             QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
+#             return
+#         
+#         # Execute the rest of the Morphologist pipeline
+#         morphologist = getProcessInstance('morphologist')
+#         morphologist.executionNode().PrepareSubject.setSelected(False)
+#         morphologist.executionNode().BiasCorrection.setSelected(False)
+#         morphologist.executionNode().HistoAnalysis.setSelected(True)
+#         morphologist.executionNode().BrainSegmentation.setSelected(True)
+#         morphologist.executionNode().Renorm.setSelected(True)
+#         morphologist.executionNode().SplitBrain.setSelected(True)
+#         morphologist.executionNode().TalairachTransformation.setSelected(False)
+#         morphologist.executionNode().HeadMesh.setSelected(True)
+#         morphologist.executionNode().HemispheresProcessing.setSelected(True)
+#         morphologist.executionNode().SulcalMorphometry.setSelected(True)
+#         # Synchronous computation
+#         self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado4(nobiasPre, nobiasBak), morphologist, t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
+#                 posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
+
+#     def morphologistGado4(self, nobiasPre, nobiasBak):
+#         # Task finishesd
+#         self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
+#         # Restore initial nobias image
+#         print self.currentSubject + ": Restoring original nobias.nii..."
+#         cmd = ['mv', nobiasBak, nobiasPre]
+#         line1 = runCmd(cmd)
+#         # Compute MarsAtlas segmentation
+#         self.hiphopStart()
             
             
     def hiphopStart(self):
@@ -2301,15 +2411,21 @@ class ImageImport (QtGui.QDialog):
         elif spm_version == '(SPM8)':
             print 'SPM8 used'
             call = spm8_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", self.spm_template_t1())
-        #TODO CHECK REGISTRATION AT THE END
-        thr = matlabRunNB(call)#, lambda: self.taskfinished("spm normalize")) #matlabRunNB(call)
-        # Try to connect the thread signals to a function here that will notice when it finishes
-        thr.finished.connect(lambda:self.taskfinished(u"SPM Normalize done", thr))
-        thr.finished.connect(lambda pr=protocol, pat=patient, a=acq:self.insertSPMdeformationFile(pr, pat, a))
-        thr.finished.connect(lambda pr=protocol, pat=patient, a=acq:self.StatisticDataMNItoScannerBased(pr, pat, a))
-        self.threads.append(thr)
-        thr.start()
-        return thr
+        # Call SPM normalization
+        matlabRun(call)
+        # Register new files
+        self.taskfinished(u"SPM Normalize done")
+        self.insertSPMdeformationFile(protocol, patient, acq)
+        self.StatisticDataMNItoScannerBased(protocol, patient, acq)
+        
+#         thr = matlabRunNB(call)
+#         # Try to connect the thread signals to a function here that will notice when it finishes
+#         thr.finished.connect(lambda:self.taskfinished(u"SPM Normalize done", thr))
+#         thr.finished.connect(lambda pr=protocol, pat=patient, a=acq:self.insertSPMdeformationFile(pr, pat, a))
+#         thr.finished.connect(lambda pr=protocol, pat=patient, a=acq:self.StatisticDataMNItoScannerBased(pr, pat, a))
+#         self.threads.append(thr)
+#         thr.start()
+#         return thr
 
     def getScannerBasedRef(self, imageDiskItem):
         rdi = ReadDiskItem('Scanner Based Referential', 'Referential')
