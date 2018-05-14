@@ -25,7 +25,8 @@ for var in myEnv.keys():
         del myEnv[var]
 
 # Base call for matlab
-matlabCall = ['matlab', '-nosplash', '-nodisplay','-r']     #essayer sans le -nojvm
+# matlabCall = ['matlab', '-nosplash', '-nodisplay', '-r']     #essayer sans le -nojvm
+matlabCall = ['matlab', '-r']
 
 # Check whether the program is executing on a Windows/WSL or native Linux system
 with open('/proc/version', 'r') as procfile:

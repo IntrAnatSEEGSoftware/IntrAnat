@@ -1494,12 +1494,12 @@ class ImageImport (QtGui.QDialog):
         write_filters = { 'center': str(self.ui.niftiProtocolCombo.currentText()), 'acquisition': str(acq), 'subject' : subject }
 
         FreesurferNu = ReadDiskItem('Nu FreesurferAnat', 'FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-
         Nufound = list(FreesurferNu.findValues({},None,False))
+        if not Nufound:
+            QtGui.QMessageBox.warning(self, "Error", u"Subject \"" + subject + "\" was not found in the local FreeSurfer database.")
         Nufound = [x for x in Nufound if '.mgz' in str(x)][0]
 
         FreesurferRibbon = ReadDiskItem('Ribbon Freesurfer','FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-
         Ribbonfound = list(FreesurferRibbon.findValues({},None,False))
         Ribbonfound = [x for x in Ribbonfound if '.mgz' in str(x)][0]
 
