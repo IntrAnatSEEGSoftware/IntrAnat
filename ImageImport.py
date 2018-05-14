@@ -1943,7 +1943,7 @@ class ImageImport (QtGui.QDialog):
                 self.storeImageReferentialsAndTransforms(image)
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
             if acq.startswith('T1'):
-                self.setStatus(u"SPM normalization..."%acq)
+                self.setStatus(u"SPM normalization %s..."%acq)
                 progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 self.spmNormalize(image.fileName(), proto, patient, acq)
                 self.taskfinished(u"SPM normalization done")
@@ -1955,7 +1955,7 @@ class ImageImport (QtGui.QDialog):
             return
     
         # COREGISTER
-        self.setStatus(u"Coregistration of all images to T1pre..."%acq)
+        self.setStatus(u"Coregistration of all images to T1pre...")
         for image in images:
             # A T1pre is there, coregister all images to it
             if image == t1preImage:
@@ -1985,7 +1985,6 @@ class ImageImport (QtGui.QDialog):
             # ===== SPM =====
             elif self.coregMethod == 'spm':
                 print("spm coregistration used")
-                
                 # SPM coregister
                 if self.ui.regResampleCheck.isChecked():
                     progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
