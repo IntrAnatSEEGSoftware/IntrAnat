@@ -1943,9 +1943,10 @@ class ImageImport (QtGui.QDialog):
                 self.storeImageReferentialsAndTransforms(image)
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
             if acq.startswith('T1'):
-                self.setStatus("Normalization of %s to MNI referential in progress ..."%acq)
+                self.setStatus(self.currentSubject + u": SPM normalization of %s to MNI referential..."%acq)
                 progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 self.spmNormalize(image.fileName(), proto, patient, acq)
+                self.taskfinished(self.currentSubject + u": SPM normalization done")
                 # If there is a T1pre, remember the image
                 if acq.find('T1pre') == 0:
                     t1preImage = image
@@ -1968,6 +1969,7 @@ class ImageImport (QtGui.QDialog):
     
             if self.coregMethod == 'ANTs':
                 print("ANTs coregistration used")
+                self.setStatus(self.currentSubject + u": Coregistration of all images to T1pre..."%acq)
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
         
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
@@ -1976,11 +1978,12 @@ class ImageImport (QtGui.QDialog):
 #                 thr.finished.connect(lambda im = image, tmp_folder=temp_folder_ants:self.setANTstrm_database(im, tmp_folder))
 #                 self.threads.append(thr)
 #                 thr.start()
-                runCmd(ants_call.split())
-    
                 #to mettre dans la database
                 #thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
     
+                runCmd(ants_call.split())
+                self.taskfinished(self.currentSubject + u": Coregistration done")
+                 
             elif self.coregMethod == 'spm':
                 print("spm coregistration used")
                 if self.ui.regResampleCheck.isChecked():
@@ -1998,6 +2001,7 @@ class ImageImport (QtGui.QDialog):
                 #   QtGui.QMessageBox.warning(self, "Error", u"The coregistration didn't work") #utilisateur
                 #   return
                 #self.insertTransformationToT1pre(tmp_trm_path,image)
+       
     
 
     def segmentationHIPHOP(self):
@@ -2413,7 +2417,6 @@ class ImageImport (QtGui.QDialog):
         # Call SPM normalization
         matlabRun(call)
         # Register new files
-        self.taskfinished(u"SPM Normalize done")
         self.insertSPMdeformationFile(protocol, patient, acq)
         self.StatisticDataMNItoScannerBased(protocol, patient, acq)
         
