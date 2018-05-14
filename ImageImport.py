@@ -1943,10 +1943,10 @@ class ImageImport (QtGui.QDialog):
                 self.storeImageReferentialsAndTransforms(image)
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
             if acq.startswith('T1'):
-                self.setStatus(self.currentSubject + u": SPM normalization of %s to MNI referential..."%acq)
+                self.setStatus(u"SPM normalization..."%acq)
                 progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 self.spmNormalize(image.fileName(), proto, patient, acq)
-                self.taskfinished(self.currentSubject + u": SPM normalization done")
+                self.taskfinished(u"SPM normalization done")
                 # If there is a T1pre, remember the image
                 if acq.find('T1pre') == 0:
                     t1preImage = image
@@ -1955,6 +1955,7 @@ class ImageImport (QtGui.QDialog):
             return
     
         # COREGISTER
+        self.setStatus(u"Coregistration of all images to T1pre..."%acq)
         for image in images:
             # A T1pre is there, coregister all images to it
             if image == t1preImage:
@@ -1965,43 +1966,78 @@ class ImageImport (QtGui.QDialog):
                 continue
             acq = image.attributes()['acquisition']
             patient = image.attributes()['subject']
-            progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
     
+            # ===== ANTS =====
             if self.coregMethod == 'ANTs':
                 print("ANTs coregistration used")
-                self.setStatus(self.currentSubject + u": Coregistration of all images to T1pre..."%acq)
+                progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
-        
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
 #                 thr = Executor(ants_call.split())
 #                 thr.finished.connect(lambda:self.taskfinished(u"ANTs Coregister done", thr))
 #                 thr.finished.connect(lambda im = image, tmp_folder=temp_folder_ants:self.setANTstrm_database(im, tmp_folder))
 #                 self.threads.append(thr)
 #                 thr.start()
+                runCmd(ants_call.split())
                 #to mettre dans la database
                 #thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
     
-                runCmd(ants_call.split())
-                self.taskfinished(self.currentSubject + u": Coregistration done")
-                 
+            # ===== SPM =====
             elif self.coregMethod == 'spm':
                 print("spm coregistration used")
+                
+                # SPM coregister
                 if self.ui.regResampleCheck.isChecked():
-                    self.setStatus('Coregistration of the image: '+ acq + u" with resampling")
-                    self.spmCoregisterResample(image, t1preImage)
+                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
+                    # Call SPM coregister+resample
+                    call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(t1preImage)+",1'}", "{'"+str(image.fileName())+",1'}")
+                    spl = os.path.split(image.fileName())
+                    registeredPath = os.path.join(spl[0], 'r'+spl[1])
+                    matlabRun(call)
+                    # Update resampled volume
+                    self.setResampledToT1pre(image, registeredPath)
+                    
+                # SPM coregister
                 else:
+                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                     self.setStatus('Coregistration of the image: '+ acq)
-                    self.spmCoregister(image, t1preImage)
+                    #self.spmCoregister(image, t1preImage)
+                    
+                    # Temporary txt file to store the trm transformation
+                    tmpOutput = getTmpFilePath('txt')
+                    imageFileName = image.fileName()
+                    if  image.attributes()['data_type'] == 'RGB':
+                        print "it is RGB"
+                        imageFileName = getTmpFilePath('nii')
+                        ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
+                        if ret < 0:
+                            print "Conversion to S16 error: "+repr(registeredPath) #terminal
+                            return
+                    # Run registration
+                    if 'brainCenter' not in image.attributes() or 'brainCenter' not in target.attributes():
+                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
+                    else:
+                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(target.attributes()['brainCenter']), str(target.attributes()['SB_Transform']), "'"+tmpOutput+"'")
+                    matlabRun(call)
+                    #
+                    self.insertTransformationToT1pre(tmpOutput,image)
+                    if image.attributes()['data_type'] == 'RGB':
+                        os.remove(imageFileName)
+                        os.remove(imageFileName+'.minf')
+
     
+            # ===== AIMS =====
             elif self.coregMethod == 'Aims':
                 print("Aims coregistration used")
+                raise Exception("AIMS coregistration not supported yet.")
+                
                 #ret = subprocess.call(['AimsMIRegister', '-r', str(t1preImage.fullPath()), '-t', str(image.fullPath()), '--dir', tmp_trm_path, '--inv',tmp_trm_path2])
                 #if ret < 0:
                 #   print "coregistration error: "+ str(image.fullPath())#terminal
                 #   QtGui.QMessageBox.warning(self, "Error", u"The coregistration didn't work") #utilisateur
                 #   return
                 #self.insertTransformationToT1pre(tmp_trm_path,image)
-       
+        self.taskfinished(u"Coregistration done")
     
 
     def segmentationHIPHOP(self):
@@ -2347,55 +2383,55 @@ class ImageImport (QtGui.QDialog):
         #return thrs
 
 
-    def spmCoregister(self, image, target):
-        """ Coregisters an image (ReadDiskItem) to a target image (filepath) - rigid registration"""
-        # Temporary txt file to store the trm transformation
-        tmpOutput = getTmpFilePath('txt')
-        #truc = subprocess.call(['AimsFileInfo', '-i', str(image.fileName())])
-        #someinfo_keys = image._minfAttributes.keys()
-        #IndexDataType = someinfo_keys.index('data_type')
-        #someinfo_values = image._minfAttributes.values()
-        imageFileName = image.fileName()
-        if  image.attributes()['data_type'] == 'RGB':
-            print "it is RGB"
-            imageFileName = getTmpFilePath('nii')
-            ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
-            if ret < 0:
-                print "Conversion to S16 error: "+repr(registeredPath) #terminal
-                QtGui.QMessageBox.warning(self, "Error", u"The conversion into S16 didn't worked!") #utilisateur
-                return
-    
-        if 'brainCenter' not in image.attributes() or 'brainCenter' not in target.attributes():
-            call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
-        else:
-            call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(target.attributes()['brainCenter']), str(target.attributes()['SB_Transform']), "'"+tmpOutput+"'")
-    
-    
-        # TODO CHECK REGISTRATION AT THE END !
-        thr = matlabRunNB(call)#, lambda: self.taskfinished("spm coregister")) #matlabRunNB(call)
-        thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister done", thr))
-        thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
-        if image.attributes()['data_type'] == 'RGB':
-            thr.finished.connect(lambda im=imageFileName:os.remove(im) and os.remove(im+'.minf'))
-        self.threads.append(thr)
-        thr.start()
-        return thr
+#     def spmCoregister(self, image, target):
+#         """ Coregisters an image (ReadDiskItem) to a target image (filepath) - rigid registration"""
+#         # Temporary txt file to store the trm transformation
+#         tmpOutput = getTmpFilePath('txt')
+#         #truc = subprocess.call(['AimsFileInfo', '-i', str(image.fileName())])
+#         #someinfo_keys = image._minfAttributes.keys()
+#         #IndexDataType = someinfo_keys.index('data_type')
+#         #someinfo_values = image._minfAttributes.values()
+#         imageFileName = image.fileName()
+#         if  image.attributes()['data_type'] == 'RGB':
+#             print "it is RGB"
+#             imageFileName = getTmpFilePath('nii')
+#             ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
+#             if ret < 0:
+#                 print "Conversion to S16 error: "+repr(registeredPath) #terminal
+#                 QtGui.QMessageBox.warning(self, "Error", u"The conversion into S16 didn't worked!") #utilisateur
+#                 return
+#     
+#         if 'brainCenter' not in image.attributes() or 'brainCenter' not in target.attributes():
+#             call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
+#         else:
+#             call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(target.attributes()['brainCenter']), str(target.attributes()['SB_Transform']), "'"+tmpOutput+"'")
+#     
+#     
+#         # TODO CHECK REGISTRATION AT THE END !
+#         thr = matlabRunNB(call)#, lambda: self.taskfinished("spm coregister")) #matlabRunNB(call)
+#         thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister done", thr))
+#         thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
+#         if image.attributes()['data_type'] == 'RGB':
+#             thr.finished.connect(lambda im=imageFileName:os.remove(im) and os.remove(im+'.minf'))
+#         self.threads.append(thr)
+#         thr.start()
+#         return thr
 
 
-    def spmCoregisterResample(self, image, target):
-        """ Coregisters an image (ReadDiskItem) to a target image (filepath) - rigid registration
-           !!! Replaces the original image with the resampled image in the database !!!
-           If the registration is faulty, the image must be imported again.
-        """
-        call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(target)+",1'}", "{'"+str(image.fileName())+",1'}")
-        spl = os.path.split(image.fileName())
-        registeredPath = os.path.join(spl[0], 'r'+spl[1])
-        thr = matlabRunNB(call)#, lambda: self.taskfinished("spm coregister")) #matlabRunNB(call)
-        thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister-Resampling done", thr))
-        thr.finished.connect(lambda im=image, resamp = registeredPath:self.setResampledToT1pre(im, resamp))
-        self.threads.append(thr)
-        thr.start()
-        return thr
+#     def spmCoregisterResample(self, image, target):
+#         """ Coregisters an image (ReadDiskItem) to a target image (filepath) - rigid registration
+#            !!! Replaces the original image with the resampled image in the database !!!
+#            If the registration is faulty, the image must be imported again.
+#         """
+#         call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(target)+",1'}", "{'"+str(image.fileName())+",1'}")
+#         spl = os.path.split(image.fileName())
+#         registeredPath = os.path.join(spl[0], 'r'+spl[1])
+#         thr = matlabRunNB(call)#, lambda: self.taskfinished("spm coregister")) #matlabRunNB(call)
+#         thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister-Resampling done", thr))
+#         thr.finished.connect(lambda im=image, resamp = registeredPath:self.setResampledToT1pre(im, resamp))
+#         self.threads.append(thr)
+#         thr.start()
+#         return thr
 
     def spm_template_t1(self):
         spm_version = checkSpmVersion(str(self.prefs['spm']))
