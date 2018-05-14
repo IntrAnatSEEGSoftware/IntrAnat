@@ -1945,7 +1945,7 @@ class ImageImport (QtGui.QDialog):
             if acq.startswith('T1'):
                 self.setStatus(u"SPM normalization %s..."%acq)
                 progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
-                self.spmNormalize(image.fileName(), proto, patient, acq)
+#                self.spmNormalize(image.fileName(), proto, patient, acq)
                 self.taskfinished(u"SPM normalization done")
                 # If there is a T1pre, remember the image
                 if acq.find('T1pre') == 0:
@@ -2013,10 +2013,10 @@ class ImageImport (QtGui.QDialog):
                             print "Conversion to S16 error: "+repr(registeredPath) #terminal
                             return
                     # Run registration
-                    if 'brainCenter' not in image.attributes() or 'brainCenter' not in target.attributes():
-                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
+                    if 'brainCenter' not in image.attributes() or 'brainCenter' not in t1preImage.attributes():
+                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
                     else:
-                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(target)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(target.attributes()['brainCenter']), str(target.attributes()['SB_Transform']), "'"+tmpOutput+"'")
+                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(t1preImage.attributes()['brainCenter']), str(t1preImage.attributes()['SB_Transform']), "'"+tmpOutput+"'")
                     matlabRun(call)
                     #
                     self.insertTransformationToT1pre(tmpOutput,image)
