@@ -36,6 +36,7 @@ from soma import aims
 from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
 neuroConfig.gui = True
+from brainvisa.configuration.qt4gui import neuroConfigGUI
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
 from brainvisa.processes import *
@@ -308,7 +309,7 @@ class ImageImport (QtGui.QDialog):
         self.ui = uic.loadUi("ImageImport.ui", self)
         self.setWindowTitle('Image Import - NOT FOR MEDICAL USE')
         self.app = app
-        
+    
         self.seriesUIDbyName = {}
         self.studiesUIDbyName = {}
         self.currentProtocol = None
@@ -378,6 +379,9 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.bvImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectBvImage)
         self.connect(self.ui.bvDeleteImageButton, QtCore.SIGNAL('clicked()'), self.deleteBvImage)
         self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
+        self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
+        self.connect(self.ui.bvUpdateDb, QtCore.SIGNAL('clicked()'), self.updateBvDb)
+
         # Add Subject tab
         self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('activated(QString)'), self.updatePatientCode)
         self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('editTextChanged(QString)'), self.updatePatientCode)
@@ -996,7 +1000,7 @@ class ImageImport (QtGui.QDialog):
         self.a.addObjects(mri, self.wins)
         self.dispObj.append(mri)
 
-    def  removeFromDB(self, file, db=None):
+    def removeFromDB(self, file, db=None):
         """
         If the file is a directory, recursive call to remove all its content before removing the directory.
         Corresponding diskitem is removed from the database if it exists.
@@ -1061,6 +1065,32 @@ class ImageImport (QtGui.QDialog):
             self.selectBvSubject(str(self.ui.bvSubjectCombo.currentText()))
 
 
+    # ===== EDIT BRAINVISA PREFERENCES =====
+    def editBvPref(self):
+        """ Open a dialog window to edit the BrainVISA preferences """
+        # Edit preferences
+        neuroConfigGUI.editConfiguration()
+        # Reset the list of subjects
+        self.analyseBrainvisaDB()
+
+    # ===== UPDATE BRAINVISA DATABASES =====
+    def updateBvDb(self):
+        """ Open a dialog window to update BrainVISA databases """
+        from brainvisa.processing.qt4gui import neuroProcessesGUI
+        # Create dialog to update the databases
+        d = QtGui.QDialog()
+        mainLayout = QtGui.QVBoxLayout()
+        # Display update database process
+        updateDialog = neuroProcessesGUI.ProcessView( brainvisa.processes.getProcessInstance( 'updateDatabases' ), d )
+        mainLayout.addWidget(updateDialog)
+        d.setLayout(mainLayout)
+        d.move(100, 100)
+        d.resize(600, 801)
+        d.exec_()
+        # Reset the list of subjects
+        self.analyseBrainvisaDB()
+        
+    
     def clearAnatomist(self, windows=None):
         """ If "windows" is provided, just empties the provided windows.
             If not, all loaded objects are closed and all windows are emptied """

@@ -48,7 +48,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab_5">
        <attribute name="title">
@@ -76,22 +76,18 @@
          </widget>
         </item>
         <item>
-         <layout class="QFormLayout" name="formLayout">
-          <property name="labelAlignment">
-           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-          </property>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_16">
-            <property name="text">
-             <string>Protocol</string>
-            </property>
-           </widget>
-          </item>
+         <layout class="QGridLayout" name="gridLayout_5">
           <item row="0" column="1">
            <widget class="QComboBox" name="bvProtocolCombo"/>
           </item>
           <item row="1" column="0">
            <widget class="QLabel" name="label_17">
+            <property name="maximumSize">
+             <size>
+              <width>70</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="text">
              <string>Patient</string>
             </property>
@@ -99,6 +95,45 @@
           </item>
           <item row="1" column="1">
            <widget class="QComboBox" name="bvSubjectCombo"/>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_16">
+            <property name="maximumSize">
+             <size>
+              <width>70</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Protocol</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QPushButton" name="bvUpdateDb">
+            <property name="maximumSize">
+             <size>
+              <width>130</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Update databases</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="bvEditPref">
+            <property name="maximumSize">
+             <size>
+              <width>130</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Select databases</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -519,6 +554,13 @@
           </item>
           <item>
            <widget class="QDateEdit" name="acqDate">
+            <property name="date">
+             <date>
+              <year>1950</year>
+              <month>1</month>
+              <day>1</day>
+             </date>
+            </property>
             <property name="minimumDate">
              <date>
               <year>1790</year>
@@ -528,13 +570,6 @@
             </property>
             <property name="displayFormat">
              <string>dd/MM/yyyy</string>
-            </property>
-            <property name="date">
-             <date>
-              <year>1950</year>
-              <month>1</month>
-              <day>1</day>
-             </date>
             </property>
            </widget>
           </item>
@@ -1242,6 +1277,13 @@
           </item>
           <item row="0" column="1" colspan="2">
            <widget class="QDateEdit" name="seegAcqDate">
+            <property name="date">
+             <date>
+              <year>1950</year>
+              <month>1</month>
+              <day>1</day>
+             </date>
+            </property>
             <property name="minimumDate">
              <date>
               <year>1790</year>
@@ -1251,13 +1293,6 @@
             </property>
             <property name="displayFormat">
              <string>dd/MM/yyyy</string>
-            </property>
-            <property name="date">
-             <date>
-              <year>1950</year>
-              <month>1</month>
-              <day>1</day>
-             </date>
             </property>
            </widget>
           </item>
