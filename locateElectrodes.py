@@ -154,7 +154,7 @@ spm_normalizePoints = """try
         %% Compute distance
         D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
         [tmp,order]=sort(D);
-        tmp=tmp(1:18);      %%  cubic neighborhood
+        tmp=tmp(1:18);      %%  cubic neighborhoodregisterNormalizeSubject
         order=order(1:18);
         W=1./tmp;           %%  weight inverse to distance
         if sum(isinf(W))>0
@@ -664,7 +664,7 @@ class LocateElectrodes(QtGui.QDialog):
         elecNames = [e.attributes()['model_name'] for e in self.elecModelList]
         self.elecModelListByName = dict((e.attributes()['model_name'], e) for e in self.elecModelList)
         self.typeComboBox.clear()
-        self.typeComboBox.addItems(elecNames)
+        self.typeComboBox.addItems(sorted(elecNames))
 
     def filterSubjects(self, value=None):
         """Filtering subject list"""
