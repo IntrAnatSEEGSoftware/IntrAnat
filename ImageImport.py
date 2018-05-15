@@ -1489,14 +1489,14 @@ class ImageImport (QtGui.QDialog):
         aims.write(temp_nii, destination)
     
         if (filetype != 'fMRI-epile') & (filetype != 'PET') & (filetype != 'Statistic-Data'):  # or filetype != 'MTT'
-            ret = runCmd(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
+            ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
         elif filetype == 'PET':
             print "conversion PET float to S16"
-            ret = runCmd(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
+            ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
             di.setMinf('ColorPalette','Blue-Red-fusion')
         else:
             print "no conversion to grayscale"
-            ret = runCmd(['AimsFileConvert', '-i', str(destination), '-o', str(destination)])
+            ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination)])
         if ret < 0:
             print "Importation error: BrainVisa / AimsFileConvert"
             return
@@ -2250,7 +2250,8 @@ class ImageImport (QtGui.QDialog):
             # Force SPM volume to be saved in S16 (otherwise brainvisa4.6 crashes)
             ret = subprocess.call(['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16'])
             if ret < 0:
-                QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
+                #QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
+                print "Error: Error in the conversion of the segmented image to int16." 
                 return
             
             # Execute the rest of the Morphologist pipeline
