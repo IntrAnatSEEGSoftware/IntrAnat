@@ -31,6 +31,7 @@
 
 import os, subprocess, pickle, shutil, tempfile, json, numpy
 from scipy import ndimage
+from shutil import copyfile
 
 from soma import aims
 from brainvisa import axon, anatomist
@@ -43,6 +44,7 @@ from brainvisa.processes import *
 from soma.qt_gui.qt_backend import uic, QtGui, QtCore
 from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
+import brainvisa.data.neuroDiskItems
 from soma.wip.application.api import Application
 
 from externalprocesses import *
@@ -423,9 +425,10 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
         #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
-        self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.segmentationHIPHOP)
+        self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
-        self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runMarsAtlasFreesurfer)
+        self.ui.FreeSurferReconAllpushButton.setEnabled(False)
+        self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
     
         self.warningMEDIC()
 
@@ -777,7 +780,6 @@ class ImageImport (QtGui.QDialog):
         # Comment alors faire pour lier le 'coregistered to blabla' au 'scanner based' d'une autre image ? Stocker une transfo identité ou utiliser copyReferential ?
         # Et est-ce que copyReferential met à jour toutes les transfos stockées qui utilisaient le référentiel écrasé ?
         # D'autre part, comment repérer le référentiel Scanner-based d'une image en particulier ? Pour créer la transfo t1post vers t1pre à partir du recalage SPM...
-
 
         att = image.attributes()
         refName = att['modality']+'_'+att['acquisition']
@@ -1510,111 +1512,215 @@ class ImageImport (QtGui.QDialog):
 
         
     def importFSoutput(self,subject=None):
-
-        if subject == None:
+        # Get current subject
+        if not subject:
             subject = self.currentSubject
-
-        #find T1pre of the subject
+        # Find T1pre of the subject
         rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
         allT1 = list(rT1BV.findValues({},None,False))
+        if not allT1:
+            QtGui.QMessageBox.warning(self, "Error", u"No T1 MRI found for patient: " + subject)
+            return
         idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+        if not idxT1pre:
+            QtGui.QMessageBox.warning(self, "Error", u"No T1pre found for this patient: " + subject)
+            return
         diT1pre = allT1[idxT1pre[0]]
 
+        # Find FreeSurfer database
+        FsSubjDir = None
+        for db in neuroHierarchy.databases.iterDatabases():
+            if db.directory.lower().find("freesurfer") != -1:
+                FsSubjDir = db.directory
+                print("FreeSurfer database folder: " + FsSubjDir)
+                break
+        if not FsSubjDir:
+            QtGui.QMessageBox.warning(self, "Error", u"No local FreeSurfer database found.")
+            return
+        # Ask file name
+        importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select FreeSurfer folder", "", QtGui.QFileDialog.ShowDirsOnly))
+        if not importDir:
+            return
+        
+        # Get all the filenames expected in the FreeSurfer output folder
+        allFiles = dict()
+        allFiles['anat'] =           {'side':None,    'type':'RawFreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig/001.mgz'}
+        allFiles['T1_orig'] =        {'side':None,    'type':'T1 FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig.mgz'}
+        allFiles['nu'] =             {'side':None,    'type':'Nu FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/nu.mgz'}
+        allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
+        allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
+        allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
+        allFiles['leftWhite'] =      {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/lh.white'}
+        allFiles['leftSphereReg'] =  {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferSphereReg',        'file':importDir + '/surf/lh.sphere.reg'}
+        allFiles['leftThickness'] =  {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferThickness',        'file':importDir + '/surf/lh.thickness'}
+        allFiles['leftCurv'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferCurv',             'file':importDir + '/surf/lh.curv'}
+        allFiles['leftAvgCurv'] =    {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferAvgCurv',          'file':importDir + '/surf/lh.avg_curv'}
+        allFiles['leftCurvPial'] =   {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferCurvPial',         'file':importDir + '/surf/lh.curv.pial'}
+        allFiles['leftGyri'] =       {'side':'left',  'type':'FreesurferGyriTexture',      'format':'FreesurferParcellation',     'file':importDir + '/label/lh.aparc.annot'}
+        allFiles['leftSulciGyri'] =  {'side':'left',  'type':'FreesurferSulciGyriTexture', 'format':'FreesurferParcellation',     'file':importDir + '/label/lh.aparc.a2009s.annot'}
+        allFiles['rightPial'] =      {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/rh.pial'}
+        allFiles['rightWhite'] =     {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/rh.white'}
+        allFiles['rightSphereReg'] = {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferSphereReg',        'file':importDir + '/surf/rh.sphere.reg'}
+        allFiles['rightThickness'] = {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferThickness',        'file':importDir + '/surf/rh.thickness'}
+        allFiles['rightCurv'] =      {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferCurv',             'file':importDir + '/surf/rh.curv'}
+        allFiles['rightAvgCurv'] =   {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferAvgCurv',          'file':importDir + '/surf/rh.avg_curv'}
+        allFiles['rightCurvPial'] =  {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferCurvPial',         'file':importDir + '/surf/rh.curv.pial'}
+        allFiles['rightGyri'] =      {'side':'right', 'type':'FreesurferGyriTexture',      'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.annot'}
+        allFiles['rightSulciGyri'] = {'side':'right', 'type':'FreesurferSulciGyriTexture', 'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.a2009s.annot'}
+        # Check that all the files exist
+        for key in allFiles:
+            if not os.path.isfile(allFiles[key]['file']):
+                QtGui.QMessageBox.warning(self, "Error", u"FreeSurfer file not found:\n" + allFiles[key]['file'])
+                return
+        
+        # Run copy and conversion in a separate thread
+        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        #res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        
+
+    def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
+        # Where to copy the new files
         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
         write_filters = { 'center': str(self.ui.niftiProtocolCombo.currentText()), 'acquisition': str(acq), 'subject' : subject }
-
-        FreesurferNu = ReadDiskItem('Nu FreesurferAnat', 'FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-        Nufound = list(FreesurferNu.findValues({},None,False))
-        if not Nufound:
-            QtGui.QMessageBox.warning(self, "Error", u"Subject \"" + subject + "\" was not found in the local FreeSurfer database.")
-        Nufound = [x for x in Nufound if '.mgz' in str(x)][0]
-
-        FreesurferRibbon = ReadDiskItem('Ribbon Freesurfer','FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-        Ribbonfound = list(FreesurferRibbon.findValues({},None,False))
-        Ribbonfound = [x for x in Ribbonfound if '.mgz' in str(x)][0]
-
-        FreesurferPial = ReadDiskItem('Any Type','FreesurferPial',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-
-        Pialfound = list(FreesurferPial.findValues({},None,False))
-        PialLeft = [x for x in Pialfound if '/lh.' in str(x)][0]
-        PialRight = [x for x in Pialfound if '/rh.' in str(x)][0]
-
-        PialMeshBV = WriteDiskItem('Pial','aims mesh formats')
-        diPialMeshBV = PialMeshBV.findValue(write_filters)
-
-        FreesurferWhite = ReadDiskItem('Any Type','FreesurferWhite',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-
-        Whitefound = list(FreesurferWhite.findValues({},None,False))
-        WhiteLeft = [x for x in Whitefound if '/lh.' in str(x)][0]
-        WhitelRight = [x for x in Whitefound if '/rh.' in str(x)][0]
-
-        right_grey_white_output=WriteDiskItem('Right Grey White Mask','Aims writable volume formats')
-        diright_grey_white = right_grey_white_output.findValue(write_filters)
-        left_grey_white_output=WriteDiskItem('Left Grey White Mask','Aims writable volume formats')
-        dileft_grey_white = left_grey_white_output.findValue(write_filters)
-
-        WhiteMeshBV = WriteDiskItem('White','aims mesh formats')
-        diWhiteMeshBV = WhiteMeshBV.findValue(write_filters)
-        #diWhiteLeftMeshBV = [x for x in diWhiteMeshBV
-
-        FreesurferThickness = ReadDiskItem('Any Type','FreesurferThickness',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-
-        Thicknessfound = list(FreesurferThickness.findValues({},None,False))
-        ThickLeft = [x for x in Thicknessfound if '/lh.' in str(x)][0]
-        ThickRight = [x for x in Thicknessfound if '/rh.' in str(x)][0]
-
-        FreesurferDestrieux = ReadDiskItem('Freesurfer Cortical Parcellation using Destrieux Atlas','FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-
-        Destrieuxfound = list(FreesurferDestrieux.findValues({},None,False))
-
-        #generer tous les writediskitem
-        context = defaultContext()
-        context.write("convert output from freesurfer")
-        launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Nufound),'-o',os.path.join(os.path.dirname(str(Nufound)),'nu.nii'),'-rl',str(diT1pre.fullPath()))
-        launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Ribbonfound),'-o',os.path.join(os.path.dirname(str(Ribbonfound)),'ribbon.nii'),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
-
-
-        wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image' )
-        diFSDestrieux = wdi.findValue(write_filters)
-        #create the folder if doesn't exist
-        if not os.path.isfile(os.path.dirname(str(diFSDestrieux.fullPath()))):
-            try:
-                os.makedirs(os.sep.join(os.path.dirname(str(diFSDestrieux.fullPath())).split(os.sep)[:-1]))
-            except:
-                #already exist probably
-                pass
-            try:
-                os.makedirs(os.path.dirname(str(diFSDestrieux.fullPath())))
-            except:
-                #already exist probably
-                pass
-
-        launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Destrieuxfound[0]),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
-        ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
-        #pour destrieux
-        self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
-
-        launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', WhiteLeft, str(diWhiteleft.fullPath()))
-        launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', WhiteRight, str(diWhiteright.fullPath()))
-        launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', PialLeft, str(diPialleft.fullPath()))
-        launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', PialRight, str(diPialright.fullPath()))
-        launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', ThickLeft, str(diPialright.fullPath()))
-        launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', ThickRight, str(diPialright.fullPath()))
-
-        #loading the object to get its referential and assign it
-        self.a.loadObject(diT1pre)
-        refes=self.a.getReferentials()
-        for element in refes:
-            if 'T1pre' in str(element.getInfos()):
-                ref=element
-        whiteL=self.a.loadObject(diWhiteleft)
-        whiteL.assignReferential(ref)
-        whiteR=self.a.loadObject(diWhiteright)
-        whiteR.assignReferential(ref)
-        pialL=self.a.loadObject(diPialleft)
-        pialL.assignReferential(ref)
-        pialR=self.a.loadObject(diPialright)
-        pialR.assignReferential(ref)
+        # Progress bar
+        if thread:
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying files to freesurfer database...")
+        # Add all the files to the local freesurfer database
+        for key in allFiles:
+            # Get target into the local FreeSurfer database
+            if allFiles[key]['side']:
+                wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer', 'side':allFiles[key]['side']})
+            else:
+                wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+            # Type 'T1 FreesurferAnat' returns both nu.mgz and orig.mgz: need to filter the list
+            if (key == 'T1_orig'):
+                di = wdi.findValues(write_filters, None, True)
+                allT1 = list(di)
+                idxT1orig = [i for i in range(len(allT1)) if 'orig.mgz' in str(allT1[i])]
+                di = allT1[idxT1orig[0]]
+            else:
+                di = wdi.findValue(write_filters)
+            # If there is an error while finding where to save the file
+            if not di:
+                print("Error: Cannot import file: " + allFiles[key]['file'])
+                return
+            # Create target folder
+            self.createItemDirs(di)
+            # Copy file into the local FS datbase
+            print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
+            copyfile(allFiles[key]['file'], di.fullPath())
+            # Add reference in the database (creates .minf)
+            neuroHierarchy.databases.insertDiskItem(di, update=True)
+       
+        
+        
+#     def importFSoutputOld(self,subject=None):
+# 
+#         if subject == None:
+#             subject = self.currentSubject
+# 
+#         #find T1pre of the subject
+#         rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
+#         allT1 = list(rT1BV.findValues({},None,False))
+#         idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+#         diT1pre = allT1[idxT1pre[0]]
+# 
+#         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
+#         write_filters = { 'center': str(self.ui.niftiProtocolCombo.currentText()), 'acquisition': str(acq), 'subject' : subject }
+# 
+#         FreesurferNu = ReadDiskItem('Nu FreesurferAnat', 'FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+#         Nufound = list(FreesurferNu.findValues({},None,False))
+#         if not Nufound:
+#             QtGui.QMessageBox.warning(self, "Error", u"Subject \"" + subject + "\" was not found in the local FreeSurfer database.")
+#             return
+#         Nufound = [x for x in Nufound if '.mgz' in str(x)][0]
+# 
+#         FreesurferRibbon = ReadDiskItem('Ribbon Freesurfer','FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+#         Ribbonfound = list(FreesurferRibbon.findValues({},None,False))
+#         Ribbonfound = [x for x in Ribbonfound if '.mgz' in str(x)][0]
+# 
+#         FreesurferPial = ReadDiskItem('Any Type','FreesurferPial',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+# 
+#         Pialfound = list(FreesurferPial.findValues({},None,False))
+#         PialLeft = [x for x in Pialfound if '/lh.' in str(x)][0]
+#         PialRight = [x for x in Pialfound if '/rh.' in str(x)][0]
+# 
+#         PialMeshBV = WriteDiskItem('Pial','aims mesh formats')
+#         diPialMeshBV = PialMeshBV.findValue(write_filters)
+# 
+#         FreesurferWhite = ReadDiskItem('Any Type','FreesurferWhite',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+# 
+#         Whitefound = list(FreesurferWhite.findValues({},None,False))
+#         WhiteLeft = [x for x in Whitefound if '/lh.' in str(x)][0]
+#         WhitelRight = [x for x in Whitefound if '/rh.' in str(x)][0]
+# 
+#         right_grey_white_output=WriteDiskItem('Right Grey White Mask','Aims writable volume formats')
+#         diright_grey_white = right_grey_white_output.findValue(write_filters)
+#         left_grey_white_output=WriteDiskItem('Left Grey White Mask','Aims writable volume formats')
+#         dileft_grey_white = left_grey_white_output.findValue(write_filters)
+# 
+#         WhiteMeshBV = WriteDiskItem('White','aims mesh formats')
+#         diWhiteMeshBV = WhiteMeshBV.findValue(write_filters)
+#         #diWhiteLeftMeshBV = [x for x in diWhiteMeshBV
+# 
+#         FreesurferThickness = ReadDiskItem('Any Type','FreesurferThickness',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+# 
+#         Thicknessfound = list(FreesurferThickness.findValues({},None,False))
+#         ThickLeft = [x for x in Thicknessfound if '/lh.' in str(x)][0]
+#         ThickRight = [x for x in Thicknessfound if '/rh.' in str(x)][0]
+# 
+#         FreesurferDestrieux = ReadDiskItem('Freesurfer Cortical Parcellation using Destrieux Atlas','FreesurferMGZ',requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+# 
+#         Destrieuxfound = list(FreesurferDestrieux.findValues({},None,False))
+# 
+#         #generer tous les writediskitem
+#         context = defaultContext()
+#         context.write("convert output from freesurfer")
+#         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Nufound),'-o',os.path.join(os.path.dirname(str(Nufound)),'nu.nii'),'-rl',str(diT1pre.fullPath()))
+#         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Ribbonfound),'-o',os.path.join(os.path.dirname(str(Ribbonfound)),'ribbon.nii'),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+# 
+# 
+#         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image' )
+#         diFSDestrieux = wdi.findValue(write_filters)
+#         #create the folder if doesn't exist
+#         if not os.path.isfile(os.path.dirname(str(diFSDestrieux.fullPath()))):
+#             try:
+#                 os.makedirs(os.sep.join(os.path.dirname(str(diFSDestrieux.fullPath())).split(os.sep)[:-1]))
+#             except:
+#                 #already exist probably
+#                 pass
+#             try:
+#                 os.makedirs(os.path.dirname(str(diFSDestrieux.fullPath())))
+#             except:
+#                 #already exist probably
+#                 pass
+# 
+#         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Destrieuxfound[0]),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+#         ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
+#         #pour destrieux
+#         self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
+# 
+#         launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', WhiteLeft, str(diWhiteleft.fullPath()))
+#         launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', WhiteRight, str(diWhiteright.fullPath()))
+#         launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', PialLeft, str(diPialleft.fullPath()))
+#         launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', PialRight, str(diPialright.fullPath()))
+#         launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', ThickLeft, str(diPialright.fullPath()))
+#         launchFreesurferCommand(context, None, 'mris_convert', '--to-scanner', ThickRight, str(diPialright.fullPath()))
+# 
+#         #loading the object to get its referential and assign it
+#         self.a.loadObject(diT1pre)
+#         refes=self.a.getReferentials()
+#         for element in refes:
+#             if 'T1pre' in str(element.getInfos()):
+#                 ref=element
+#         whiteL=self.a.loadObject(diWhiteleft)
+#         whiteL.assignReferential(ref)
+#         whiteR=self.a.loadObject(diWhiteright)
+#         whiteR.assignReferential(ref)
+#         pialL=self.a.loadObject(diPialleft)
+#         pialL.assignReferential(ref)
+#         pialR=self.a.loadObject(diPialright)
+#         pialR.assignReferential(ref)
 
 
     def importPacs(self):
@@ -2069,7 +2175,7 @@ class ImageImport (QtGui.QDialog):
         self.taskfinished(u"Coregistration done")
     
 
-    def segmentationHIPHOP(self):
+    def runPipelineBV(self):
 
         proto = str(self.ui.regProtocolCombo.currentText())
         subj = str(self.ui.regSubjectCombo.currentText())
@@ -2090,8 +2196,47 @@ class ImageImport (QtGui.QDialog):
             return
     
         self.mriAcPc = t1preImage
-        self.runBVMorphologist(t1preImage)
+        self.runMorphologistBV(t1preImage)
 
+
+    def runPipelineFS(self):
+
+        # Get protocol and subject
+        protocol = str(self.ui.regProtocolCombo.currentText())
+        subject = str(self.ui.regSubjectCombo.currentText())
+        # Find FreeSurfer orig.mgz (FreeSurfer DB)
+        rT1 = ReadDiskItem('T1 FreesurferAnat', 'FreesurferMGZ', requiredAttributes={'subject':subject, '_ontology':'freesurfer'})
+        allT1 = list(rT1.findValues({},None,False))
+        iOrig = [i for i in range(len(allT1)) if 'orig.mgz' in str(allT1[i])]
+        if not iOrig:
+            QtGui.QMessageBox.warning(self, 'Error', "You must import the output of the FreeSurfer segmentation first.\n(Tab \"Import\")")
+            return
+        T1_orig = str(allT1[iOrig[0]].fullPath())
+        # Get output T1 (BrainVISA DB)
+        wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre'})
+        diOut = wdi.findValue({})
+        T1_output = str(diOut.fullPath())
+        # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
+        ProgressDialog.call(lambda thr:self.runPipelineFSWorker(T1_orig, T1_output, thr), True, self, "Running Morphologist on FreeSurfer meshes...", "FreeSufer")
+
+        
+    def runPipelineFSWorker(self, T1_orig, T1_output, thread):
+
+        # Run import process
+        proc = getProcessInstance('Import_FROM_FreeSurfer_TO_Morpho')
+        proc.T1_orig = T1_orig
+        proc.T1_output = T1_output
+        print "T1_orig: " + str(proc.T1_orig)
+        print "T1_output: " + str(proc.T1_output)
+        print "ribbon_image: " + str(proc.ribbon_image)
+        print "bias_corrected_output: " + str(proc.bias_corrected_output)
+        self.brainvisaContext.runProcess(proc)
+                
+        # Start hip-hop
+        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
+        thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+        self.hiphopStart()
+        
 
     def setANTstrm_database(self,im, tmp_folder):
 
@@ -2126,7 +2271,7 @@ class ImageImport (QtGui.QDialog):
         self.ui.regACPCLabel.setEnabled(trueorfalse)
         self.ui.regAcPcValidateButton.setEnabled(trueorfalse)
 
-    def runBVMorphologist(self, image):
+    def runMorphologistBV(self, image):
         """ Runs the morphologist analysis to get segmented brain and hemispheres.
         Just activates the buttons to enter AC/PC. The validate button will run the
         analysis itself"""
@@ -2140,7 +2285,6 @@ class ImageImport (QtGui.QDialog):
         # Ask the user to provide AC/PC information to launch MRI segmentation
         QtGui.QMessageBox.information(self, "AC/PC", "Enter AC, PC, IH, LH then validate to segment the brain",   QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
     
-        return None
 
     def validateAcPc(self, ):
         if not all(k in self.AcPc for k in ('AC','PC','IH','LH')):
@@ -2363,10 +2507,10 @@ class ImageImport (QtGui.QDialog):
 #         line1 = runCmd(cmd)
 #         # Compute MarsAtlas segmentation
 #         self.hiphopStart()
-            
+
             
     def hiphopStart(self):
-        self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
+        self.taskfinished(self.currentSubject + u': Morphologist segmentation and meshes generation')
         self.setStatus(self.currentSubject + u": Starting Hip-Hop")
         attr = self.mriAcPc.attributes()
 
@@ -2755,7 +2899,7 @@ class ImageImport (QtGui.QDialog):
         allT1 = list(di.findValues({},None,False))
         idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
         self.storeImageReferentialsAndTransforms(allT1[idxT1pre[0]])
-        constraints =  { 'center': protocol, 'subject' :patient, 'acquisition':allT1[idxT1pre[0]].attributes()['acquisition'] }
+        constraints =  { 'center':protocol, 'subject':patient, 'acquisition':allT1[idxT1pre[0]].attributes()['acquisition'] }
 
         #il faudrait mettre le referentiel à freesurferatlas la aussi ça serait fait comme ça.
         self.transfoManager.setReferentialTo(diFS, allT1[idxT1pre[0]].attributes()['referential'] )
@@ -3124,9 +3268,6 @@ class ImageImport (QtGui.QDialog):
         self.importFSoutput(subject=subj)
 
 
-    def runMarsAtlasFreesurfer(self):
-        QtGui.QMessageBox.warning(self, "Error", u"TODO")
-        
 
     def fitvolumebyellipse(self,volumeposition):
 
