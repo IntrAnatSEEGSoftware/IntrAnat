@@ -3712,10 +3712,11 @@ class ImageImport (QtGui.QDialog):
         return True
 
 
+
 # =============================================================================
 # MAIN: Main function that starts the interface
 # =============================================================================
-if __name__ == '__main__':
+def main():
     
     # Create application
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
@@ -3734,4 +3735,9 @@ if __name__ == '__main__':
     
     # Run the application
     sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()
+
 

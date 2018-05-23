@@ -440,7 +440,7 @@ class LocateElectrodes(QtGui.QDialog):
         # UI init
         if loadAll == True:
             QtGui.QWidget.__init__(self)
-            self.ui = uic.loadUi("epilepsie-electrodes.ui", self)
+            self.ui = uic.loadUi("locateElectrodes.ui", self)
             self.setWindowTitle('Epilepsie - localisation des electrodes - NOT FOR MEDICAL USE')
             # Widget 0 (buttons panel) will be at minimum size (stretch factor 0), the windows will fill up the rest
             self.splitter_2.setStretchFactor(0,0)
@@ -490,12 +490,12 @@ class LocateElectrodes(QtGui.QDialog):
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
         self.windowContent = { 'IRM pre':['T1pre','electrodes',],\
                                'IRM pre T2':['T2pre','electrodes',],\
-                               'IRM pre + hemisphere droit':['T1pre','T1pre-rightHemi','electrodes',],\
-                               'IRM pre + MARS ATLAS droit':['T1pre','right MARS ATLAS BIDULE','electrodes',],\
-                               'IRM pre + hemisphere gauche':['T1pre','T1pre-leftHemi','electrodes',],\
-                               'IRM pre + MARS ATLAS gauche':['T1pre','left MARS ATLAS BIDULE','electrodes',],\
-                               'IRM pre + hemispheres':['T1pre','T1pre-rightHemi','T1pre-leftHemi','electrodes',],\
-                               'IRM pre + hemispheres + tete':['T1pre','T1pre-rightHemi','T1pre-leftHemi', 'T1pre-head','electrodes',],\
+                               'IRM pre + right cortex':['T1pre','T1pre-rightHemi','electrodes',],\
+                               'IRM pre + right MarsAtlas ':['T1pre','right MARS ATLAS BIDULE','electrodes',],\
+                               'IRM pre + left cortex':['T1pre','T1pre-leftHemi','electrodes',],\
+                               'IRM pre + left MarsAtlas':['T1pre','left MARS ATLAS BIDULE','electrodes',],\
+                               'IRM pre + cortex':['T1pre','T1pre-rightHemi','T1pre-leftHemi','electrodes',],\
+                               'IRM pre + cortex + head':['T1pre','T1pre-rightHemi','T1pre-leftHemi', 'T1pre-head','electrodes',],\
                                'IRM post':['T1post','electrodes',],\
                                'IRM post T2':['T2post','electrodes',],\
                                'CT post':['CTpost','electrodes',],\
@@ -639,9 +639,9 @@ class LocateElectrodes(QtGui.QDialog):
     # ==========================================================================
 
     def warningMEDIC(self):
-     
         shortwarning = TimerMessageBox(5,self)
         shortwarning.exec_()
+
 
     def loadFromBrainVisa(self):
         # Find available patients in BV database
@@ -846,24 +846,36 @@ class LocateElectrodes(QtGui.QDialog):
             rdi2 = ReadDiskItem(moda, 'aims readable volume formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol})
             volumes.extend(list(rdi2._findValues({}, None, False)))
     
-        dictionnaire_list_images = {'IRM pre':['T1pre', 'electrodes', ], \
-                               'IRM pre + hemisphere droit':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
-                               'IRM pre + hemisphere gauche':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
-                               'IRM pre + hemispheres':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
-                               'IRM pre + hemispheres + tete':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']}
-    
+#         dictionnaire_list_images = {'IRM pre':['T1pre', 'electrodes', ], \
+#                                'IRM pre +':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
+#                                'IRM pre + left cortex':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
+#                                'IRM pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
+#                                'IRM pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']}
+        dictionnaire_list_images = dict()
         for t in volumes:
             if "skull_stripped" in t.fullName():
                 continue
+            # Progres bar
             if thread is not None:
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading volume: " + t.attributes()['modality'] + "...")
+            # Keep attributes of any image from this subject
             self.brainvisaPatientAttributes = t.attributes()
-            if (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
+            # Add elements in the display list
+            if (t.attributes()['modality'] == 't1mri') and ('pre' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update(
+                    {'IRM pre':['T1pre', 'electrodes'], \
+                     'IRM pre +':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
+                     'IRM pre + left cortex':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
+                     'IRM pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
+                     'IRM pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']})
+            elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'IRM post-op':['T1postOp', 'electrodes']})
+            elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'IRM post':['T1post', 'electrodes']})
+            elif (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'IRM pre T2':['T2pre', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('post' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'IRM post T2':['T2post', 'electrodes']})
-            elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
-                dictionnaire_list_images.update({'IRM post':['T1post', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'CT post':['CTpost', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('postOp' in t.attributes()['acquisition']):
@@ -880,8 +892,6 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'Statistic Data' + ' - ' + t.attributes()['subacquisition']:['Statisticspre' + t.attributes()['subacquisition'], 'electrodes']})  # mettre le nom de la subacquisition
             elif t.attributes()['modality'] == 'statistic_data' and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'Statistic Data' + ' - ' + t.attributes()['subacquisition']:['Statisticspost' + t.attributes()['subacquisition'], 'electrodes']})  # mettre le nom de la subacquisition
-            elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
-                dictionnaire_list_images.update({'IRM post-op':['T1postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 'resection'):
                 dictionnaire_list_images.update({'Resection':['Resection', 'electrodes']})
             elif (t.attributes()['modality'] == 'freesurfer_atlas'):
@@ -966,8 +976,7 @@ class LocateElectrodes(QtGui.QDialog):
                         wm_side = wm_di.findValue(atl)
                         self.loadAndDisplayObject(wm_side, na + '-' + atl.attributes()['side'] + 'MARSATLAS', texture_item=atl, palette='MarsAtlas', color=[0.8, 0.7, 0.4, 0.7])
                         print "Found hemisphere " + str(na + '-' + atl.attributes()['side'] + 'MARSATLAS')
-                        dictionnaire_list_images.update({'IRM pre + MARS ATLAS ' + atl.attributes()['side']:['T1pre', 'T1pre-' + atl.attributes()['side'] + 'MARSATLAS', 'electrodes']})
-
+                        dictionnaire_list_images.update({'IRM pre + ' + atl.attributes()['side'] + ' MarsAtlas':['T1pre', 'T1pre-' + atl.attributes()['side'] + 'MARSATLAS', 'electrodes']})
 
                 # Get head mesh for the acquisition
                 rdi3 = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
@@ -2170,7 +2179,7 @@ class LocateElectrodes(QtGui.QDialog):
             #Right hemisphere
             #opens an Anatomist window and loads the parcellation and the electrodes
             w2=self.a.createWindow("Sagittal")
-            contWin=self.windowContent['IRM pre + MARS ATLAS right']
+            contWin=self.windowContent['IRM pre + right MarsAtlas']
             content=[x for x in contWin if "rightMARSATLAS" in x]
             ele=[x for x in contWin if "electrode" in x]
             elec=self.dispObj[ele[0]] 
@@ -2190,7 +2199,7 @@ class LocateElectrodes(QtGui.QDialog):
             
             #Left hemisphere          
             w21=self.a.createWindow("Sagittal")
-            contWin=self.windowContent['IRM pre + MARS ATLAS left']
+            contWin=self.windowContent['IRM pre + left MarsAtlas']
             content=[x for x in contWin if "leftMARSATLAS" in x]
             ele=[x for x in contWin if "electrode" in x]
             elec=self.dispObj[ele[0]] 
@@ -2437,7 +2446,7 @@ class LocateElectrodes(QtGui.QDialog):
             #Right hemisphere
             w2=self.a.createWindow("Sagittal")
             w2.windowConfig(fullscreen=1)
-            contWin=self.windowContent['IRM pre + MARS ATLAS right']
+            contWin=self.windowContent['IRM pre + right MarsAtlas']
             #contWin = self.windowContent['IRM pre + hemispheres']
             content=[x for x in contWin if "rightMARSATLAS" in x]
             #content = [x for x in contWin if "rightHemi" in x]
@@ -2471,7 +2480,7 @@ class LocateElectrodes(QtGui.QDialog):
             #Left hemisphere
             w2=self.a.createWindow("Sagittal")
             w2.windowConfig(fullscreen=1)
-            contWin=self.windowContent['IRM pre + MARS ATLAS left']
+            contWin=self.windowContent['IRM pre + left MarsAtlas']
             content=[x for x in contWin if "leftMARSATLAS" in x]
             ele=[x for x in contWin if "electrode" in x]
             elec=self.dispObj[ele[0]] 
