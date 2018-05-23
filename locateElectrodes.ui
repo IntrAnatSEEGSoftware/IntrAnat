@@ -22,677 +22,659 @@
   <property name="sizeGripEnabled">
    <bool>false</bool>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout_8">
+  <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="0,1,1">
    <item>
-    <widget class="QSplitter" name="splitter_2">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <widget class="QWidget" name="layoutWidget">
-      <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,15,0,0">
-       <item>
-        <layout class="QGridLayout" name="gridLayout_2">
-         <property name="sizeConstraint">
-          <enum>QLayout::SetMinimumSize</enum>
-         </property>
-         <item row="0" column="1">
-          <widget class="QListWidget" name="patientList">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
-          <layout class="QVBoxLayout" name="verticalLayout_7">
-           <item>
-            <widget class="QComboBox" name="protocolCombo"/>
-           </item>
-           <item>
-            <widget class="QComboBox" name="filterSiteCombo"/>
-           </item>
-           <item>
-            <widget class="QComboBox" name="filterYearCombo"/>
-           </item>
-           <item>
-            <widget class="QPushButton" name="loadPatientButton">
-             <property name="toolTip">
-              <string/>
-             </property>
-             <property name="text">
-              <string>Load Patient</string>
-             </property>
-             <property name="autoDefault">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="changePatientButton">
-             <property name="text">
-              <string>Change Patient</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>40</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox_2">
-         <property name="title">
-          <string>Image Manipulation</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_6">
-          <property name="sizeConstraint">
-           <enum>QLayout::SetMinimumSize</enum>
-          </property>
-          <item>
-           <widget class="QPushButton" name="makefusionButton">
-            <property name="toolTip">
-             <string>make the fusion of both displayed images and shows it on the right window</string>
-            </property>
-            <property name="text">
-             <string>Fusion displayed images</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_11">
-            <item>
-             <widget class="QPushButton" name="generateResectionArray">
-              <property name="text">
-               <string>Generate Resection Image</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="validateROIresection">
-              <property name="text">
-               <string>convert ROI to Resection</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_6">
-            <item>
-             <widget class="QPushButton" name="deleteMarsAtlasfiles">
-              <property name="text">
-               <string>Delete MarsAtlas</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="generateSEEGProjection">
-              <property name="text">
-               <string>Generate SEEG Projection Mesh</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox">
+    <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,15,0,0">
+     <item>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <property name="sizeConstraint">
+        <enum>QLayout::SetMinimumSize</enum>
+       </property>
+       <item row="0" column="1">
+        <widget class="QListWidget" name="patientList">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
-         <property name="font">
-          <font>
-           <weight>50</weight>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="title">
-          <string>Electrodes</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout">
-          <property name="sizeConstraint">
-           <enum>QLayout::SetMinimumSize</enum>
-          </property>
-          <item>
-           <widget class="QPushButton" name="ImportTheoriticalImplantation">
-            <property name="text">
-             <string>Import theoritical implantation (rosa)</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="approximateButton">
-            <property name="text">
-             <string>Apply DEETO</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <item>
-             <widget class="QPushButton" name="addElectrodeButton">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>20</width>
-                <height>100</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Ajouter une électrode</string>
-              </property>
-              <property name="text">
-               <string>+</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="removeElectrodeButton">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>20</width>
-                <height>100</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Supprimer l'électrode courante</string>
-              </property>
-              <property name="text">
-               <string>-</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="label">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Name (no digit in the name):</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="nameEdit">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
-            <item>
-             <widget class="QLabel" name="label_2">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Type</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QComboBox" name="typeComboBox"/>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_5">
-            <item>
-             <widget class="QPushButton" name="targetButton">
-              <property name="cursor">
-               <cursorShape>ArrowCursor</cursorShape>
-              </property>
-              <property name="toolTip">
-               <string>Fixer la position de l'extrémité de l'électrode courante</string>
-              </property>
-              <property name="text">
-               <string>Target</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="entryButton">
-              <property name="toolTip">
-               <string>Fixer la position du point d'entrée de l'électrode courante</string>
-              </property>
-              <property name="text">
-               <string>Entrance</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <widget class="QListWidget" name="electrodeList">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>2</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Liste des électrodes</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QListWidget" name="contactList">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>4</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Liste des contacts</string>
-            </property>
-            <property name="selectionMode">
-             <enum>QAbstractItemView::SingleSelection</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_2">
-            <property name="sizeConstraint">
-             <enum>QLayout::SetMinimumSize</enum>
-            </property>
-            <item>
-             <widget class="QPushButton" name="electrodeSaveButton">
-              <property name="font">
-               <font>
-                <weight>75</weight>
-                <bold>true</bold>
-               </font>
-              </property>
-              <property name="toolTip">
-               <string>Enregistrer l'implantation du patient dans la base de données</string>
-              </property>
-              <property name="text">
-               <string>Save modifications</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QPushButton" name="electrodeLoadButton">
-              <property name="toolTip">
-               <string>Importer une implantation (format PTS, elecimplant...)</string>
-              </property>
-              <property name="text">
-               <string>Import</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="normalizeExportButton">
-              <property name="toolTip">
-               <string>Exporter les coordonnées des plots au format PTS et TXT dans le référentiel T1 et MNI</string>
-              </property>
-              <property name="text">
-               <string>Normalize/Export</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
         </widget>
        </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox_3">
-         <property name="font">
-          <font>
-           <weight>50</weight>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="title">
-          <string/>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,0">
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_7">
-            <item>
-             <widget class="QPushButton" name="colorConfigButton">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="font">
-               <font>
-                <pointsize>10</pointsize>
-                <italic>true</italic>
-               </font>
-              </property>
-              <property name="text">
-               <string>sEEG Colors</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QComboBox" name="dispModeCombo">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="toolTip">
-               <string>Mode d'affichage des électrodes</string>
-              </property>
-              <item>
-               <property name="text">
-                <string>Realistic Display</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>1 mm sphere Display</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>2 mm sphere Display</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>5 mm sphere Display</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Hide Electrodes</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>show SEEG Results</string>
-               </property>
-              </item>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="Clipping_checkbox">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="toolTip">
-               <string>afficher seulement les élements à +/- 5 mm de la slice actuelle</string>
-              </property>
-              <property name="text">
-               <string>Clipping</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer_6">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_10">
-            <item>
-             <widget class="QCheckBox" name="electrodeRefCheck">
-              <property name="text">
-               <string>Electrode Referential</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSlider" name="electrodeRefRotationSlider">
-              <property name="minimum">
-               <number>-180</number>
-              </property>
-              <property name="maximum">
-               <number>180</number>
-              </property>
-              <property name="tracking">
-               <bool>true</bool>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="invertedAppearance">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item row="0" column="0">
+        <layout class="QVBoxLayout" name="verticalLayout_7">
          <item>
-          <widget class="QComboBox" name="referentialCombo">
+          <widget class="QComboBox" name="protocolCombo"/>
+         </item>
+         <item>
+          <widget class="QComboBox" name="filterSiteCombo"/>
+         </item>
+         <item>
+          <widget class="QComboBox" name="filterYearCombo"/>
+         </item>
+         <item>
+          <widget class="QPushButton" name="loadPatientButton">
            <property name="toolTip">
-            <string>Référentiel utilisé pour les coordonnées affichées ci-contre</string>
+            <string/>
+           </property>
+           <property name="text">
+            <string>Load Patient</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="positionLabel">
+          <widget class="QPushButton" name="changePatientButton">
            <property name="text">
-            <string/>
+            <string>Change Patient</string>
            </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
          </item>
         </layout>
        </item>
       </layout>
-     </widget>
-     <widget class="QSplitter" name="splitter">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <widget class="QWidget" name="layoutWidget">
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="QComboBox" name="windowCombo1">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <item>
-           <property name="text">
-            <string>IRM pre</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM pre + hemisphere droit</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM pre + hemisphere gauche</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM pre + hemispheres</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM post</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM post-op</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item>
-         <widget class="QWidget" name="windowContainer1" native="true">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="layoutWidget">
-       <layout class="QVBoxLayout" name="verticalLayout_3">
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="title">
+        <string>Image Manipulation</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_6">
         <property name="sizeConstraint">
-         <enum>QLayout::SetMaximumSize</enum>
+         <enum>QLayout::SetMinimumSize</enum>
         </property>
         <item>
-         <widget class="QComboBox" name="windowCombo2">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
+         <widget class="QPushButton" name="makefusionButton">
+          <property name="toolTip">
+           <string>make the fusion of both displayed images and shows it on the right window</string>
           </property>
-          <item>
-           <property name="text">
-            <string>IRM pre</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM pre + hemisphere droit</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM pre + hemisphere gauche</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM pre + hemispheres</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM post</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>IRM post-op</string>
-           </property>
-          </item>
+          <property name="text">
+           <string>Fusion displayed images</string>
+          </property>
          </widget>
         </item>
         <item>
-         <widget class="QWidget" name="windowContainer2" native="true">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout_11">
+          <item>
+           <widget class="QPushButton" name="generateResectionArray">
+            <property name="text">
+             <string>Generate Resection Image</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="validateROIresection">
+            <property name="text">
+             <string>convert ROI to Resection</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QPushButton" name="deleteMarsAtlasfiles">
+            <property name="text">
+             <string>Delete MarsAtlas</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="generateSEEGProjection">
+            <property name="text">
+             <string>Generate SEEG Projection Mesh</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
-     </widget>
-    </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="font">
+        <font>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="title">
+        <string>Electrodes</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetMinimumSize</enum>
+        </property>
+        <item>
+         <widget class="QPushButton" name="ImportTheoriticalImplantation">
+          <property name="text">
+           <string>Import theoritical implantation (rosa)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="approximateButton">
+          <property name="text">
+           <string>Apply DEETO</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QPushButton" name="addElectrodeButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>20</width>
+              <height>100</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Ajouter une électrode</string>
+            </property>
+            <property name="text">
+             <string>+</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="removeElectrodeButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>20</width>
+              <height>100</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Supprimer l'électrode courante</string>
+            </property>
+            <property name="text">
+             <string>-</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Name (no digit in the name):</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="nameEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="label_2">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Type</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="typeComboBox"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QPushButton" name="targetButton">
+            <property name="cursor">
+             <cursorShape>ArrowCursor</cursorShape>
+            </property>
+            <property name="toolTip">
+             <string>Fixer la position de l'extrémité de l'électrode courante</string>
+            </property>
+            <property name="text">
+             <string>Target</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="entryButton">
+            <property name="toolTip">
+             <string>Fixer la position du point d'entrée de l'électrode courante</string>
+            </property>
+            <property name="text">
+             <string>Entrance</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QListWidget" name="electrodeList">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>2</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="toolTip">
+           <string>Liste des électrodes</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QListWidget" name="contactList">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>4</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="toolTip">
+           <string>Liste des contacts</string>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SingleSelection</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetMinimumSize</enum>
+          </property>
+          <item>
+           <widget class="QPushButton" name="electrodeSaveButton">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="toolTip">
+             <string>Enregistrer l'implantation du patient dans la base de données</string>
+            </property>
+            <property name="text">
+             <string>Save modifications</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="electrodeLoadButton">
+            <property name="toolTip">
+             <string>Importer une implantation (format PTS, elecimplant...)</string>
+            </property>
+            <property name="text">
+             <string>Import</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="normalizeExportButton">
+            <property name="toolTip">
+             <string>Exporter les coordonnées des plots au format PTS et TXT dans le référentiel T1 et MNI</string>
+            </property>
+            <property name="text">
+             <string>Normalize/Export</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox_3">
+       <property name="font">
+        <font>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="title">
+        <string/>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,0">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <item>
+           <widget class="QPushButton" name="colorConfigButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+              <italic>true</italic>
+             </font>
+            </property>
+            <property name="text">
+             <string>sEEG Colors</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="dispModeCombo">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Mode d'affichage des électrodes</string>
+            </property>
+            <item>
+             <property name="text">
+              <string>Realistic Display</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>1 mm sphere Display</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>2 mm sphere Display</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5 mm sphere Display</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Hide Electrodes</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>show SEEG Results</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="Clipping_checkbox">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="toolTip">
+             <string>afficher seulement les élements à +/- 5 mm de la slice actuelle</string>
+            </property>
+            <property name="text">
+             <string>Clipping</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_6">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_10">
+          <item>
+           <widget class="QCheckBox" name="electrodeRefCheck">
+            <property name="text">
+             <string>Electrode Referential</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSlider" name="electrodeRefRotationSlider">
+            <property name="minimum">
+             <number>-180</number>
+            </property>
+            <property name="maximum">
+             <number>180</number>
+            </property>
+            <property name="tracking">
+             <bool>true</bool>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="invertedAppearance">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QComboBox" name="referentialCombo">
+         <property name="toolTip">
+          <string>Référentiel utilisé pour les coordonnées affichées ci-contre</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="positionLabel">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="QComboBox" name="windowCombo1">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>IRM pre</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM pre + hemisphere droit</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM pre + hemisphere gauche</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM pre + hemispheres</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM post</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM post-op</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QWidget" name="windowContainer1" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetMaximumSize</enum>
+     </property>
+     <item>
+      <widget class="QComboBox" name="windowCombo2">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>IRM pre</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM pre + hemisphere droit</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM pre + hemisphere gauche</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM pre + hemispheres</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM post</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>IRM post-op</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QWidget" name="windowContainer2" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>

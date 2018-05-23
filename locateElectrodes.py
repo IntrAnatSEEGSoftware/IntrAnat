@@ -442,13 +442,13 @@ class LocateElectrodes(QtGui.QDialog):
             QtGui.QWidget.__init__(self)
             self.ui = uic.loadUi("locateElectrodes.ui", self)
             self.setWindowTitle('Epilepsie - localisation des electrodes - NOT FOR MEDICAL USE')
+            self.app = app
             # Widget 0 (buttons panel) will be at minimum size (stretch factor 0), the windows will fill up the rest
-            self.splitter_2.setStretchFactor(0,0)
-            self.splitter_2.setStretchFactor(1,1)
+            #self.splitter_2.setStretchFactor(0,0)
+            #self.splitter_2.setStretchFactor(1,1)
             # Equal size for both views
-            self.splitter.setStretchFactor(0,1)
-            self.splitter.setStretchFactor(1,1)
-
+            #self.splitter.setStretchFactor(0,1)
+            #self.splitter.setStretchFactor(1,1)
         self.nameEdit.setText('A')
     
         # Load the list of protocols, patients and electrode models from BrainVisa
@@ -460,7 +460,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.loadFromBrainVisa()
 
         # Init of variables
-        self.app = app
         self.dispObj = {} # All displayable objects "t1mri-pre", "t2"...
         self.objtokeep = {} #all object we must keep alive for anatomist but not in other variables
         self.diskItems = {} # For each dispObj, a list of dictionnaries {'refName', 'refObj', 'refId', 'transf'}
@@ -645,7 +644,6 @@ class LocateElectrodes(QtGui.QDialog):
 
     def loadFromBrainVisa(self):
         # Find available patients in BV database
-        print "LOADING DATA FROM BRAINVISA"
         rdi = ReadDiskItem( 'Subject', 'Directory',requiredAttributes={'_ontology':'brainvisa-3.2.0'}  ) #, requiredAttributes={'center':'Epilepsy'} )
         subjects = list( rdi._findValues( {}, None, False ) )
         protocols = list(set([s.attributes()['center'] for s in subjects if 'center' in s.attributes()]))
