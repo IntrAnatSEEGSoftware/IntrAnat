@@ -880,9 +880,9 @@ class ImageImport (QtGui.QDialog):
             if self.currentSubject is None:
                 return
             idx = subjCombo.findText(self.currentSubject)
-            print "search current subj"
+            # print "search current subj"
             if idx != -1:
-                print "found at "+repr(idx)
+                # print "found at "+repr(idx)
                 subjCombo.setCurrentIndex(idx)
 
         if tab == 0 or tab is None: # Tab 0 is BrainVisa database tab
@@ -996,11 +996,11 @@ class ImageImport (QtGui.QDialog):
 
     def selectBvImage(self, item):
         """ A BrainVisa image was double-clicked : display it !"""
-        self.clearAnatomist()
+        # Get image to display
         path = self.bvImagePaths[str(item.text())]
-        mri = self.a.loadObject(path)
-        self.a.addObjects(mri, self.wins)
-        self.dispObj.append(mri)
+        # Display images
+        self.displayImage(path, self.wins)
+            
 
     def removeFromDB(self, file, db=None):
         """
@@ -1113,7 +1113,6 @@ class ImageImport (QtGui.QDialog):
             im2 = self.a.loadObject(win2Path)
             self.a.addObjects(im2, self.wins[1])
             self.dispObj.append(win2Path)
-        
 
     def setStatus(self, text):
         """ Sets the status text displayed at the bottom of the dialog"""
@@ -1332,7 +1331,6 @@ class ImageImport (QtGui.QDialog):
             return
         self.ui.niftiFileLabel.setText(path)
         # Display the image and remove others
-        self.clearAnatomist()
         print "Loading %s"%path
         split_path = os.path.splitext(path)
         if split_path[-1] == ".mgz":
@@ -1356,17 +1354,15 @@ class ImageImport (QtGui.QDialog):
                 #mriconvert_call ='mri_convert -i {} -o {} -rl {} -rt nearest -nc'.format(path,tmp_nii_path,str(allT1[idxT1pre[0]].fullPath()))
                 #mriconvert_call ='mri_convert -i {} -o {}'.format(path,tmp_nii_path)
                 #runCmd(mriconvert_call.split())
-                mri = self.a.loadObject(tmp_nii_path)
             except:
                 print "conversion mgz to nii didn't work"
                 return
         else:
             mri = self.a.loadObject(path)
             tmp_nii_path = path
-    
-        self.a.addObjects(mri, self.wins)
-        self.dispObj.append(mri)
-    
+        # Display images
+        self.displayImage(tmp_nii_path, self.wins)
+        # Reset other components
         self.brainCenter = None
         self.ui.brainCenterLabel.setText('')
         self.ui.niftiFileLabel.setText(tmp_nii_path)
@@ -1814,7 +1810,7 @@ class ImageImport (QtGui.QDialog):
 
     # ******************************* Implantation
 
-    def  selectImplSubject(self, subj):
+    def selectImplSubject(self, subj):
         """ A BrainVisa subject was selected : query the database to get the available images"""
         rdi = ReadDiskItem( 'Electrode Implantation Coronal Image', 'BrainVISA image formats', requiredAttributes={'center':str(self.ui.implProtocolCombo.currentText()), 'subject':str(subj)} )
         coros = list( rdi._findValues( {}, None, False ) )
@@ -2047,20 +2043,34 @@ class ImageImport (QtGui.QDialog):
 
     def selectRegImage(self, item):
         """ A BrainVisa image was double-clicked : display it !"""
-        self.clearAnatomist()
         image = self.regImages[str(item.text())]
-        mri = self.a.loadObject(image)
-        self.a.addObjects(mri, self.wins[:2])
-        self.dispObj.append(mri)
+        self.displayImage(image, self.wins[:2])
 
     def selectRegImage2(self, item):
         """ A BrainVisa image was double-clicked in the second list: display it !"""
-        self.clearAnatomist(self.wins[2:])
-        #path = self.regImagePaths[str(item.text())]
         image = self.regImages[str(item.text())]
+        self.displayImage(image, self.wins[2:])
+
+    
+    def displayImage(self, image, wins):
+        # Clear existing windows
+        self.clearAnatomist(wins)
+        # Load image
         mri = self.a.loadObject(image)
-        self.a.addObjects(mri, self.wins[2:])
+        # Add to anatomist windows
+        self.a.addObjects(mri, wins)
         self.dispObj.append(mri)
+        # Guess center of image
+        attr = mri.getInternalRep().attributed()
+        if (attr['volume_dimension'] and attr['voxel_size']):
+            volSize = attr['volume_dimension']
+            voxSize = attr['voxel_size']
+            center = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+        else:
+            center = [128, 128, 128]
+        # Center view on center of image
+        wins[0].moveLinkedCursor(center)
+
 
     def registerNormalizeSubject(self, progressThread=None):
         """ Registers all images of the subject with SPM, then store the transforms in BrainVisa database, and launch T1pre morphologist analysis (brain segmentation) """
@@ -2173,7 +2183,9 @@ class ImageImport (QtGui.QDialog):
                 #   return
                 #self.insertTransformationToT1pre(tmp_trm_path,image)
         self.taskfinished(u"Coregistration done")
-    
+        # Clear all the views
+        self.clearAnatomist()
+
 
     def runPipelineBV(self):
 
@@ -2211,31 +2223,27 @@ class ImageImport (QtGui.QDialog):
         if not iOrig:
             QtGui.QMessageBox.warning(self, 'Error', "You must import the output of the FreeSurfer segmentation first.\n(Tab \"Import\")")
             return
-        T1_orig = str(allT1[iOrig[0]].fullPath())
+        diOrig = allT1[iOrig[0]]
         # Get output T1 (BrainVISA DB)
-        wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre'})
+        wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre', 'modality':'freesurfer_atlas'})
         diOut = wdi.findValue({})
         T1_output = str(diOut.fullPath())
         # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
-        ProgressDialog.call(lambda thr:self.runPipelineFSWorker(T1_orig, T1_output, thr), True, self, "Running Morphologist on FreeSurfer meshes...", "FreeSufer")
+        ProgressDialog.call(lambda thr:self.runPipelineFSWorker(diOrig, diOut, thr), True, self, "Running Morphologist on FreeSurfer output...", "FreeSufer")
 
         
-    def runPipelineFSWorker(self, T1_orig, T1_output, thread):
+    def runPipelineFSWorker(self, diOrig, diOut, thread):
 
         # Run import process
+        thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
         proc = getProcessInstance('Import_FROM_FreeSurfer_TO_Morpho')
-        proc.T1_orig = T1_orig
-        proc.T1_output = T1_output
-        print "T1_orig: " + str(proc.T1_orig)
-        print "T1_output: " + str(proc.T1_output)
-        print "ribbon_image: " + str(proc.ribbon_image)
-        print "bias_corrected_output: " + str(proc.bias_corrected_output)
+        proc.T1_orig = str(diOrig.fullPath())
+        proc.T1_output = str(diOut.fullPath())
         self.brainvisaContext.runProcess(proc)
-                
         # Start hip-hop
         thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
         thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
-        self.hiphopStart()
+        self.hiphopStart(diOut.attributes()['center'], diOut.attributes()['subject'])
         
 
     def setANTstrm_database(self,im, tmp_folder):
@@ -2276,11 +2284,9 @@ class ImageImport (QtGui.QDialog):
         Just activates the buttons to enter AC/PC. The validate button will run the
         analysis itself"""
 
-        # Display
-        self.clearAnatomist()
-        mri = self.a.loadObject(image.fileName())
-        self.dispObj.append(mri)
-        self.a.addObjects(mri, self.wins)
+        # Display images
+        self.displayImage(image.fileName(), self.wins)
+        # Enable buttons
         self.enableACPCButtons(True)
         # Ask the user to provide AC/PC information to launch MRI segmentation
         QtGui.QMessageBox.information(self, "AC/PC", "Enter AC, PC, IH, LH then validate to segment the brain",   QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
@@ -2426,7 +2432,7 @@ class ImageImport (QtGui.QDialog):
         # Start hip-hop
         thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
         thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
-        self.hiphopStart()
+        self.hiphopStart(self.mriAcPc.attributes()['center'], self.mriAcPc.attributes()['subject'])
         
             
             
@@ -2509,13 +2515,12 @@ class ImageImport (QtGui.QDialog):
 #         self.hiphopStart()
 
             
-    def hiphopStart(self):
+    def hiphopStart(self, center, subject):
         self.taskfinished(self.currentSubject + u': Morphologist segmentation and meshes generation')
         self.setStatus(self.currentSubject + u": Starting Hip-Hop")
-        attr = self.mriAcPc.attributes()
 
-        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'left','subject':attr['subject'] , 'center':attr['center']})
-        Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data',requiredAttributes={ 'side': 'right' ,'subject':attr['subject'] , 'center':attr['center']})
+        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'left', 'subject':subject, 'center':center})
+        Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'right', 'subject':subject, 'center':center})
         Lrdi = list( Lrdi._findValues( {}, None, False ) )
     
         if len(Lrdi) == 0:
@@ -2662,8 +2667,8 @@ class ImageImport (QtGui.QDialog):
     def setResampledToT1pre(self, image, registeredPath):
         ret = subprocess.call(['AimsFileConvert', '-i', str(registeredPath), '-o', str(image.fileName()), '-t', 'S16'])
         if ret < 0:
-            print "Importation error of the image resampled by SPM : "+repr(registeredPath)
-            QtGui.QMessageBox.warning(self, "Error", u"the image has not been resampled by SPM !")
+            print "ERROR: Cannot import the image resampled by SPM : "+repr(registeredPath)
+            #QtGui.QMessageBox.warning(self, "Error", u"the image has not been resampled by SPM !")
             return
         # TODO # Should destroy existing referentials for this image
         # The referential of this image is the same as the T1 pre
@@ -2714,13 +2719,15 @@ class ImageImport (QtGui.QDialog):
             wdi = WriteDiskItem('SPM normalization deformation field', 'NIFTI-1 image' )
             di = wdi.findValue( { 'center': protocol, 'subject' : patient, 'acquisition':acq } )
         if di is None:
-            QtGui.QMessageBox.warning(self, "Error", "Impossible to find a valid path to import SPM normalization into BrainVisa")
+            #QtGui.QMessageBox.warning(self, "Error", "Impossible to find a valid path to import SPM normalization into BrainVisa")
+            print("Error: Impossible to find a valid path to import SPM normalization into BrainVisa")
             return
     
         wdi_write = WriteDiskItem('T1 SPM resampled in MNI','NIFTI-1 image')
         di_write = wdi_write.findValue({'center': protocol, 'subject' : patient, 'acquisition':acq})
         if not os.path.isfile(di_write.fileName()):
-            QtGui.QMessageBox.warning(self, "Error", "Impossible dto find a valid path for the T1 coregistered into the MNI")
+            #QtGui.QMessageBox.warning(self, "Error", "Impossible dto find a valid path for the T1 coregistered into the MNI")
+            print("Error: Impossible to find a valid path for the T1 coregistered into the MNI")
         else:
             print "Declaring T1 registered MNI in BrainVisa DB : " + di_write.fileName()
             neuroHierarchy.databases.insertDiskItem(di_write, update = True)
@@ -2738,7 +2745,7 @@ class ImageImport (QtGui.QDialog):
     
         else:
             print "No SPM normalization file found ! The normalization probably failed..."
-            QtGui.QMessageBox.warning(self, "Error", u"SPM normalization file %s unfound ! \n Normalization probably failed !"%di.fileName())
+            #QtGui.QMessageBox.warning(self, "Error", u"SPM normalization file %s unfound ! \n Normalization probably failed !"%di.fileName())
             return
 
     def StatisticDataMNItoScannerBased(self, protocol, patient, acq):
@@ -3317,8 +3324,8 @@ class ImageImport (QtGui.QDialog):
 
         ret = subprocess.call(['AimsFileConvert', '-i', str(registeredPath), '-o', str(image.fileName()), '-t', 'S16'])
         if ret < 0:
-            print "Importation Error of the SPM resampled image : "+repr(registeredPath)
-            QtGui.QMessageBox.warning(self, "Error", u"The image has not been resampled by SPM !")
+            print "Error: Cannot import the SPM resampled image : "+repr(registeredPath)
+            #QtGui.QMessageBox.warning(self, "Error", u"The image has not been resampled by SPM !")
             return
         # TODO # Should destroy existing referentials for this image
         # The referential of this image is the same as the T1 pre
