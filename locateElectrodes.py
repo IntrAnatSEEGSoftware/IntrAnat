@@ -484,7 +484,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.t1pre2ScannerBasedTransform = None #Transfo from T1pre native to scanner-based referential (Anatomist Transformation object)
         self.t1preCenter = []
         self.brainvisaPatientAttributes = None # Attributes of a BrainVisa ReadDiskItem MRI of the loaded patient
-        
+        self.isModified = False
         #self.MicromedListener = ML()
     
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
@@ -597,24 +597,33 @@ class LocateElectrodes(QtGui.QDialog):
     # ===== WINDOW EVENTS ======================================================
     # ==========================================================================
     def closeEvent(self, event):
-        self.quit(event)
+        """Function called when there is a request to close the app window."""
+        # Ask for confirmation
+        if self.isModified:
+            reply = QtGui.QMessageBox.question(self, 'Message', "Quit the software without saving?",
+                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            isClose = (reply == QtGui.QMessageBox.Yes)
+        else:
+            isClose = True
+        # If user confirmed
+        if isClose:
+            self.quit()
+            if event:
+                event.accept()
+        elif event:
+            event.ignore()
+        
 
-    def quit(self, event=None):
-        reply = QtGui.QMessageBox.question(self, 'Message',
-                "Quit the software without saving ?", QtGui.QMessageBox.Yes |
-                QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+    def quit(self):
+        """Quits application."""
         #if self.brainvisaPatientAttributes is not None:
             #self.saveElectrodes()
         # Remove the vector field to MNI if it was computed
         #self.clearT1preMniTransform()
-        if reply == QtGui.QMessageBox.Yes:
-            axon.processes.cleanup()
-            if event is None:
-                self.app.quit()
-            else:
-                event.accept()
-        else:
-            event.ignore()
+        # Closes BrainVISA
+        axon.cleanup()
+        # Quits Qt app
+        self.app.quit()
 
     
     def keyPressEvent( self, event ) :
@@ -623,6 +632,7 @@ class LocateElectrodes(QtGui.QDialog):
             if hasattr(self, 'app') and (self.app.focusWidget() == self.nameEdit):
                 self.editElectrodeName()
             event.accept()
+
 
     # ==========================================================================
     # ===== OTHER FUNCTIONS ====================================================
@@ -645,11 +655,12 @@ class LocateElectrodes(QtGui.QDialog):
         self.allSubjects = subjects
         self.updateBrainvisaProtocol()
 
+
     def updateBrainvisaProtocol(self, idx=None):
         """Updates the UI when the selected protocol changes"""
         self.currentProtocol = str(self.protocolCombo.currentText())
         self.subjects = [s.attributes()['subject'] for s in self.allSubjects if 'center' in s.attributes() and s.attributes()['center'] == self.currentProtocol]
-        print 'all subjects:' + repr(self.subjects)
+        #print 'all subjects:' + repr(self.subjects)
         self.patientList.clear()
         self.patientList.addItems(sorted(self.subjects))
         # Update the filters
@@ -668,6 +679,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.typeComboBox.clear()
         self.typeComboBox.addItems(sorted(elecNames))
 
+
     def filterSubjects(self, value=None):
         """Filtering subject list"""
         subs = self.subjects
@@ -677,6 +689,7 @@ class LocateElectrodes(QtGui.QDialog):
             subs = [s for s in subs if len(s.split('_')) > 1 and s.split('_')[1] == str(self.filterYearCombo.currentText())]
         self.patientList.clear()
         self.patientList.addItems(sorted(subs))
+
 
     def getT1preMniTransform(self):
         """Returns the path of the transformation to MNI (vector field) and compute it if necessary (from _sn.mat)"""
@@ -767,6 +780,7 @@ class LocateElectrodes(QtGui.QDialog):
                 pass
             self.t1preMniFieldPath = None
 
+
     def changePatient(self):
         self.loadPatientButton.setEnabled(True)
         self.patientList.setEnabled(True)
@@ -812,25 +826,22 @@ class LocateElectrodes(QtGui.QDialog):
         #    del self.dispObj[name]
             
         self.dispObj = {}
-        
-        # if hasattr(self,"objtokeep"):
         self.objtokeep = {}
-        
         self.__init__(loadAll=False)
   
+  
     def loadPatient(self, thread=None):
-        print self
-        print thread
         # Get current patient
         patient = str(self.patientList.selectedItems()[0].text())
-          
-        volumes = []
+
         self.t1pre2ScannerBasedTransform = None
         self.clearT1preMniTransform()
     
         pre_select_1 = self.windowCombo1.currentText()
         pre_select_2 = self.windowCombo2.currentText()
     
+        # Get all subject's volumes
+        volumes = []
         for moda in self.modalities:
             rdi2 = ReadDiskItem(moda, 'aims readable volume formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol})
             volumes.extend(list(rdi2._findValues({}, None, False)))
@@ -1084,6 +1095,7 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             return None
 
+
     def positionPreRef(self):
 # TODO: FIX THE REFERENTIAL CORRECTLY:
 #    Right now, there is a bug in BrainVISA 4.6 that causes linkCursorLastClickedPosition() to return coordinates in the 
@@ -1099,6 +1111,7 @@ class LocateElectrodes(QtGui.QDialog):
         #return list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
         print "TODO: GET THE REFERENTIAL CORRECTLY: See function positionPreRef()"
         return list(self.a.linkCursorLastClickedPosition().items())
+
 
     def t1pre2ScannerBased(self):
         """ Returns a Transformation object that transforms T1pre referential to T1pre Scanner-Based referential """
@@ -1291,6 +1304,7 @@ class LocateElectrodes(QtGui.QDialog):
         #self.dispObj['electrodes'][0].__getattr__('name')
         self.allWindowsUpdate()
 
+
     # Add an electrode from a template
     def addElectrode(self, name=None, model=None, target=[0,0,0], entry=[0,0,-1], refId=None, isUpdate=True):
         if name is None:
@@ -1314,6 +1328,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate:
             self.updateElectrodeMeshes()
+        self.isModified = True
+        
 
     def addBipole(self, name=None, positionbip=[0,0,0], refId = None,entry_bipole = None):
         if name is None:
@@ -1348,7 +1364,8 @@ class LocateElectrodes(QtGui.QDialog):
         
         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.bipoles) - 1, True)
         #self.updateElectrodeMeshes(bipole=True)
-
+        self.isModified = True
+        
 
     # Setting names on meshes to get a nice tooltip for each mesh
     def setElectrodeMeshesNames(self, electrode = None):
@@ -1424,6 +1441,7 @@ class LocateElectrodes(QtGui.QDialog):
         elec['model']=str(model)
         self.electrodeSelect(self.electrodeList.currentRow())
         self.updateElectrodeMeshes()
+        self.isModified = True
 
     def updateEntry(self, e=None):
         """ Updates the current electrode entry point from the cursor position"""
@@ -1436,6 +1454,7 @@ class LocateElectrodes(QtGui.QDialog):
                                          el['ref'], self.a, el['elecModel'].getAnatomistObjects())
         el['entry'] = pos
         el['transf'] = transf
+        self.isModified = True
 
     def updateTarget(self, t=None):
         """ Updates the current electrode target point from the cursor position"""
@@ -1452,6 +1471,7 @@ class LocateElectrodes(QtGui.QDialog):
         el['target'] = pos
         el['transf'] = transf
         print repr(self.a.getReferentials())
+        self.isModified = True
 
 
     def editElectrodeName(self):
@@ -1473,6 +1493,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.setElectrodeMeshesNames(self.electrodes[idx])
         self.electrodeList.currentItem().setText(name)
         self.electrodeSelect(idx) # updates the contacts' display
+        self.isModified = True
 
 
     def electrodeSelect(self, idx):
@@ -1549,12 +1570,13 @@ class LocateElectrodes(QtGui.QDialog):
             self.bipoles[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
             self.bipoles[elecId]['props'] = props      
 
-    def getElectrodeTemplates(self):
 
+    def getElectrodeTemplates(self):
         """Returns a list of Electrode objects, one for each available electrode template model available in the DB"""
         if self.electrodeTemplateStubs == []:
             self.electrodeTemplateStubs = dict([(n, ElectrodeModel(modelPath=model.fullPath(), dispMode='off')) for n, model in self.elecModelListByName.iteritems()])
         return self.electrodeTemplateStubs
+
 
     def fitElectrodeModelToLength(self, target, entry):
         """ Tries to find a match between the length of the electrode and a model, but prefering uniform electrodes (no variable spacing between contacts"""
@@ -1577,12 +1599,11 @@ class LocateElectrodes(QtGui.QDialog):
             largerModels = dict([(m, l) for m, l in uniformModels.iteritems() if l >= length])
             return [m for m, l in largerModels.iteritems() if l == min(largerModels.values())][0]
 
-    def fitElectrodeModelToPlots(self, plots):
 
+    def fitElectrodeModelToPlots(self, plots):
         """ Tries to find a match between a list of plots [[numPlot, x, y, z],[...], ...] and available electrode templates.
           Return None if it fail, [ModelName, [targetX, targetY, targetZ], [entryX, entryY, entryZ]] if it works
         """
-    
         plots = sorted(plots, key=lambda p:int(p[0]))
         # Compute inter-contact distances
         interPlots=[]
@@ -1623,6 +1644,7 @@ class LocateElectrodes(QtGui.QDialog):
         target = array(plots[0][1:]) - (array(plotsarr[-1][1:])-array(plots[0][1:]))/linalg.norm(array(plots[-1][1:])-array(plots[0][1:])) * 0.5 * self.getElectrodeTemplates()[goodModel].getCylinder('Plot1')['length']
         return [goodModel, target.tolist(), entry]
 
+
     def comboMessageBox(self, text, choices):
         """ Displays a message box with a choice (combobox), Ok and Cancel button
             Returns the selected value or None if it was cancelled"""
@@ -1639,6 +1661,7 @@ class LocateElectrodes(QtGui.QDialog):
         if ret == QtGui.QMessageBox.Cancel:
             return None
         return str(combo.currentText())
+
 
     def loadPTSbasic(self, path):
         """Load a PTS file, creating an 'electrode model' for each contact (VERY slow with > 50 contacts) """
@@ -1668,6 +1691,7 @@ class LocateElectrodes(QtGui.QDialog):
         except:
           print "Error reading PTS file %s"%path
         return (refId, els)
+
 
     def loadPTS(self, path):
         """Load a PTS file (tries to find a suitable electrode model in the available templates)  """
@@ -1723,6 +1747,7 @@ class LocateElectrodes(QtGui.QDialog):
         #except:
         #  print "Error reading PTS file %s"%path
         return (refId, els)
+
 
     def loadElectrodeTXT(self, path):
         """Load an electrode.txt file with triplets of lines : nameOfElectrode\n X1 Y1 Z1\n X2 Y2 Z2 such as used by ImaGIN"""
@@ -1814,6 +1839,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Update display
         self.updateElectrodeMeshes()
 
+
     def saveElectrodes(self):
         """Save electrode implantation in BrainVisa Database"""
         # Saving : electrode model, name, target and entry point
@@ -1837,7 +1863,6 @@ class LocateElectrodes(QtGui.QDialog):
         if not path:
             return
         # If there is no extension, add the standard one !
-    
         if os.path.splitext(path)[1] == '':
             path = path+'.elecimplant'
     
@@ -1858,6 +1883,7 @@ class LocateElectrodes(QtGui.QDialog):
         if di is not None:
             neuroHierarchy.databases.insertDiskItem( di, update=True )
         QtGui.QMessageBox.information(self, u'Implantation saved', u"Implantation has been saved in database. Careful, it deleted MNI information if there was any. you'll have to do the normalization again")
+        self.isModified = False
 
 #     # Non blocking wrapper of getAllPlotsCentersMNIRef
 #     def getAllPlotsCentersMNIRefNB(self, plots, toKeep=None):
@@ -4563,7 +4589,7 @@ def main(noapp=0):
     # Create application
     app = None
     if noapp == 0:
-        print "NO APP"
+        # print "NO APP"
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
         app = QtGui.QApplication(sys.argv)
         axon.initializeProcesses()
@@ -4580,7 +4606,7 @@ def main(noapp=0):
 
 
 if __name__ == "__main__":
-    print "LAUNCHING ELECTRODE LOCATE"
+    #print "LAUNCHING ELECTRODE LOCATE"
     #QtCore.pyqtRemoveInputHook()  # Allow pdb to work for debugging !
     main()
 
