@@ -539,7 +539,8 @@ class LocateElectrodes(QtGui.QDialog):
     
         if loadAll == True:
             # Linking UI elements to functions
-            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
+            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), self.loadPatient)
+            #self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
             self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
             self.connect(self.protocolCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateBrainvisaProtocol)
@@ -987,6 +988,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Disable the button because no cleanup is attempted when loading a patient when one is already loaded -> there may be a mixup
         self.loadPatientButton.setEnabled(False)
         self.patientList.setEnabled(False)
+
 
     # Chargement d'un objet (IRM, mesh...) dans Anatomist et mise à jour de l'affichage
     def loadAndDisplayObject(self, diskitem, name = None, color=None, palette=None, texture_item = None):
