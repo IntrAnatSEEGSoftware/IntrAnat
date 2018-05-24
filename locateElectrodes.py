@@ -919,7 +919,7 @@ class LocateElectrodes(QtGui.QDialog):
                     na = 'unknown'
                     
             # Load volume in anatomist
-            self.loadAndDisplayObject(t, na)
+            obj = self.loadAndDisplayObject(t, na)
             
             # For T1 MRI: Load surfaces and MarsAtlas
             if (na == 'T1pre') or (na == 'FreesurferAtlaspre'):
@@ -1050,13 +1050,18 @@ class LocateElectrodes(QtGui.QDialog):
         print "loading "+repr(diskitem)+ ' as '+name
         
         obj = self.a.loadObject(diskitem)
+        
+        # Force central referential for FreeSurfer objects: WHY????
+        if ('Freesurfer' in diskitem.attributes()['acquisition']):
+            obj.assignReferential(self.a.centralRef)
+            
         # Read all available transforms in the image header (for example the coregistration by SPM to the T1 Pre MRI)
         #obj.loadReferentialFromHeader()
+
         if 'ColorPalette' in diskitem.attributes():
             obj.setPalette(palette = diskitem.attributes()['ColorPalette'])
         elif palette is not None and texture_item is None:
             obj.setPalette(palette = palette)
-        
         if texture_item is not None:
             texture = self.a.loadObject(texture_item)
             if palette is not None:

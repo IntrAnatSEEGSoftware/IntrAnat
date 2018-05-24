@@ -2057,6 +2057,9 @@ class ImageImport (QtGui.QDialog):
         self.clearAnatomist(wins)
         # Load image
         mri = self.a.loadObject(image)
+        # Force central referential for FreeSurfer objects: WHY????
+        if ('Freesurfer' in image.attributes()['acquisition']):
+            mri.assignReferential(self.a.centralRef)
         # Add to anatomist windows
         self.a.addObjects(mri, wins)
         self.dispObj.append(mri)
