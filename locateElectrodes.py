@@ -509,9 +509,9 @@ class LocateElectrodes(QtGui.QDialog):
                                'HippoFreeSurferAtlas':['HippoFreesurferAtlaspre','electrodes',],\
         }
         self.windowCombo1.clear()
-        self.windowCombo1.addItems(sorted(self.windowContent.keys()))
+        # self.windowCombo1.addItems(sorted(self.windowContent.keys()))
         self.windowCombo2.clear()
-        self.windowCombo2.addItems(sorted(self.windowContent.keys()))
+        # self.windowCombo2.addItems(sorted(self.windowContent.keys()))
 
         # Anatomist windows
         if loadAll == True:
@@ -860,12 +860,13 @@ class LocateElectrodes(QtGui.QDialog):
             self.brainvisaPatientAttributes = t.attributes()
             # Add elements in the display list
             if (t.attributes()['modality'] == 't1mri') and ('pre' in t.attributes()['acquisition']):
-                dictionnaire_list_images.update(
-                    {'IRM pre':['T1pre', 'electrodes'], \
-                     'IRM pre +':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
-                     'IRM pre + left cortex':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
-                     'IRM pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
-                     'IRM pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']})
+                dictionnaire_list_images.update({'IRM pre':['T1pre', 'electrodes']})         
+#                 dictionnaire_list_images.update(
+#                     {'IRM pre':['T1pre', 'electrodes'], \
+#                      'IRM pre + right cortex':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
+#                      'IRM pre + left cortex':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
+#                      'IRM pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
+#                      'IRM pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'IRM post-op':['T1postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
@@ -914,11 +915,16 @@ class LocateElectrodes(QtGui.QDialog):
                 else:
                     print "CANNOT find a nameAcq for ", repr(t)
                     na = 'unknown'
-            
+                    
+            # Load volume in anatomist
             self.loadAndDisplayObject(t, na)
+            
+            # For T1pre: Load surfaces and MarsAtlas
             if na == 'T1pre':
+                # Progress bar
                 if thread is not None:
-                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading referentials...")
+                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
+                    
                 # Save volume center (in mm)
                 if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
                     self.t1preCenter = t.get('brainCenter')
@@ -929,6 +935,8 @@ class LocateElectrodes(QtGui.QDialog):
                     self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
                 else:
                     self.t1preCenter = [128, 128, 128]
+                    
+                # === REFERENTIALS ===
                 # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
                 try:
                     self.refConv.loadACPC(t)
@@ -952,37 +960,49 @@ class LocateElectrodes(QtGui.QDialog):
                             self.refConv.setTransformMatrix('AC-centered Scanner-Based', m.inverse(), m)
                 except Exception, e:
                     print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
+
+                # === CORTEX MESHES ===
                 # Get the hemisphere meshes for the acquisition : name = na + filename base : for example, if the acquisition is T1pre_2000-01-01 and the file head.gii, we want T1pre-head
                 rdi3 = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
                 hemis = list(rdi3._findValues({}, None, False))
-                
-                if thread is not None:
-                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
                 for hh in hemis:
                     self.loadAndDisplayObject(hh, na + '-' + hh.attributes()['side'] + 'Hemi', color=[0.8, 0.7, 0.4, 0.7])
-                    print "Found hemisphere " + str(na + '-' + hh.attributes()['side'] + 'Hemi')
+                    dictionnaire_list_images.update({'IRM pre + ' + hh.attributes()['side'] + ' cortex':['T1pre', 'T1pre-' + hh.attributes()['side'] + 'Hemi', 'electrodes']})
+                    #print "Found hemisphere " + str(na + '-' + hh.attributes()['side'] + 'Hemi')
+                # Add display with both hemispheres
+                if (len(hemis) >= 2):
+                    dictionnaire_list_images.update({'IRM pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes']})
                 
+                # === MARS ATLAS ===
+                # Get MarsAtlas textures
                 atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false', 'subject':patient, 'center':self.currentProtocol, 'acquisition':nameAcq })
                 atlas_di_list = list(atlas_di._findValues({}, None, False))
-                # probleme
-                wm_di = ReadDiskItem('Hemisphere White Mesh', 'aims mesh formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol })
-                
+                # If MarsAtlas found
                 if len(atlas_di_list) > 0:
+                    # Progress bar
                     if thread is not None:
                         thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading MarsAtlas parcels...")
+                    # Find white meshes
+                    wm_di = ReadDiskItem('Hemisphere White Mesh', 'aims mesh formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol })
+                    # For each MarsAtlas texture
                     for atl in atlas_di_list:
+                        # Look for corresponding white mesh
                         wm_side = wm_di.findValue(atl)
+                        # Load object
                         self.loadAndDisplayObject(wm_side, na + '-' + atl.attributes()['side'] + 'MARSATLAS', texture_item=atl, palette='MarsAtlas', color=[0.8, 0.7, 0.4, 0.7])
-                        print "Found hemisphere " + str(na + '-' + atl.attributes()['side'] + 'MARSATLAS')
                         dictionnaire_list_images.update({'IRM pre + ' + atl.attributes()['side'] + ' MarsAtlas':['T1pre', 'T1pre-' + atl.attributes()['side'] + 'MARSATLAS', 'electrodes']})
-
+                        # print "Found hemisphere " + str(na + '-' + atl.attributes()['side'] + 'MARSATLAS')
+                        
+                # === HEAD MESH ===
                 # Get head mesh for the acquisition
                 rdi3 = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
                 head = list(rdi3._findValues({}, None, False))
-                if len(head) > 0:  # Only if there is one !
+                # Only if the hemispheres and the head are available
+                if (len(hemis) >= 2) and (len(head) > 0):
                     if thread is not None:
                         thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading head mesh...")
                     self.loadAndDisplayObject(head[0], na + '-' + 'head', color=[0.0, 0.0, 0.8, 0.3])
+                    dictionnaire_list_images.update({'IRM pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']})
     
         self.windowContent = dictionnaire_list_images;
         self.windowCombo1.clear()
