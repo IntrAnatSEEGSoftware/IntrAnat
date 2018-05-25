@@ -982,24 +982,21 @@ class ImageImport (QtGui.QDialog):
         self.ui.bvImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
                 #i.attributes()['modality'] if 'acquisition' not in i.attributes().keys()\
                 else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
-    
-        dict_temporaire = {}
+
+        self.bvImages = {}
         for i in images:
             if 'subacquisition' in i.attributes().keys():
-                dict_temporaire.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i.fileName()})
+                self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i})
             else:
-                dict_temporaire.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i.fileName()})
-        #self.bvImagePaths = dict((i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'], i.fileName() if 'subacquisition' in i.attributes().keys()\
-        #else i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'], i.fileName() for i in images))
-        self.bvImagePaths = dict_temporaire
+                self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i})
 
 
     def selectBvImage(self, item):
         """ A BrainVisa image was double-clicked : display it !"""
         # Get image to display
-        path = self.bvImagePaths[str(item.text())]
+        image = self.bvImages[str(item.text())]
         # Display images
-        self.displayImage(path, self.wins)
+        self.displayImage(image, self.wins)
             
 
     def removeFromDB(self, file, db=None):
@@ -1049,12 +1046,12 @@ class ImageImport (QtGui.QDialog):
             imageName = str(self.ui.bvImageList.currentItem().text())
         except: # Probably no image available or no image selected
             return
+        
         rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING</b><br/>You are about to delete the selected image and all linked data.<br/><br/><b>DELETE IMAGE \"%s\" ?</b></font>"%imageName, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if rep == QtGui.QMessageBox.Yes:
-    
-            path = self.bvImagePaths[imageName] # Gives the path of the image
-            di = neuroHierarchy.databases.getDiskItemFromFileName(path)
-            acqPath = os.path.dirname(path)
+            image = self.bvImages[imageName] # Gives the path of the image
+            di = neuroHierarchy.databases.getDiskItemFromFileName(image.fileName())
+            acqPath = os.path.dirname(image.fileName())
             if str(os.path.basename(acqPath)) != str(di.attributes()['acquisition']):
                 print "CANNOT REMOVE IMAGE : acquisition path does not match acquisition name !"
                 return
@@ -1429,8 +1426,8 @@ class ImageImport (QtGui.QDialog):
         self.selectBvSubject(str(patient))
     
         if filetype != 'fMRI-epile' and filetype != 'Statistic-Data' and filetype != 'FreesurferAtlas':
-            if len(self.bvImagePaths) > 0:
-                ImAlreadyHere = [i for i in range(len(self.bvImagePaths)) if str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()+'_') in self.bvImagePaths.keys()[i]]
+            if len(self.bvImages) > 0:
+                ImAlreadyHere = [i for i in range(len(self.bvImages)) if str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()+'_') in self.bvImages.keys()[i]]
                 if len(ImAlreadyHere):
                     QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before importing a new one."%str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()))
                     self.setStatus(u"Sequence %s importation not performed (already one equivalent)"%acq)
@@ -2058,7 +2055,7 @@ class ImageImport (QtGui.QDialog):
         # Load image
         mri = self.a.loadObject(image)
         # Force central referential for FreeSurfer objects: WHY????
-        if ('Freesurfer' in image.attributes()['acquisition']):
+        if not isinstance(image, (unicode, str)) and ('Freesurfer' in image.attributes()['acquisition']):
             mri.assignReferential(self.a.centralRef)
         # Add to anatomist windows
         self.a.addObjects(mri, wins)
