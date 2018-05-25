@@ -525,7 +525,7 @@ class LocateElectrodes(QtGui.QDialog):
             layoutAx.addWidget( self.axWindow.getInternalRep() )
 
             layoutSag = QtGui.QHBoxLayout( self.windowContainer2 )
-            self.sagWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
+            self.sagWindow = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
             self.sagWindow.setParent(self.windowContainer2)
             layoutSag.addWidget( self.sagWindow.getInternalRep() )
 
@@ -1319,6 +1319,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.dispMode = mode
         self.dispParams = params
         self.updateElectrodeMeshes(bipole = isbipole)
+        self.allWindowsUpdate()
         # Update the contact list meshes of the current electrode (so they can be selected)
         self.electrodeSelect(self.electrodeList.currentRow())
     
@@ -1340,13 +1341,14 @@ class LocateElectrodes(QtGui.QDialog):
             self.dispObj['electrodes'] = [mesh for elec in self.bipoles for mesh in elec['elecModel'].getAnatomistObjects() if mesh is not None]
             self.setBipoleMeshesNames()
         #self.dispObj['electrodes'][0].__getattr__('name')
-        self.allWindowsUpdate()
+#        self.allWindowsUpdate()
 
 
     # Add an electrode from a template
     def addElectrode(self, name=None, model=None, target=[0,0,0], entry=[0,0,-1], refId=None, isUpdate=True):
         if name is None:
             name = str(self.nameEdit.text())
+            self.isModified = True
         if model is None:
             model = str(self.typeComboBox.currentText())
         if refId is not None:
@@ -1366,7 +1368,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate:
             self.updateElectrodeMeshes()
-        self.isModified = True
+            self.allWindowsUpdate()
         
 
     def addBipole(self, name=None, positionbip=[0,0,0], refId = None,entry_bipole = None):
@@ -1463,6 +1465,7 @@ class LocateElectrodes(QtGui.QDialog):
         del item
         del self.electrodes[idx]
         self.updateElectrodeMeshes()
+        self.allWindowsUpdate()
 
     def updateElectrodeModel(self, model):
         elec = self.currentElectrode()
@@ -1479,6 +1482,7 @@ class LocateElectrodes(QtGui.QDialog):
         elec['model']=str(model)
         self.electrodeSelect(self.electrodeList.currentRow())
         self.updateElectrodeMeshes()
+        self.allWindowsUpdate()
         self.isModified = True
 
     def updateEntry(self, e=None):
@@ -4144,10 +4148,10 @@ class LocateElectrodes(QtGui.QDialog):
         w = self.wins[winId]
         for obj in self.dispObj:
             if obj in self.windowContent[key]:
-                #print "Adding %s"%obj
+                print "Adding %s"%obj
                 self.a.addObjects(self.dispObj[obj], w)
             else:
-                #print "Removing %s"%obj
+                print "Removing %s"%obj
                 self.a.removeObjects([self.dispObj[obj],],w)#CURRENT
 
     def updateElectrodeView(self, checkStatus=None):
