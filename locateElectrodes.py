@@ -515,67 +515,64 @@ class LocateElectrodes(QtGui.QDialog):
 
         # Anatomist windows
         if loadAll == True:
-            self.wins=[]
+            # Start anatomist 
             self.a = anatomist.Anatomist('-b') #Batch mode (hide Anatomist window)
             self.a.onCursorNotifier.add(self.clickHandler)
-
+            # Axial window
             layoutAx = QtGui.QHBoxLayout( self.windowContainer1 )
             self.axWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
             self.axWindow.setParent(self.windowContainer1)
             layoutAx.addWidget( self.axWindow.getInternalRep() )
-
+            # Sagittal window
             layoutSag = QtGui.QHBoxLayout( self.windowContainer2 )
             self.sagWindow = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
             self.sagWindow.setParent(self.windowContainer2)
             layoutSag.addWidget( self.sagWindow.getInternalRep() )
-
+            # Keep references to anatomist windows
             self.wins = [self.axWindow, self.sagWindow]
-    
-        # Get Transformation Manager
-        self.transfoManager = registration.getTransformationManager()
-        # Get ReferentialConverter (for Talairach, AC-PC...)
-        self.refConv = ReferentialConverter()
-    
+
+        # Set callbacks
         if loadAll == True:
-            # Linking UI elements to functions
-            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), self.loadPatient)
-            #self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
+            # Patient selection
+            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
             self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
             self.connect(self.protocolCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateBrainvisaProtocol)
             self.connect(self.filterSiteCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
             self.connect(self.filterYearCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
+            # Image manipulation
+            self.connect(self.makefusionButton,QtCore.SIGNAL('clicked()'),self.makeFusion)
+            self.connect(self.generateResectionArray,QtCore.SIGNAL('clicked()'),self.generateResection)
+            self.connect(self.validateROIresection,QtCore.SIGNAL('clicked()'),self.ROIResectiontoNiftiResection)
+            self.connect(self.deleteMarsAtlasfiles,QtCore.SIGNAL('clicked()'),self.DeleteMarsAtlasFiles)
+            # Electrodes
+            self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
+            self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
             self.connect(self.addElectrodeButton, QtCore.SIGNAL('clicked()'), self.addElectrode)
             self.connect(self.removeElectrodeButton, QtCore.SIGNAL('clicked()'), self.removeElectrode)
             self.connect(self.nameEdit, QtCore.SIGNAL('editingFinished()'), self.editElectrodeName)
+            self.connect(self.typeComboBox, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateElectrodeModel)
             self.connect(self.targetButton,  QtCore.SIGNAL('clicked()'), self.updateTarget)
             self.connect(self.entryButton,  QtCore.SIGNAL('clicked()'), self.updateEntry)
             self.connect(self.electrodeList, QtCore.SIGNAL("currentRowChanged(int)"), self.electrodeSelect)
             self.connect(self.electrodeList, QtCore.SIGNAL("itemDoubleClicked(QListWidgetItem*)"), self.electrodeGo)
             self.connect(self.contactList, QtCore.SIGNAL("itemClicked(QListWidgetItem*)"), self.contactSelect)
             self.connect(self.contactList, QtCore.SIGNAL("itemDoubleClicked(QListWidgetItem*)"), self.contactGo)
-            self.connect(self.typeComboBox, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateElectrodeModel)
-            # itemClicked(QListWidgetItem*) , currentItemChanged ( QListWidgetItem * current, QListWidgetItem * previous ), currentRowChanged ( int currentRow )
-            self.connect(self.electrodeLoadButton, QtCore.SIGNAL('clicked()'), self.loadElectrodes)
             self.connect(self.electrodeSaveButton, QtCore.SIGNAL('clicked()'), self.saveElectrodes)
+            self.connect(self.electrodeLoadButton, QtCore.SIGNAL('clicked()'), self.loadElectrodes)
             self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.exportElectrodesInteractive)
-            #self.connect(self.marsatlasExportButton, QtCore.SIGNAL('clicked()'),self.parcelsExportElectrodes)
+            # Display options
             self.connect(self.colorConfigButton, QtCore.SIGNAL('clicked()'), self.configureColors)
             self.connect(self.dispModeCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateDispMode)
-            self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.windowUpdate(0,s))
-            self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.windowUpdate(1,s))
-            self.connect(self.referentialCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateCoordsDisplay)
+            self.connect(self.Clipping_checkbox,QtCore.SIGNAL('clicked()'),self.clippingUpdate)
             self.connect(self.electrodeRefCheck, QtCore.SIGNAL('stateChanged(int)'), self.updateElectrodeView)
             self.connect(self.electrodeRefRotationSlider, QtCore.SIGNAL('valueChanged(int)'), self.updateElectrodeViewRotation)
+            # Anatomist windows
+            self.connect(self.referentialCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateCoordsDisplay)
+            self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.windowUpdate(0,s))
+            self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.windowUpdate(1,s))
             
-            self.connect(self.Clipping_checkbox,QtCore.SIGNAL('clicked()'),self.clippingUpdate)
-            self.connect(self.makefusionButton,QtCore.SIGNAL('clicked()'),self.makeFusion)
-            self.connect(self.generateResectionArray,QtCore.SIGNAL('clicked()'),self.generateResection)
-            self.connect(self.validateROIresection,QtCore.SIGNAL('clicked()'),self.ROIResectiontoNiftiResection)
-            self.connect(self.deleteMarsAtlasfiles,QtCore.SIGNAL('clicked()'),self.DeleteMarsAtlasFiles)
-            self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
-            self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
-    
+            # Preferences
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
             self.fileNoDBpath = None
             self.spmpath = None
@@ -589,8 +586,15 @@ class LocateElectrodes(QtGui.QDialog):
             except:
                 print 'NO SPM path found, will be unable to export MNI position'
                 pass
-    
+            # Display warning: Not for medical use
             self.warningMEDIC()
+
+        # Get Transformation Manager
+        self.transfoManager = registration.getTransformationManager()
+        # Get ReferentialConverter (for Talairach, AC-PC...)
+        self.refConv = ReferentialConverter()
+
+
 
     # ==========================================================================
     # ===== WINDOW EVENTS ======================================================
