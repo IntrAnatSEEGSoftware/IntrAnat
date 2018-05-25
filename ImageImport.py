@@ -2225,8 +2225,8 @@ class ImageImport (QtGui.QDialog):
             return
         diOrig = allT1[iOrig[0]]
         # Get output T1 (BrainVISA DB)
-        wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre', 'modality':'freesurfer_atlas'})
-        diOut = wdi.findValue({})
+        wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject})
+        diOut = wdi.findValue({'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre', 'modality':'freesurfer_atlas'})
         T1_output = str(diOut.fullPath())
         # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
         ProgressDialog.call(lambda thr:self.runPipelineFSWorker(diOrig, diOut, thr), True, self, "Running Morphologist on FreeSurfer output...", "FreeSufer")
