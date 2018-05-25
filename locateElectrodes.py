@@ -1101,6 +1101,9 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             self.currentWindowRef = ref
             self.a.assignReferential(ref, self.wins)
+            
+            
+            # obj.boundingbox()
 
 
     # Get the click events
@@ -1569,7 +1572,7 @@ class LocateElectrodes(QtGui.QDialog):
 
     def contactSelect(self, item):
         # Select the contacts in anatomist
-        print "Click on the contact " + str(item.text())
+        # print "Click on the contact " + str(item.text())
         g = self.a.getDefaultWindowsGroup()
         #print "CurrentContacts = "+repr(self.currentContacts.keys())
         g.setSelection([self.currentContacts[str(item.text())],])
@@ -4158,6 +4161,7 @@ class LocateElectrodes(QtGui.QDialog):
                 print "Removing %s"%obj
                 self.a.removeObjects([self.dispObj[obj],],w)#CURRENT
 
+
     def updateElectrodeView(self, checkStatus=None):
         """Sets the view to electrode referential or back to native T1 referential
         checkStatus is Qt.CheckState"""
@@ -4185,6 +4189,7 @@ class LocateElectrodes(QtGui.QDialog):
             el = self.currentElectrode()
             if el:
                 el['refRotation'] = degrees
+
 
     def clippingUpdate(self):
         if self.Clipping_checkbox.isChecked():
