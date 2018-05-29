@@ -330,6 +330,9 @@ class ImageImport (QtGui.QDialog):
 
         # Load anatomist
         self.a = anatomist.Anatomist('-b')
+        # Force all the scanner-based referentials to be linked 
+        self.a.config()['setAutomaticReferential'] = 1
+        self.a.config()['commonScannerBasedReferential'] = 1
 
         layout = QtGui.QVBoxLayout( self.ui.windowContainer1 )
         layout2 = QtGui.QHBoxLayout( )
@@ -943,6 +946,7 @@ class ImageImport (QtGui.QDialog):
             return
         print "current subj : "+str(subj)
         self.currentSubject = str(subj)
+        self.changeSubject()
 
 
     def findAllImagesForSubject(self, protocol, subj):
@@ -975,6 +979,8 @@ class ImageImport (QtGui.QDialog):
 
     def selectBvSubject(self, subj):
         """ A BrainVisa subject was selected : query the database to get the list of images"""
+        # Change subject
+        self.changeSubject()
         # Display "Date : XXXX-XX-XX - Seq: T1 - Acq : T1Pre
         self.ui.bvImageList.clear()
         images = self.findAllImagesForSubject(self.ui.bvProtocolCombo.currentText(), subj)
@@ -990,6 +996,19 @@ class ImageImport (QtGui.QDialog):
             else:
                 self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i})
 
+
+    def changeSubject(self):
+        # Unload images
+        self.a.removeObjects(self.a.getObjects(), self.wins[0])
+        self.a.removeObjects(self.a.getObjects(), self.wins[1])
+        self.a.removeObjects(self.a.getObjects(), self.wins[2])
+        self.a.removeObjects(self.a.getObjects(), self.wins[3])
+        # Remove ununsed referentials
+        referentials = self.a.getReferentials()
+        for element in referentials:
+            if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
+                self.a.deleteElements(element)
+                
 
     def selectBvImage(self, item):
         """ A BrainVisa image was double-clicked : display it !"""
@@ -2054,9 +2073,8 @@ class ImageImport (QtGui.QDialog):
         self.clearAnatomist(wins)
         # Load image
         mri = self.a.loadObject(image)
-        # Force central referential for FreeSurfer objects: WHY????
-        if not isinstance(image, (unicode, str)) and ('Freesurfer' in image.attributes()['acquisition']):
-            mri.assignReferential(self.a.centralRef)
+        # Force reading Scanner-based referential from .nii file
+        self.a.execute('LoadReferentialFromHeader', objects=[mri])
         # Add to anatomist windows
         self.a.addObjects(mri, wins)
         self.dispObj.append(mri)
