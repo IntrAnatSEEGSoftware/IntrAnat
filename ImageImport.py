@@ -2123,8 +2123,13 @@ class ImageImport (QtGui.QDialog):
             # A T1pre is there, coregister all images to it
             if image == t1preImage:
                 continue
+            # FreeSurfer MRI: Skip this step, transformation was saved at the import time
+            elif (image.attributes()['acquisition'] == 'FreesurferAtlaspre'):
+                print("Coregistration: Skipping FreesurferAtlaspre...")
+                continue
+            # Statistics: Same referential as t1pre
             elif image.attributes()['modality'] == 'statistic_data' or image.attributes()['modality'] == 'freesurfer_atlas' or image.attributes()['modality'] == 'hippofreesurfer_atlas':
-                print "attribute T1pre referential to this modality {}".format(image.attributes()['modality'])
+                print "Coregistration: Attribute T1pre referential to this modality {}".format(image.attributes()['modality'])
                 self.transfoManager.setReferentialTo(image, t1preImage.attributes()['referential'] )
                 continue
             acq = image.attributes()['acquisition']
@@ -2170,7 +2175,7 @@ class ImageImport (QtGui.QDialog):
                     # Temporary txt file to store the trm transformation
                     tmpOutput = getTmpFilePath('txt')
                     imageFileName = image.fileName()
-                    if  image.attributes()['data_type'] == 'RGB':
+                    if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):
                         print "it is RGB"
                         imageFileName = getTmpFilePath('nii')
                         ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
@@ -2185,7 +2190,7 @@ class ImageImport (QtGui.QDialog):
                     matlabRun(call)
                     # Register transformation in the database
                     self.insertTransformationToT1pre(tmpOutput, image)
-                    if image.attributes()['data_type'] == 'RGB':
+                    if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):
                         os.remove(imageFileName)
                         os.remove(imageFileName+'.minf')
 
