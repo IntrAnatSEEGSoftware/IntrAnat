@@ -549,6 +549,7 @@ class ImageImport (QtGui.QDialog):
         print "Quit !"
         self.app.quit()
 
+
     def initialize(self):
         """Reads the preference file, checks the available patients and sequences"""
         #Localisation du fichier de preference
@@ -2131,7 +2132,7 @@ class ImageImport (QtGui.QDialog):
     
             # ===== ANTS =====
             if self.coregMethod == 'ANTs':
-                print("ANTs coregistration used")
+                print("Coregistration method: ANTs")
                 progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
@@ -2140,13 +2141,15 @@ class ImageImport (QtGui.QDialog):
 #                 thr.finished.connect(lambda im = image, tmp_folder=temp_folder_ants:self.setANTstrm_database(im, tmp_folder))
 #                 self.threads.append(thr)
 #                 thr.start()
+                print("ANTs call: " + ants_call)
+                # Run ANTs system command
                 runCmd(ants_call.split())
-                #to mettre dans la database
-                #thr.finished.connect(lambda im=image, trm=tmpOutput:self.insertTransformationToT1pre(trm,im))
-    
+                # Register transformation in the database
+                self.setANTstrm_database(image, temp_folder_ants)
+                
             # ===== SPM =====
             elif self.coregMethod == 'spm':
-                print("spm coregistration used")
+                print("Coregistration method: SPM")
                 # SPM coregister
                 if self.ui.regResampleCheck.isChecked():
                     progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
@@ -2180,7 +2183,7 @@ class ImageImport (QtGui.QDialog):
                     else:
                         call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(t1preImage.attributes()['brainCenter']), str(t1preImage.attributes()['SB_Transform']), "'"+tmpOutput+"'")
                     matlabRun(call)
-                    #
+                    # Register transformation in the database
                     self.insertTransformationToT1pre(tmpOutput, image)
                     if image.attributes()['data_type'] == 'RGB':
                         os.remove(imageFileName)
@@ -2189,7 +2192,6 @@ class ImageImport (QtGui.QDialog):
     
             # ===== AIMS =====
             elif self.coregMethod == 'Aims':
-                print("Aims coregistration used")
                 raise Exception("AIMS coregistration not supported yet.")
                 
                 #ret = subprocess.call(['AimsMIRegister', '-r', str(t1preImage.fullPath()), '-t', str(image.fullPath()), '--dir', tmp_trm_path, '--inv',tmp_trm_path2])
