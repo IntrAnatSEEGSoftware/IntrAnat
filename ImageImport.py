@@ -331,6 +331,7 @@ class ImageImport (QtGui.QDialog):
         # Load anatomist
         self.a = anatomist.Anatomist('-b')
         # Force all the scanner-based referentials to be linked 
+        print("\nAnatomist is configured to ignore differences in Scanner-based referentials:\n   - setAutomaticReferential = 1\n   - commonScannerBasedReferential = 1\n")
         self.a.config()['setAutomaticReferential'] = 1
         self.a.config()['commonScannerBasedReferential'] = 1
 
@@ -946,7 +947,7 @@ class ImageImport (QtGui.QDialog):
             return
         print "current subj : "+str(subj)
         self.currentSubject = str(subj)
-        self.changeSubject()
+        self.clearAnatomist()
 
 
     def findAllImagesForSubject(self, protocol, subj):
@@ -980,7 +981,7 @@ class ImageImport (QtGui.QDialog):
     def selectBvSubject(self, subj):
         """ A BrainVisa subject was selected : query the database to get the list of images"""
         # Change subject
-        self.changeSubject()
+        self.clearAnatomist()
         # Display "Date : XXXX-XX-XX - Seq: T1 - Acq : T1Pre
         self.ui.bvImageList.clear()
         images = self.findAllImagesForSubject(self.ui.bvProtocolCombo.currentText(), subj)
@@ -995,20 +996,7 @@ class ImageImport (QtGui.QDialog):
                 self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i})
             else:
                 self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i})
-
-
-    def changeSubject(self):
-        # Unload images
-        self.a.removeObjects(self.a.getObjects(), self.wins[0])
-        self.a.removeObjects(self.a.getObjects(), self.wins[1])
-        self.a.removeObjects(self.a.getObjects(), self.wins[2])
-        self.a.removeObjects(self.a.getObjects(), self.wins[3])
-        # Remove ununsed referentials
-        referentials = self.a.getReferentials()
-        for element in referentials:
-            if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
-                self.a.deleteElements(element)
-                
+               
 
     def selectBvImage(self, item):
         """ A BrainVisa image was double-clicked : display it !"""
@@ -1112,23 +1100,30 @@ class ImageImport (QtGui.QDialog):
     def clearAnatomist(self, windows=None):
         """ If "windows" is provided, just empties the provided windows.
             If not, all loaded objects are closed and all windows are emptied """
+        # Delete all graphical objects
         if windows is not None:
-            self.a.removeObjects(self.a.getObjects(), windows)
+            self.a.removeObjects(self.dispObj, windows)
             return
+        self.a.removeObjects(self.dispObj, self.wins)
+        self.a.deleteObjects(self.dispObj)
         self.dispObj = []
-        self.a.removeObjects(self.a.getObjects(), self.wins)
-        self.a.deleteObjects(self.a.getObjects())
+        # Remove ununsed referentials
+        referentials = self.a.getReferentials()
+        for element in referentials:
+            if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
+                self.a.deleteElements(element)
+
 
     def displayAnatomist(self, win1Path=None, win2Path=None):
         self.clearAnatomist()
         if win1Path:
             im1 = self.a.loadObject(win1Path)
             self.a.addObjects(im1, self.wins[0])
-            self.dispObj.append(win1Path)
+            self.dispObj.append(im1)
         if win2Path:
             im2 = self.a.loadObject(win2Path)
             self.a.addObjects(im2, self.wins[1])
-            self.dispObj.append(win2Path)
+            self.dispObj.append(im2)
 
     def setStatus(self, text):
         """ Sets the status text displayed at the bottom of the dialog"""
@@ -2074,10 +2069,13 @@ class ImageImport (QtGui.QDialog):
         # Load image
         mri = self.a.loadObject(image)
         # Force reading Scanner-based referential from .nii file
+        print "WARNING: Using referential from .nii header, ignoring transformations from BrainVISA database."
         self.a.execute('LoadReferentialFromHeader', objects=[mri])
         # Add to anatomist windows
+        self.a.assignReferential(mri.getReferential(), wins)
         self.a.addObjects(mri, wins)
         self.dispObj.append(mri)
+        
         # Guess center of image
         attr = mri.getInternalRep().attributed()
         if (attr['volume_dimension'] and attr['voxel_size']):
@@ -2183,7 +2181,7 @@ class ImageImport (QtGui.QDialog):
                         call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(t1preImage.attributes()['brainCenter']), str(t1preImage.attributes()['SB_Transform']), "'"+tmpOutput+"'")
                     matlabRun(call)
                     #
-                    self.insertTransformationToT1pre(tmpOutput,image)
+                    self.insertTransformationToT1pre(tmpOutput, image)
                     if image.attributes()['data_type'] == 'RGB':
                         os.remove(imageFileName)
                         os.remove(imageFileName+'.minf')
