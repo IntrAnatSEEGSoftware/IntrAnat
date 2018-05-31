@@ -475,10 +475,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.bipoles = [] #{Les objects bipoles}
         self.electrodeTemplateStubs = [] # Un objet electrode par template disponible dans la base de données (chargé à la demande par getElectrodeTemplates)
         self.contacts = [] # {name:n, number:2, electrode: e, mesh:m}
-        self.transfs = [] # identity transforms (must be stored)
         self.currentWindowRef = None # Referential used by windows (because pyanatomist AWindow.getReferential is not implemented yet)
-        self.linkedRefs = [] # Referentials linked by a identity transform
-        self.transf2Mni = {} # Transformation from T1 pre referential to MNI referential
         self.threads = [] # List of running threads
         self.t1pre2ScannerBasedTransform = None #Transfo from T1pre native to scanner-based referential (Anatomist Transformation object)
         self.t1preCenter = []
@@ -487,36 +484,36 @@ class LocateElectrodes(QtGui.QDialog):
         #self.MicromedListener = ML()
     
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
-        self.windowContent = { 'MRI pre':['T1pre','electrodes',],\
-                               'MRI pre T2':['T2pre','electrodes',],\
-                               'MRI pre + right cortex':['T1pre','T1pre-rightHemi','electrodes',],\
-                               'MRI pre + right MarsAtlas ':['T1pre','right MARS ATLAS BIDULE','electrodes',],\
-                               'MRI pre + left cortex':['T1pre','T1pre-leftHemi','electrodes',],\
-                               'MRI pre + left MarsAtlas':['T1pre','left MARS ATLAS BIDULE','electrodes',],\
-                               'MRI pre + cortex':['T1pre','T1pre-rightHemi','T1pre-leftHemi','electrodes',],\
-                               'MRI pre + cortex + head':['T1pre','T1pre-rightHemi','T1pre-leftHemi', 'T1pre-head','electrodes',],\
-                               'MRI post':['T1post','electrodes',],\
-                               'MRI post T2':['T2post','electrodes',],\
-                               'CT post':['CTpost','electrodes',],\
-                               'PET pre':['PETpre','electrodes',],\
-                               'FLAIR pre':['FLAIRpre','electrodes',],\
-                               'FGATIR pre':['FGATIRpre','electrodes',],\
-                               'fMRI pre':['fMRIpre','electrodes'],\
-                               'Statistic Data':['Statisticspre','electrodes'],\
-                               'MRI post-op':['T1postOp','electrodes',],\
-                               'Resection':['Resection','electrodes',],\
-                               'FreeSurferAtlas':['FreesurferAtlaspre','electrodes',],\
-                               'HippoFreeSurferAtlas':['HippoFreesurferAtlaspre','electrodes',],\
-        }
-        self.windowCombo1.clear()
-        # self.windowCombo1.addItems(sorted(self.windowContent.keys()))
-        self.windowCombo2.clear()
-        # self.windowCombo2.addItems(sorted(self.windowContent.keys()))
-
+#         self.windowContent = { 'MRI pre':['T1pre','electrodes',],\
+#                                'MRI pre T2':['T2pre','electrodes',],\
+#                                'MRI pre + right cortex':['T1pre','T1pre-rightHemi','electrodes',],\
+#                                'MRI pre + right MarsAtlas ':['T1pre','right MARS ATLAS BIDULE','electrodes',],\
+#                                'MRI pre + left cortex':['T1pre','T1pre-leftHemi','electrodes',],\
+#                                'MRI pre + left MarsAtlas':['T1pre','left MARS ATLAS BIDULE','electrodes',],\
+#                                'MRI pre + cortex':['T1pre','T1pre-rightHemi','T1pre-leftHemi','electrodes',],\
+#                                'MRI pre + cortex + head':['T1pre','T1pre-rightHemi','T1pre-leftHemi', 'T1pre-head','electrodes',],\
+#                                'MRI post':['T1post','electrodes',],\
+#                                'MRI post T2':['T2post','electrodes',],\
+#                                'CT post':['CTpost','electrodes',],\
+#                                'PET pre':['PETpre','electrodes',],\
+#                                'FLAIR pre':['FLAIRpre','electrodes',],\
+#                                'FGATIR pre':['FGATIRpre','electrodes',],\
+#                                'fMRI pre':['fMRIpre','electrodes'],\
+#                                'Statistic Data':['Statisticspre','electrodes'],\
+#                                'MRI post-op':['T1postOp','electrodes',],\
+#                                'Resection':['Resection','electrodes',],\
+#                                'FreeSurferAtlas':['FreesurferAtlaspre','electrodes',],\
+#                                'HippoFreeSurferAtlas':['HippoFreesurferAtlaspre','electrodes',],\
+#         }
+        self.windowContent = {}
+        self.updateComboboxes()
+        
         # Anatomist windows
         if loadAll == True:
             # Start anatomist 
             self.a = anatomist.Anatomist('-b') #Batch mode (hide Anatomist window)
+            #self.a.config()['setAutomaticReferential'] = 1
+            #self.a.config()['commonScannerBasedReferential'] = 1
             self.a.onCursorNotifier.add(self.clickHandler)
             # Axial window
             layoutAx = QtGui.QHBoxLayout( self.windowContainer1 )
@@ -534,9 +531,9 @@ class LocateElectrodes(QtGui.QDialog):
         # Set callbacks
         if loadAll == True:
             # Patient selection
-            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
+            self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), self.loadPatient)
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
-            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:ProgressDialog.call(self.loadPatient, True, self, "Processing...", "Load patient"))
+            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.loadPatient)
             self.connect(self.protocolCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateBrainvisaProtocol)
             self.connect(self.filterSiteCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
             self.connect(self.filterYearCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
@@ -568,10 +565,10 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.electrodeRefCheck, QtCore.SIGNAL('stateChanged(int)'), self.updateElectrodeView)
             self.connect(self.electrodeRefRotationSlider, QtCore.SIGNAL('valueChanged(int)'), self.updateElectrodeViewRotation)
             # Anatomist windows
+            self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(0,s))
+            self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(1,s))
             self.connect(self.referentialCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateCoordsDisplay)
-            self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.windowUpdate(0,s))
-            self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.windowUpdate(1,s))
-            
+
             # Preferences
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
             self.fileNoDBpath = None
@@ -789,6 +786,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.a.removeObjects(self.a.getObjects(), self.wins[0])
         self.a.removeObjects(self.a.getObjects(), self.wins[1])
         # self.a.config()[ 'linkedCursor' ] = 0
+        # Remove ununsed referentials
         referentials = self.a.getReferentials()
         for element in referentials:
             if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
@@ -832,7 +830,22 @@ class LocateElectrodes(QtGui.QDialog):
         self.__init__(loadAll=False)
   
   
-    def loadPatient(self, thread=None):
+    def loadPatient(self):
+        # Block callbacks
+        print "######### BLOCK SIGNALS GLOBAL #########"
+        self.windowCombo1.blockSignals(True)
+        self.windowCombo2.blockSignals(True)
+        # Call loading function
+        ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
+        # Restore callbacks
+        print "######### UNBLOCK SIGNALS GLOBAL #########"
+        self.windowCombo1.blockSignals(False)
+        self.windowCombo2.blockSignals(False)
+        # Display all
+        self.updateAllWindows()
+        
+  
+    def loadPatientWorker(self, thread=None):
         # Get current patient
         patient = str(self.patientList.selectedItems()[0].text())
 
@@ -847,12 +860,7 @@ class LocateElectrodes(QtGui.QDialog):
         for moda in self.modalities:
             rdi2 = ReadDiskItem(moda, 'aims readable volume formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol})
             volumes.extend(list(rdi2._findValues({}, None, False)))
-    
-#         dictionnaire_list_images = {'MRI pre':['T1pre', 'electrodes', ], \
-#                                'MRI pre +':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
-#                                'MRI pre + left cortex':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
-#                                'MRI pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
-#                                'MRI pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']}
+        # Load all volumes
         dictionnaire_list_images = dict()
         for t in volumes:
             if "skull_stripped" in t.fullName():
@@ -867,12 +875,6 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferAtlaspre', 'electrodes']}) 
             elif (t.attributes()['modality'] == 't1mri') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})         
-#                 dictionnaire_list_images.update(
-#                     {'MRI pre':['T1pre', 'electrodes'], \
-#                      'MRI pre + right cortex':['T1pre', 'T1pre-rightHemi', 'electrodes', ], \
-#                      'MRI pre + left cortex':['T1pre', 'T1pre-leftHemi', 'electrodes', ], \
-#                      'MRI pre + cortex':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'electrodes', ], \
-#                      'MRI pre + cortex + head':['T1pre', 'T1pre-rightHemi', 'T1pre-leftHemi', 'T1pre-head', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI post-op':['T1postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
@@ -930,46 +932,48 @@ class LocateElectrodes(QtGui.QDialog):
                 # Progress bar
                 if thread is not None:
                     thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
-                # String to represent the volume
-                if (na == 'FreesurferAtlaspre'):
-                    strVol = 'MRI FreeSurfer'
-                else:
-                    strVol = 'MRI pre'
-                # Save volume center (in mm)
-                if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
-                    self.t1preCenter = t.get('brainCenter')
-                elif (t.get('volume_dimension') is not None) and (t.get('volume_dimension') is not empty)\
-                      and (t.get('voxel_size') is not None) and (t.get('voxel_size') is not empty):
-                    volSize = t.get('volume_dimension')
-                    voxSize = t.get('voxel_size')
-                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
-                else:
-                    self.t1preCenter = [128, 128, 128]
                     
                 # === REFERENTIALS ===
-                # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
-                try:
-                    self.refConv.loadACPC(t)
-                except Exception, e:
-                    print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
-                try:
-                    self.refConv.loadTalairach(t)
-                except Exception, e:
-                    print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
-                try:
-                    tr2sb = self.t1pre2ScannerBased()
-                    if tr2sb is not None:
-                        self.refConv.setAnatomistTransform("Scanner-based", tr2sb, toRef=True)
-                        # Add the AC-centered Scanner-Based (for PTS importation using AC-centered Olivier David method
-                        if self.refConv.isRefAvailable('AC-PC'):
-                            acInScannerBased = self.refConv.anyRef2AnyRef([0.0, 0.0, 0.0], 'AC-PC', 'Scanner-based')
-                            inf = tr2sb.getInfos()
-                            rot = inf['rotation_matrix']
-                            trans = [inf['translation'][0] - acInScannerBased[0], inf['translation'][1] - acInScannerBased[1], inf['translation'][2] - acInScannerBased[2]]
-                            m = aims.Motion(rot[:3] + [trans[0]] + rot[3:6] + [trans[1]] + rot[6:] + [trans[2]] + [0, 0, 0, 1])
-                            self.refConv.setTransformMatrix('AC-centered Scanner-Based', m.inverse(), m)
-                except Exception, e:
-                    print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
+                if (na == 'T1pre'):
+                    strVol = 'MRI pre'
+                    # Save volume center (in mm)
+                    if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
+                        self.t1preCenter = t.get('brainCenter')
+                    elif (t.get('volume_dimension') is not None) and (t.get('volume_dimension') is not empty)\
+                          and (t.get('voxel_size') is not None) and (t.get('voxel_size') is not empty):
+                        volSize = t.get('volume_dimension')
+                        voxSize = t.get('voxel_size')
+                        self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+                    else:
+                        self.t1preCenter = [128, 128, 128]
+                    # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
+                    try:
+                        self.refConv.loadACPC(t)
+                    except Exception, e:
+                        print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
+                    try:
+                        self.refConv.loadTalairach(t)
+                    except Exception, e:
+                        print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
+                    try:
+                        tr2sb = self.t1pre2ScannerBased()
+                        if tr2sb is not None:
+                            self.refConv.setAnatomistTransform("Scanner-based", tr2sb, toRef=True)
+                            # Add the AC-centered Scanner-Based (for PTS importation using AC-centered Olivier David method
+                            if self.refConv.isRefAvailable('AC-PC'):
+                                acInScannerBased = self.refConv.anyRef2AnyRef([0.0, 0.0, 0.0], 'AC-PC', 'Scanner-based')
+                                inf = tr2sb.getInfos()
+                                rot = inf['rotation_matrix']
+                                trans = [inf['translation'][0] - acInScannerBased[0], inf['translation'][1] - acInScannerBased[1], inf['translation'][2] - acInScannerBased[2]]
+                                m = aims.Motion(rot[:3] + [trans[0]] + rot[3:6] + [trans[1]] + rot[6:] + [trans[2]] + [0, 0, 0, 1])
+                                self.refConv.setTransformMatrix('AC-centered Scanner-Based', m.inverse(), m)
+                    except Exception, e:
+                        print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
+
+                elif (na == 'FreesurferAtlaspre'):
+                    strVol = 'MRI FreeSurfer'
+                    # Load all related transformations
+                    self.loadVolTransformations(t)
 
                 # === CORTEX MESHES ===
                 # Get the hemisphere meshes for the acquisition : name = na + filename base : for example, if the acquisition is T1pre_2000-01-01 and the file head.gii, we want T1pre-head
@@ -1014,23 +1018,15 @@ class LocateElectrodes(QtGui.QDialog):
                     self.loadAndDisplayObject(head[0], na + '-' + 'head', color=[0.0, 0.0, 0.8, 0.3])
                     dictionnaire_list_images.update({strVol + ' + cortex + head':[na, na + '-rightHemi', na + '-leftHemi', na + '-head', 'electrodes']})
     
+        # Update list of available items in the combo boxes
         self.windowContent = dictionnaire_list_images;
-        self.windowCombo1.clear()
-        self.windowCombo1.addItems(sorted(dictionnaire_list_images.keys()))
-        self.windowCombo2.clear()
-        self.windowCombo2.addItems(sorted(dictionnaire_list_images.keys()))
-    
-        self.windowCombo1.setCurrentIndex(max(self.windowCombo1.findText(pre_select_1), 0))
-        self.windowCombo2.setCurrentIndex(max(self.windowCombo2.findText(pre_select_2), 0))
-    
+        self.updateComboboxes(pre_select_1, pre_select_2)
         # Display referential informations
         self.setWindowsReferential()
         if thread is not None:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
         self.loadElectrodes(patient, self.currentProtocol)
         self.refreshAvailableDisplayReferentials()
-        # Display all
-        self.allWindowsUpdate()
         # Center view on AC
         self.centerCursor()
         # Disable the button because no cleanup is attempted when loading a patient when one is already loaded -> there may be a mixup
@@ -1054,13 +1050,6 @@ class LocateElectrodes(QtGui.QDialog):
         print "loading "+repr(diskitem)+ ' as '+name
         
         obj = self.a.loadObject(diskitem)
-        
-        # Force central referential for FreeSurfer objects: WHY????
-        if ('Freesurfer' in diskitem.attributes()['acquisition']):
-            obj.assignReferential(self.a.centralRef)
-            
-        # Read all available transforms in the image header (for example the coregistration by SPM to the T1 Pre MRI)
-        #obj.loadReferentialFromHeader()
 
         if 'ColorPalette' in diskitem.attributes():
             obj.setPalette(palette = diskitem.attributes()['ColorPalette'])
@@ -1101,9 +1090,6 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             self.currentWindowRef = ref
             self.a.assignReferential(ref, self.wins)
-            
-            
-            # obj.boundingbox()
 
 
     # Get the click events
@@ -1168,7 +1154,7 @@ class LocateElectrodes(QtGui.QDialog):
         allTransf = list (rdi._findValues( {}, None, False ) )
         for trsf in allTransf:
             if trsf.attributes()['acquisition'].startswith(u'T1pre'):
-                print repr(trsf.attributes())
+                # print repr(trsf.attributes())
                 srcrDiskItem = self.transfoManager.referential( trsf.attributes()['source_referential'] )
                 srcr = self.a.createReferential(srcrDiskItem)
                 dstrDiskItem = self.transfoManager.referential(trsf.attributes()['destination_referential'])
@@ -1177,7 +1163,30 @@ class LocateElectrodes(QtGui.QDialog):
                 self.t1pre2ScannerBasedTransform = self.a.loadTransformation(trsf.fullPath(), srcr, dstr)
                 return self.t1pre2ScannerBasedTransform
         return None
+    
 
+    def loadVolTransformations(self, t):
+        # Find transformations
+        rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
+        allTransf = list(rdi.findValues({}, None, False))
+        rdi = ReadDiskItem('Transform Raw T1 MRI to another image', 'Transformation matrix', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
+        allTransf += list(rdi.findValues({}, None, False))
+        # Load all transformations
+        loadedTrm = []
+        for trm in allTransf:
+            # Skip incomplete transformations
+            if ('source_referential' not in trm.attributes().keys()) or ('destination_referential' not in trm.attributes().keys()):
+                continue
+            # Get source referential
+            srcrDiskItem = self.transfoManager.referential(trm.attributes()['source_referential'])
+            srcr = self.a.createReferential(srcrDiskItem)
+            # Get destination referential
+            dstrDiskItem = self.transfoManager.referential(trm.attributes()['destination_referential'])
+            dstr = self.a.createReferential(dstrDiskItem)
+            # Load transformation
+            loadedTrm += [self.a.loadTransformation(trm.fullPath(), srcr, dstr)]
+        return loadedTrm
+    
 
     def mniReferentialId(self):
         return aims.StandardReferentials.mniTemplateReferentialID()
@@ -1326,7 +1335,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.dispMode = mode
         self.dispParams = params
         self.updateElectrodeMeshes(bipole = isbipole)
-        self.allWindowsUpdate()
+        self.updateAllWindows()
         # Update the contact list meshes of the current electrode (so they can be selected)
         self.electrodeSelect(self.electrodeList.currentRow())
     
@@ -1348,7 +1357,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.dispObj['electrodes'] = [mesh for elec in self.bipoles for mesh in elec['elecModel'].getAnatomistObjects() if mesh is not None]
             self.setBipoleMeshesNames()
         #self.dispObj['electrodes'][0].__getattr__('name')
-#        self.allWindowsUpdate()
+#        self.updateAllWindows()
 
 
     # Add an electrode from a template
@@ -1375,7 +1384,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate:
             self.updateElectrodeMeshes()
-            self.allWindowsUpdate()
+            self.updateAllWindows()
         
 
     def addBipole(self, name=None, positionbip=[0,0,0], refId = None,entry_bipole = None):
@@ -1472,7 +1481,7 @@ class LocateElectrodes(QtGui.QDialog):
         del item
         del self.electrodes[idx]
         self.updateElectrodeMeshes()
-        self.allWindowsUpdate()
+        self.updateAllWindows()
 
     def updateElectrodeModel(self, model):
         elec = self.currentElectrode()
@@ -1489,7 +1498,7 @@ class LocateElectrodes(QtGui.QDialog):
         elec['model']=str(model)
         self.electrodeSelect(self.electrodeList.currentRow())
         self.updateElectrodeMeshes()
-        self.allWindowsUpdate()
+        self.updateAllWindows()
         self.isModified = True
 
     def updateEntry(self, e=None):
@@ -1880,9 +1889,6 @@ class LocateElectrodes(QtGui.QDialog):
         if refId != self.preReferential().uuid():
             print "CAREFUL: electrodes load are defined in an other referential that the one of the T1 pre, problem possible !"
         #indices = [3,7,11, 0,1,2, 4,5,6, 8,9,10]
-        #if dic['2mni'] is not None and 'T1pre' not in self.transf2Mni:
-            #trsf = dic['2mni']
-            #self.transf2Mni['T1pre'] = self.a.createTransformation([trsf[i] for i in indices], self.preReferential(), self.mniReferential())
         for e in els:
             self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False)
         # Update display
@@ -2040,20 +2046,26 @@ class LocateElectrodes(QtGui.QDialog):
         if selOptions is None:
             return
         # Run export with a progress bar
-        newFiles = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), True, self, "Processing...", "Export")
+        res = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), True, self, "Processing...", "Export")
         # Display new files
-        if (newFiles is not empty) and (newFiles is not None):
-            QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(newFiles))
+        if res:
+            if res[1]:    # errMsg
+                QtGui.QMessageBox.critical(self, u'Export error', u"Errors occured during the export: \n\n" + u"\n".join(res[1]))
+            if res[0]:    # newFiles
+                QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(res[0]))
 
 
     def exportElectrodes(self, selOptions, thread=None):
         """ Normalize and export the contact coordinates """
         
+        # List of new files that are added to the database
+        newFiles = []
+        errMsg = []
         # Get coordinates of SEEG contact centers
         plots = self.getAllPlotsCentersT1preScannerBasedRef()
         if not plots:
-            QtGui.QMessageBox.critical(self, u'Error', "No electrodes available.")
-            return []
+            errMsg += ["No electrodes available."]
+            return [newFiles, errMsg]
 
         # Get options from selection
         isComputeMni = selOptions[0]
@@ -2064,8 +2076,6 @@ class LocateElectrodes(QtGui.QDialog):
         isSaveCsv = selOptions[5]
         isScreenshot = selOptions[6]
         isVideo = selOptions[7]
-        # List of new files that are added to the database
-        newFiles = []
 
         # ===== MNI COORDINATES =====
         if isComputeMni and (self.getT1preMniTransform() is not None):
@@ -2101,7 +2111,7 @@ class LocateElectrodes(QtGui.QDialog):
                 # List of new registered files
                 newFiles += [wdipts.fullPath(), wditxtpos.fullPath(), wditxtname.fullPath()]
             else:
-                print "ERROR: Cannot find a path to save T1pre PTS or TXT files in the database."
+                errMsg += ["Cannot find a path to save T1pre PTS or TXT files in the database."]
                 
             # ===== MNI referential =====
             # Get MNI coordinates if computation was not enforced previously
@@ -2128,7 +2138,7 @@ class LocateElectrodes(QtGui.QDialog):
                     # List of new registered files
                     newFiles += [wdiptsmni.fullPath(), wditxtmnipos.fullPath(), wditxtmniname.fullPath()]
                 else:
-                    print "ERROR: Cannot find a path to save MNI PTS or TXT files in the database."
+                    errMsg += ["Cannot find a path to save MNI PTS or TXT files in the database."]
 
             # ===== AC-PC referential =====
             if self.refConv.isRefAvailable('AC-PC'):
@@ -2144,7 +2154,7 @@ class LocateElectrodes(QtGui.QDialog):
                     # List of new registered files
                     newFiles += [wdiptsacpc.fullPath()]
                 else:    
-                    print "ERROR: Cannot find a path to save AC-PC PTS file in the database."
+                    errMsg += ["Cannot find a path to save AC-PC PTS or TXT files in the database."]
                 
                 
         # ===== MARS ATLAS =====
@@ -2152,7 +2162,9 @@ class LocateElectrodes(QtGui.QDialog):
         if isMarsatlasContacts:
             thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
-            newFiles += self.parcelsExportElectrodes()
+            res = self.parcelsExportElectrodes()
+            newFiles += res[0]
+            errMsg += res[1]
         # Compute MarsAtlas resection
         if isMarsatlasResection:
             thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
@@ -2169,7 +2181,9 @@ class LocateElectrodes(QtGui.QDialog):
         if isSaveCsv:
             thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
-            newFiles += self.exportCSVdictionaries()
+            res = self.exportCSVdictionaries()
+            newFiles += res[0]
+            errMsg += res[1]
         # Save screenshots
         if isScreenshot:
             thread.emit(QtCore.SIGNAL("PROGRESS"), 80)
@@ -2187,7 +2201,7 @@ class LocateElectrodes(QtGui.QDialog):
         #     self.generateMappingContactCortex()
         # Generate Bipole Stimulation excel file
         #    self.generateMappingContactCortex()
-        return newFiles
+        return [newFiles, errMsg]
     
 
 
@@ -3013,6 +3027,9 @@ class LocateElectrodes(QtGui.QDialog):
     def exportCSVdictionaries(self):
         import csv
         
+        newFiles = []
+        errMsg = []
+        
         #test si eleclabel et resection sont générés
         #il faut au moins eleclabel, si pas resection pas grave
     
@@ -3042,8 +3059,8 @@ class LocateElectrodes(QtGui.QDialog):
             # Get MNI coordinates
             dict_plotMNI = self.getAllPlotsCentersMNIRef(False)
             if dict_plotMNI is None:
-                QtGui.QMessageBox.critical(self, "Error", "MNI coordinates are not available.")
-                return []
+                errMsg += ["MNI coordinates are not available."]
+                return [newFiles, errMsg]
             # Sort contacts by name and index
             plotMNI_sorted = self.sortContacts(dict_plotMNI)
 
@@ -3170,7 +3187,8 @@ class LocateElectrodes(QtGui.QDialog):
         neuroHierarchy.databases.insertDiskItem(di, update=True )
         print "export csv done"
     
-        return [di.fullPath()]
+        newFiles += [di.fullPath()]
+        return [newFiles, errMsg]
     
         #wdi = WriteDiskItem('PatientInfoTemplate','Patient Template format')
         #di = wdi.findValue(self.diskItems['T1pre'])
@@ -3191,7 +3209,7 @@ class LocateElectrodes(QtGui.QDialog):
     
 
     def marsatlasExportResection(self):
-
+            
         wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         di_resec = list(wdi_resec.findValues({}, None, False ))
         
@@ -3268,7 +3286,7 @@ class LocateElectrodes(QtGui.QDialog):
         wdi = WriteDiskItem('Resection Description','Resection json')
         di = wdi.findValue(self.diskItems['Resection'])
         if di is None:
-            print('Can t generate files')
+            print("Can't generate files")
             return []
         
         fout = open(di.fullPath(),'w')
@@ -3283,8 +3301,9 @@ class LocateElectrodes(QtGui.QDialog):
 
     def parcelsExportElectrodes(self, saveInDBmarsatlas = True, Callback = None):
 
+        newFiles = []
+        errMsg = []
         #check presence of marsatlas data
-        
         LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={ 'side': 'left' ,'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'parcellation_type':'marsAtlas' })
         #LeftGyri = list(LeftGyri.findValues({}, None, False ))
         LeftGyri = LeftGyri.findValue(self.diskItems['T1pre'])
@@ -3320,8 +3339,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Get MNI coordinates for all the plots
         dict_plotsMNI = self.getAllPlotsCentersMNIRef()
         if dict_plotsMNI is None:
-            QtGui.QMessageBox.information(self, u'Export error', u"No MNI coordinates available, compute SPM normalization first.")
-            return
+            errMsg += ["No MNI coordinates available, compute SPM normalization first."]
+            return [newFiles, errMsg]
         
         brainvisaContext = defaultContext()
 
@@ -3343,10 +3362,10 @@ class LocateElectrodes(QtGui.QDialog):
         ######################
         if LeftGyri is not None:
             brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
-        newFiles = self.parcellationDone(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
+        newFiles += self.parcellationDone(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
         if Callback is not None:
             Callback()
-        return newFiles
+        return [newFiles, errMsg]
         
 
     def parcellationDone(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False,plot_dict_MNI=None):
@@ -3951,7 +3970,7 @@ class LocateElectrodes(QtGui.QDialog):
         #dictée = json.loads(fin.read())
         #dictée['plots_label']
         
-        print "export electrode done"
+        print "Export electrode done"
         # QtGui.QMessageBox.information(self, u'Export done', u"Electrode labels saved in the database: \n" + di.fullPath())
         return [di.fullPath()]
 
@@ -4142,24 +4161,67 @@ class LocateElectrodes(QtGui.QDialog):
         self.bipoleSEEGColors.show()
     
     
-
-    def allWindowsUpdate(self):
-        self.windowUpdate(0, self.windowCombo1.currentText())
-        self.windowUpdate(1, self.windowCombo2.currentText())
+    # Update all anatomist windows
+    def updateAllWindows(self):
+        self.updateWindow(0, self.windowCombo1.currentText())
+        self.updateWindow(1, self.windowCombo2.currentText())
 
     # Update a window content
-    def windowUpdate(self, winId, key):
+    def updateWindow(self, winId, key):
+        print "################## UPDATE ###############"
         key = str(key) # Can be a QString !
         if key not in self.windowContent:
             return #when QT interface but, there was a variable generated in "frame" and we were not able to delete it, then we were not able to load another patient, there was leftover from previous patient
         w = self.wins[winId]
         for obj in self.dispObj:
             if obj in self.windowContent[key]:
-                print "Adding %s"%obj
+                #print "Adding %s"%obj
                 self.a.addObjects(self.dispObj[obj], w)
             else:
-                print "Removing %s"%obj
+                #print "Removing %s"%obj
                 self.a.removeObjects([self.dispObj[obj],],w)#CURRENT
+        # Redraw figure
+        viewType = w.getInternalRep().viewType()
+        if (viewType == 0):
+            w.getInternalRep().muteOblique()
+        elif (viewType == 1):
+            w.getInternalRep().muteAxial()
+        elif (viewType == 2):
+            w.getInternalRep().muteSagittal()
+        elif (viewType == 3):       
+            w.getInternalRep().muteCoronal()
+        elif (viewType == 4):
+            w.getInternalRep().mute3D()
+            
+             
+    # Update combo boxes
+    def updateComboboxes(self, default1=None, default2=None):
+        # Disable combobox callbacks
+        isAlreadyBlocked = self.windowCombo1.signalsBlocked()
+        if not isAlreadyBlocked:
+            print "######### BLOCK SIGNALS LOCAL #########"
+            self.windowCombo1.blockSignals(True)
+            self.windowCombo2.blockSignals(True)
+        # Empty lists
+        self.windowCombo1.clear()
+        self.windowCombo2.clear()
+        # Get the list of items
+        items = sorted(self.windowContent.keys())
+        if not items:
+            return
+        # Set new list of items
+        self.windowCombo1.addItems(items)
+        self.windowCombo2.addItems(items)
+        # Set defaults
+        if default1:
+            self.windowCombo1.setCurrentIndex(max(self.windowCombo1.findText(default1),0))
+        if default2:
+            self.windowCombo2.setCurrentIndex(max(self.windowCombo2.findText(default2),0))
+        # Enable combobox callbacks
+        if not isAlreadyBlocked:
+            print "######### UNBLOCK SIGNALS LOCAL #########"
+            self.windowCombo1.blockSignals(False)
+            self.windowCombo2.blockSignals(False)
 
 
     def updateElectrodeView(self, checkStatus=None):
@@ -4221,19 +4283,13 @@ class LocateElectrodes(QtGui.QDialog):
             fusion_obj = self.a.fusionObjects((self.dispObj[obj1], self.dispObj[obj2]), method='Fusion2DMethod')
             self.a.addObjects(fusion_obj, self.wins[1])
         
-            #add the fusion in the disObj and the windowCombo
+            # Add the fusion in the disObj and the windowCombo
             self.dispObj[obj1+'+'+obj2] = fusion_obj
-        
+            # Update list of available items in the combo boxes
             self.windowContent.update({obj1+'+'+obj2:[obj1+'+'+obj2,'electrodes']})
-            self.windowCombo1.clear()
-            self.windowCombo1.addItems(sorted(self.windowContent.keys()))
-            self.windowCombo2.clear()
-            self.windowCombo2.addItems(sorted(self.windowContent.keys()))
-        
-            self.windowCombo1.setCurrentIndex(max(self.windowCombo1.findText(Text_win1),0))
-            self.windowCombo2.setCurrentIndex(max(self.windowCombo2.findText(obj1+'+'+obj2),0))
-        
-            #self.allWindowsUpdate()
+            self.updateComboboxes(Text_win1, obj1+'+'+obj2)
+            # Update anatomist windows
+            self.updateAllWindows()
         
         else:
             print "one of the image is not recognized"
@@ -4508,16 +4564,11 @@ class LocateElectrodes(QtGui.QDialog):
         obj = self.a.loadObject(di_resec)
         self.diskItems['Resection'] = di_resec
         self.dispObj['Resection']=obj
+        # Update list of available items in the combo boxes
         self.windowContent.update({'Resection':['Resection','electrodes']})
-        self.windowCombo1.clear()
-        self.windowCombo1.addItems(sorted(self.windowContent.keys()))
-        self.windowCombo2.clear()
-        self.windowCombo2.addItems(sorted(self.windowContent.keys()))
-        
-        self.windowCombo1.setCurrentIndex(max(self.windowCombo1.findText(Text_win1),0))
-        self.windowCombo2.setCurrentIndex(max(self.windowCombo2.findText('Resection'),0))
-        
-        self.allWindowsUpdate()
+        self.updateComboboxes(Text_win1, 'Resection')
+        # Update anatomist windows
+        self.updateAllWindows()
 
     def ROIResectiontoNiftiResection(self):
         wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
