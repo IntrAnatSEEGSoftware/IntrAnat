@@ -2253,19 +2253,39 @@ class ImageImport (QtGui.QDialog):
         T1_output = str(diOut.fullPath())
         # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
         ProgressDialog.call(lambda thr:self.runPipelineFSWorker(diOrig, diOut, thr), True, self, "Running Morphologist on FreeSurfer output...", "FreeSufer")
-
+        # self.runPipelineFSWorker(diOrig, diOut)
+        # Update list of images
+        self.selectRegSubject(subject)
         
-    def runPipelineFSWorker(self, diOrig, diOut, thread):
+        
+    def runPipelineFSWorker(self, diOrig, diOut, thread=None):
 
+        # ==== STEP 1: IMPORT =====
         # Run import process
-        thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+        if thread:
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
         proc = getProcessInstance('Import_FROM_FreeSurfer_TO_Morpho')
         proc.T1_orig = str(diOrig.fullPath())
         proc.T1_output = str(diOut.fullPath())
         self.brainvisaContext.runProcess(proc)
+        
+        # ===== STEP 2: REGISTER =====
+        # Create identity transform
+        trmpath = getTmpFilePath('trm')
+        id_trm = numpy.matrix('0 0 0; 1 0 0; 0 1 0; 0 0 1')
+        numpy.savetxt(trmpath, id_trm, delimiter =' ', fmt='%d')
+        # Re-generate scanner-based transformations
+        self.storeImageReferentialsAndTransforms(diOut)
+        # Add identity transform from "Freesurfer T1 scanner-based" to "BrainVISA T1 scanner-based"
+        transformT1 = self.insertTransformationToT1pre(trmpath, diOut)
+        if not transformT1:
+            return
+        
+        # ===== STEP 3: MARS ATLAS =====
         # Start hip-hop
-        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
-        thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+        if thread:
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
         self.hiphopStart(diOut.attributes()['center'], diOut.attributes()['subject'])
         
 
@@ -2351,18 +2371,20 @@ class ImageImport (QtGui.QDialog):
 #             self.brainvisaContext.runInteractiveProcess(lambda x='':self.morphologistGado1(), processPrepare)
         
         
-    def validateAcPcWorker(self, thread):
+    def validateAcPcWorker(self, thread=None):
         # No gado
         if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Morphologist 2015...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Morphologist 2015...")
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
             self.brainvisaContext.runProcess('Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
         # Gado
         else:
             # Morphologist step #1: Prepare subject
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Preparing subject...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Preparing subject...")
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
             processPrepare = getProcessInstance('preparesubject')
             processPrepare.T1mri = self.mriAcPc
             processPrepare.Normalised = "No"
@@ -2374,15 +2396,17 @@ class ImageImport (QtGui.QDialog):
             self.brainvisaContext.runProcess(processPrepare)
             
             # Morphologist step #2: Bias correction
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "T1 Bias correction...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "T1 Bias correction...")
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
             processBias = getProcessInstance('t1biascorrection')
             processBias.t1mri = self.mriAcPc
             self.brainvisaContext.runProcess(processBias)
             
             # Remove GADO with SPM
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM image segmentation...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 15)
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM image segmentation...")
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 15)
             print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
             nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
             nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
@@ -2412,8 +2436,9 @@ class ImageImport (QtGui.QDialog):
             print self.currentSubject + ": Segmentation gado done."
             
             # Replace segmented nobias image with segmented image
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Saving new segmented image...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Saving new segmented image...")
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
             print self.currentSubject + ": Replacing nobias.nii with segmented image..."
             nobiasBak = os.path.join(getTmpDir(),self.currentSubject + 'backup.nii')
             cmd1 = ['mv', nobiasPre, nobiasBak]
@@ -2428,8 +2453,9 @@ class ImageImport (QtGui.QDialog):
                 return
             
             # Execute the rest of the Morphologist pipeline
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Calling Morpologist 2015... (GADO)")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 30)
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Calling Morpologist 2015... (GADO)")
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 30)
             morphologist = getProcessInstance('morphologist')
             morphologist.executionNode().PrepareSubject.setSelected(False)
             morphologist.executionNode().BiasCorrection.setSelected(False)
@@ -2453,8 +2479,9 @@ class ImageImport (QtGui.QDialog):
             line1 = runCmd(cmd)
             
         # Start hip-hop
-        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
-        thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+        if thread:
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
+            thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
         self.hiphopStart(self.mriAcPc.attributes()['center'], self.mriAcPc.attributes()['subject'])
         
             
@@ -2698,37 +2725,37 @@ class ImageImport (QtGui.QDialog):
         self.transfoManager.setReferentialTo(image, self.getT1preNativeRef(image.attributes()['center'], image.attributes()['subject'])) #replace self.getT1preNativeRef(image.attributes()['center'], image.attributes()['subject']) by talairachMNIReferentialId
         os.remove(registeredPath)
 
+
     def insertTransformationToT1pre(self, trmpath, image):
         """Inserts a TRM file in the DB as the transformation between image and the T1pre scanner-based ref from the same subject"""
+        # Check that transformation file exists
         if not os.path.exists(trmpath):
             print "Error : file %s does not exist : cannot insert it as a TRM for image %s"%(trmpath, image.fileName())
-            return
-        # Copy the transformation to the right place and declare it to Brainvisa
-        t1preRef = self.getT1preScannerBasedRef(image.attributes()['center'],image.attributes()['subject'])
-    
+        # Get the source (image) and destination (T1pre) referentials
+        t1preRef = self.getT1preScannerBasedRef(image.attributes()['center'], image.attributes()['subject'])
         imageRef = self.getScannerBasedRef(image)
-    
-        #
         if t1preRef is None or imageRef is None:
-            print "Cannot find referentials to declare coregister transform : %s %s"%(t1preRef,imageRef)
+            print "Error: Cannot find referentials to declare coregister transform to T1pre."
+            return
+        # Get new transformation file
         wdiTransformT1 = WriteDiskItem( 'Transform '+ self.modas[image.attributes()['modality']] +' to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'modalityTarget':t1preRef.attributes()['modality'], 'acquisitionTarget':t1preRef.attributes()['acquisition']} )
         transformT1 = wdiTransformT1.findValue(image)
         if transformT1 is None:
-            print "Cannot find path for T1pre transform in database for %s-> transformation NOT stored !"%(image.fileName())
-        else:
-            #Move the trm file, but remove the old one first
-            if os.path.exists(transformT1.fullPath()):
-                os.remove(transformT1.fullPath())
-            shutil.move(trmpath, transformT1.fullPath() )
-            try:
-                neuroHierarchy.databases.createDiskItemFromFileName(os.path.dirname( transformT1.fullPath() ))
-            except:
-                pass
-            #set and update database
-            print ".... setting transfo info : from %s to %s for %s"%(repr(imageRef), repr(t1preRef), repr(transformT1))
-            self.transfoManager.setNewTransformationInfo( transformT1, source_referential=imageRef, destination_referential= t1preRef)
-        self.setStatus(u'Coregister done for '+str(image.attributes()['acquisition']))
-
+            print "Error: Cannot find path for T1pre transform in database for %s-> transformation NOT stored !"%(image.fileName())
+            return
+        # Remove the existing .trm file first
+        if os.path.exists(transformT1.fullPath()):
+            os.remove(transformT1.fullPath())
+        # Move the trm file to the database
+        shutil.move(trmpath, transformT1.fullPath())
+        try:
+            neuroHierarchy.databases.createDiskItemFromFileName(os.path.dirname( transformT1.fullPath() ))
+        except:
+            pass
+        # Set and update database
+        self.transfoManager.setNewTransformationInfo( transformT1, source_referential=imageRef, destination_referential=t1preRef)
+        print "Added transformation: from %s to %s for %s"%(repr(imageRef), repr(t1preRef), repr(transformT1))
+        return transformT1
 
     def insertSPMdeformationFile(self, protocol, patient, acq):
         """ Should be called when a _sn file (SPM normalization transformation file) was created to update it in the database """
