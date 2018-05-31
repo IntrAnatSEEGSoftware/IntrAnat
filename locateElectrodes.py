@@ -565,8 +565,8 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.electrodeRefCheck, QtCore.SIGNAL('stateChanged(int)'), self.updateElectrodeView)
             self.connect(self.electrodeRefRotationSlider, QtCore.SIGNAL('valueChanged(int)'), self.updateElectrodeViewRotation)
             # Anatomist windows
-            self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(0,s))
-            self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(1,s))
+            self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(0, s, True))
+            self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(1 ,s, True))
             self.connect(self.referentialCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateCoordsDisplay)
 
             # Preferences
@@ -832,17 +832,16 @@ class LocateElectrodes(QtGui.QDialog):
   
     def loadPatient(self):
         # Block callbacks
-        print "######### BLOCK SIGNALS GLOBAL #########"
         self.windowCombo1.blockSignals(True)
         self.windowCombo2.blockSignals(True)
         # Call loading function
         ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
+        # self.loadPatientWorker()
         # Restore callbacks
-        print "######### UNBLOCK SIGNALS GLOBAL #########"
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
         # Display all
-        self.updateAllWindows()
+        self.updateAllWindows(True)
         
   
     def loadPatientWorker(self, thread=None):
@@ -4162,36 +4161,43 @@ class LocateElectrodes(QtGui.QDialog):
     
     
     # Update all anatomist windows
-    def updateAllWindows(self):
-        self.updateWindow(0, self.windowCombo1.currentText())
-        self.updateWindow(1, self.windowCombo2.currentText())
+    def updateAllWindows(self, isUpdateOrient=False):
+        self.updateWindow(0, self.windowCombo1.currentText(), isUpdateOrient)
+        self.updateWindow(1, self.windowCombo2.currentText(), isUpdateOrient)
 
     # Update a window content
-    def updateWindow(self, winId, key):
-        print "################## UPDATE ###############"
+    def updateWindow(self, winId, key, isUpdateOrient=False):
         key = str(key) # Can be a QString !
         if key not in self.windowContent:
             return #when QT interface but, there was a variable generated in "frame" and we were not able to delete it, then we were not able to load another patient, there was leftover from previous patient
         w = self.wins[winId]
+        # Loop on ll the options that should be displayed
         for obj in self.dispObj:
-            if obj in self.windowContent[key]:
-                #print "Adding %s"%obj
-                self.a.addObjects(self.dispObj[obj], w)
+            # Is object already displayed
+            isInWindow = (isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj][0].getWindows())) or \
+                         (not isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj].getWindows()))
+            
+            if (obj in self.windowContent[key]):
+                print "Adding %s"%obj
+                w.addObjects(self.dispObj[obj])
+#                 else:
+#                     print "Skipping %s"%obj
             else:
-                #print "Removing %s"%obj
-                self.a.removeObjects([self.dispObj[obj],],w)#CURRENT
+                print "Removing %s"%obj
+                w.removeObjects(self.dispObj[obj])#CURRENT
         # Redraw figure
-        viewType = w.getInternalRep().viewType()
-        if (viewType == 0):
-            w.getInternalRep().muteOblique()
-        elif (viewType == 1):
-            w.getInternalRep().muteAxial()
-        elif (viewType == 2):
-            w.getInternalRep().muteSagittal()
-        elif (viewType == 3):       
-            w.getInternalRep().muteCoronal()
-        elif (viewType == 4):
-            w.getInternalRep().mute3D()
+        if isUpdateOrient:
+            viewType = w.getInternalRep().viewType()
+            if (viewType == 0):
+                w.getInternalRep().muteOblique()
+            elif (viewType == 1):
+                w.getInternalRep().muteAxial()
+            elif (viewType == 2):
+                w.getInternalRep().muteSagittal()
+            elif (viewType == 3):       
+                w.getInternalRep().muteCoronal()
+            elif (viewType == 4):
+                w.getInternalRep().mute3D()
             
              
     # Update combo boxes
@@ -4199,7 +4205,6 @@ class LocateElectrodes(QtGui.QDialog):
         # Disable combobox callbacks
         isAlreadyBlocked = self.windowCombo1.signalsBlocked()
         if not isAlreadyBlocked:
-            print "######### BLOCK SIGNALS LOCAL #########"
             self.windowCombo1.blockSignals(True)
             self.windowCombo2.blockSignals(True)
         # Empty lists
@@ -4219,7 +4224,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.windowCombo2.setCurrentIndex(max(self.windowCombo2.findText(default2),0))
         # Enable combobox callbacks
         if not isAlreadyBlocked:
-            print "######### UNBLOCK SIGNALS LOCAL #########"
             self.windowCombo1.blockSignals(False)
             self.windowCombo2.blockSignals(False)
 
