@@ -1620,6 +1620,28 @@ class ImageImport (QtGui.QDialog):
             # Add reference in the database (creates .minf)
             neuroHierarchy.databases.insertDiskItem(di, update=True)
        
+        wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image' )
+        diFSDestrieux = wdi.findValue(write_filters)
+        #create the folder if doesn't exist
+        if not os.path.isfile(os.path.dirname(str(diFSDestrieux.fullPath()))):
+            try:
+                os.makedirs(os.sep.join(os.path.dirname(str(diFSDestrieux.fullPath())).split(os.sep)[:-1]))
+            except:
+                #already exist probably
+                pass
+            try:
+                os.makedirs(os.path.dirname(str(diFSDestrieux.fullPath())))
+            except:
+                #already exist probably
+                pass
+ 
+        launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Destrieuxfound[0]),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+        ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
+        #pour destrieux
+        self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
+ 
+        
+        
         
         
 #     def importFSoutputOld(self,subject=None):
@@ -2225,10 +2247,21 @@ class ImageImport (QtGui.QDialog):
                 # If there is a T1pre, remember the image
                 if acq.find('T1pre') == 0:
                     t1preImage = image
-    
         # No T1pre : nothing else to do
         if t1preImage is None:
             return
+    
+        # Check that there is no FreeSurfer segmentation available: otherwise delete it
+        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':t1preImage['subject'], 'center':t1preImage['center'], "acquisition":"FreesurferAtlaspre"})
+        hemis = list(rdi._findValues({}, None, False))
+        # Existing segmentation: Ask for confirmation before deleting
+        if hemis:
+            rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing FreeSurfer+Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            if (rep == QtGui.QMessageBox.Yes):
+                delPath = os.path.dirname(os.path.abspath(hemis[0].fullPath()))
+                removeFromDB(delPath, neuroHierarchy.databases.database(hemis[0].get("_database")))
+            else:
+                return
     
         self.mriAcPc = t1preImage
         self.runMorphologistBV(t1preImage)
@@ -2251,6 +2284,20 @@ class ImageImport (QtGui.QDialog):
         wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject})
         diOut = wdi.findValue({'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre', 'modality':'freesurfer_atlas'})
         T1_output = str(diOut.fullPath())
+        
+        # Check that there is no BrainVISA segmentation available: otherwise delete it
+        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
+        hemis = list(rdi._findValues({}, None, False))
+        idxT1pre = [i for i in range(len(hemis)) if 'T1pre' in hemis[i].attributes()["acquisition"]]
+        # Existing segmentation: Ask for confirmation before deleting
+        if idxT1pre:
+            rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing BrainVISA/Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            if (rep == QtGui.QMessageBox.Yes):
+                delPath = os.path.dirname(os.path.abspath(hemis[idxT1pre[0]].fullPath()))
+                removeFromDB(delPath, neuroHierarchy.databases.database(hemis[idxT1pre[0]].get("_database")))
+            else:
+                return
+
         # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
         ProgressDialog.call(lambda thr:self.runPipelineFSWorker(diOrig, diOut, thr), True, self, "Running Morphologist on FreeSurfer output...", "FreeSufer")
         # self.runPipelineFSWorker(diOrig, diOut)

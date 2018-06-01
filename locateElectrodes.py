@@ -2046,6 +2046,7 @@ class LocateElectrodes(QtGui.QDialog):
             return
         # Run export with a progress bar
         res = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), True, self, "Processing...", "Export")
+        #res = self.exportElectrodes(selOptions)
         # Display new files
         if res:
             if res[1]:    # errMsg
@@ -2078,15 +2079,17 @@ class LocateElectrodes(QtGui.QDialog):
 
         # ===== MNI COORDINATES =====
         if isComputeMni and (self.getT1preMniTransform() is not None):
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
             [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
             newFiles += mniFiles
             
         # ===== Save TXT/PTS files ======
         if isSavePts:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Exporting PTS files...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Exporting PTS files...")
             # ===== T1-pre scanner-based referential ======
             # Get current time stamp
             timestamp = time.time()
@@ -2159,39 +2162,45 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== MARS ATLAS =====
         # Compute MarsAtlas parcels 
         if isMarsatlasContacts:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
             res = self.parcelsExportElectrodes()
             newFiles += res[0]
             errMsg += res[1]
         # Compute MarsAtlas resection
         if isMarsatlasResection:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing resection parcels...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing resection parcels...")
             newFiles += self.marsatlasExportResection()
         # Compute MarsAtlas parcel metrics
         if isParcelMetrics:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing parcel metrics...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing parcel metrics...")
             newFiles += self.calculParcel()
             
         # ===== OTHER EXPORTS =====
         # Save CSV
         if isSaveCsv:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
             res = self.exportCSVdictionaries()
             newFiles += res[0]
             errMsg += res[1]
         # Save screenshots
         if isScreenshot:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 80)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating screenshots...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 80)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating screenshots...")
             newFiles += self.screenshot()
         # Save video
         if isVideo:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 90)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 90)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
             newFiles += self.makeMP4()
             
         # Compute fiber contact distance
@@ -3304,7 +3313,7 @@ class LocateElectrodes(QtGui.QDialog):
         errMsg = []
         #check presence of marsatlas data
         LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={ 'side': 'left' ,'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'parcellation_type':'marsAtlas' })
-        #LeftGyri = list(LeftGyri.findValues({}, None, False ))
+        # LeftGyri = LeftGyri.findValue(self.diskItems['FreesurferAtlaspre'])
         LeftGyri = LeftGyri.findValue(self.diskItems['T1pre'])
         
         #check the presence of freesurfer data
@@ -3318,13 +3327,14 @@ class LocateElectrodes(QtGui.QDialog):
         #if either marsatlas and freesurfer are not found. stop (for now but later has to go throw the MNI)
         if LeftGyri is None:
             print('no hemisphere parcellation texture found')
+            errMsg += ["Export CSV: MarsAtlas not found"]
             TemplateMarsAtlas = True
-            #return
         else:
             TemplateMarsAtlas = False
         
         if len(rdi_freesurfer) == 0:
             print('no freesurfer atlas found')
+            errMsg += ["Export CSV: FreeSurfer atlas not found"]
             TemplateFreeSurfer = True
         else:
             TemplateFreeSurfer = False
@@ -4178,12 +4188,10 @@ class LocateElectrodes(QtGui.QDialog):
                          (not isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj].getWindows()))
             
             if (obj in self.windowContent[key]):
-                print "Adding %s"%obj
+                # print "Adding %s"%obj
                 w.addObjects(self.dispObj[obj])
-#                 else:
-#                     print "Skipping %s"%obj
             else:
-                print "Removing %s"%obj
+                # print "Removing %s"%obj
                 w.removeObjects(self.dispObj[obj])#CURRENT
         # Redraw figure
         if isUpdateOrient:
@@ -4584,52 +4592,31 @@ class LocateElectrodes(QtGui.QDialog):
         brainvisaContext = defaultContext()
         brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
 
-    def removeFromDB(self, file, db=None):
-        """
-        If the file is a directory, recursive call to remove all its content before removing the directory.
-        Corresponding diskitem is removed from the database if it exists.
-        Taken from brainvisa-4.3.0/python/brainvisa/data/qt4gui/hierarchyBrowser.py
-        """
-        if db is None:
-            try:
-                db=neuroHierarchy.databases.database(neuroHierarchy.databases.getDiskItemFromFileName(file).get("_database"))
-            except:
-                pass
-        
-        if os.path.isdir(file):
-            for f in os.listdir(file):
-                self.removeFromDB(os.path.join(file, f), db)
-            os.rmdir(file)
-        else:
-            os.remove(file)
-        if db:
-            diskItem=db.getDiskItemFromFileName(file, None)
-            if diskItem:
-                db.removeDiskItem(diskItem)
 
     def DeleteMarsAtlasFiles(self):
-
+        # No subject loaded
+        if not self.brainvisaPatientAttributes or not self.brainvisaPatientAttributes['subject']:
+            return
+        # Ask for confirmation
         rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-        if rep == QtGui.QMessageBox.Yes:
-            atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false','subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            atlas_di_list = list(atlas_di._findValues({}, None, False ))
-            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diMaskleft = list(Mask_left.findValues({}, None, False ))
-            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diMaskright = list(Mask_right.findValues({}, None, False ))
-        
-            if len(atlas_di_list)>0:
-                for i,infoi in enumerate(atlas_di_list):
-                    self.removeFromDB(infoi.fullPath(), neuroHierarchy.databases.database(infoi.get("_database")))
-        
-        
-            if len(diMaskleft)>0:
-                self.removeFromDB(diMaskleft[0].fullPath(), neuroHierarchy.databases.database(diMaskleft[0].get("_database")))
-        
-            if len(diMaskright)>0:
-                self.removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
-        
-        print("MarsAtlas resulting files suppressed")
+        if not (rep == QtGui.QMessageBox.Yes):
+            return
+        # Get files to delete
+        atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false','subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        atlas_di_list = list(atlas_di._findValues({}, None, False ))
+        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskleft = list(Mask_left.findValues({}, None, False ))
+        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskright = list(Mask_right.findValues({}, None, False ))
+        # Delete them
+        if len(atlas_di_list)>0:
+            for i,infoi in enumerate(atlas_di_list):
+                removeFromDB(infoi.fullPath(), neuroHierarchy.databases.database(infoi.get("_database")))
+        if len(diMaskleft)>0:
+            removeFromDB(diMaskleft[0].fullPath(), neuroHierarchy.databases.database(diMaskleft[0].get("_database")))
+        if len(diMaskright)>0:
+            removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
+        print("MarsAtlas files deleted.")
       
       
     def importRosaImplantation(self):

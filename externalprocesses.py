@@ -12,7 +12,7 @@
 import subprocess, traceback, os, types, tempfile, time, random, string,sys
 from soma.qt_gui.qt_backend import QtGui, QtCore
 from os.path import expanduser
-# import pdb
+from brainvisa.data import neuroHierarchy
 
 
 # Set the environment for external commands without BrainVisa interference (remove brainvisa-specific paths)
@@ -211,4 +211,28 @@ def formatExternalPath(fullpath):
         return str(fullpath)
     
 
+def removeFromDB(file, db=None):
+    """
+    If the file is a directory, recursive call to remove all its content before removing the directory.
+    Corresponding diskitem is removed from the database if it exists.
+    Taken from brainvisa-4.3.0/python/brainvisa/data/qt4gui/hierarchyBrowser.py
+    """
+    if db is None:
+        try:
+            db=neuroHierarchy.databases.database(neuroHierarchy.databases.getDiskItemFromFileName(file).get("_database"))
+        except:
+            pass
+    
+    if os.path.isdir(file):
+        for f in os.listdir(file):
+            removeFromDB(os.path.join(file, f), db)
+        os.rmdir(file)
+    else:
+        os.remove(file)
+    if db:
+        diskItem=db.getDiskItemFromFileName(file, None)
+        if diskItem:
+            db.removeDiskItem(diskItem)
+                
+                
     
