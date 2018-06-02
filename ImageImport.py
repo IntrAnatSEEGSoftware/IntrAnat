@@ -1556,6 +1556,8 @@ class ImageImport (QtGui.QDialog):
         allFiles['T1_orig'] =        {'side':None,    'type':'T1 FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig.mgz'}
         allFiles['nu'] =             {'side':None,    'type':'Nu FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/nu.mgz'}
         allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
+        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',  'format':'FreesurferMGZ',  'file':importDir + '/mri/ribbon.mgz'}
+        allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
         allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
         allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
         allFiles['leftWhite'] =      {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/lh.white'}
@@ -1620,28 +1622,25 @@ class ImageImport (QtGui.QDialog):
             # Add reference in the database (creates .minf)
             neuroHierarchy.databases.insertDiskItem(di, update=True)
        
-        wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image' )
+        # Progress bar
+        if thread:
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Converting Destrieux atlas...")
+        # Importing Destrieux atlas to BrainVISA database
+        wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
-        #create the folder if doesn't exist
-        if not os.path.isfile(os.path.dirname(str(diFSDestrieux.fullPath()))):
-            try:
-                os.makedirs(os.sep.join(os.path.dirname(str(diFSDestrieux.fullPath())).split(os.sep)[:-1]))
-            except:
-                #already exist probably
-                pass
-            try:
-                os.makedirs(os.path.dirname(str(diFSDestrieux.fullPath())))
-            except:
-                #already exist probably
-                pass
- 
-        launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Destrieuxfound[0]),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+        # Create the folder if doesn't exist
+        self.createItemDirs(diFSDestrieux)
+        # Reslice and convert to AIMS
+        launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles['destrieux']['file']),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
         ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
-        #pour destrieux
-        self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
+        # Add reference in the database (creates .minf)
+        neuroHierarchy.databases.insertDiskItem(di, update=True)
+        # Generate amygdala and hippocampus meshes
+        if thread:
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
+        print("TODO: Fix generation of hippocampus and amygdala meshes.")
+        # self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
  
-        
-        
         
         
 #     def importFSoutputOld(self,subject=None):
