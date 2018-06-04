@@ -557,7 +557,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.contactList, QtCore.SIGNAL("itemDoubleClicked(QListWidgetItem*)"), self.contactGo)
             self.connect(self.electrodeSaveButton, QtCore.SIGNAL('clicked()'), self.saveElectrodes)
             self.connect(self.electrodeLoadButton, QtCore.SIGNAL('clicked()'), self.loadElectrodes)
-            self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.exportElectrodesInteractive)
+            self.connect(self.normalizeExportButton, QtCore.SIGNAL('clicked()'), self.exportAll)
             # Display options
             self.connect(self.colorConfigButton, QtCore.SIGNAL('clicked()'), self.configureColors)
             self.connect(self.dispModeCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateDispMode)
@@ -586,6 +586,8 @@ class LocateElectrodes(QtGui.QDialog):
             # Display warning: Not for medical use
             self.warningMEDIC()
 
+        # Get BrainVISA context
+        self.brainvisaContext = defaultContext()
         # Get Transformation Manager
         self.transfoManager = registration.getTransformationManager()
         # Get ReferentialConverter (for Talairach, AC-PC...)
@@ -835,8 +837,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo1.blockSignals(True)
         self.windowCombo2.blockSignals(True)
         # Call loading function
-        ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
-        # self.loadPatientWorker()
+#        ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
+        self.loadPatientWorker()
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
@@ -869,9 +871,11 @@ class LocateElectrodes(QtGui.QDialog):
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading volume: " + t.attributes()['modality'] + "...")
             # Keep attributes of any image from this subject
             self.brainvisaPatientAttributes = t.attributes()
+            na = None
             # Add elements in the display list
             if (t.attributes()['modality'] == 't1mri') and (t.attributes()['acquisition'] == 'FreesurferAtlaspre'):
-                dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferAtlaspre', 'electrodes']}) 
+                dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferT1pre', 'electrodes']})
+                na = 'FreesurferT1pre'
             elif (t.attributes()['modality'] == 't1mri') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})         
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
@@ -901,33 +905,35 @@ class LocateElectrodes(QtGui.QDialog):
             elif (t.attributes()['modality'] == 'resection'):
                 dictionnaire_list_images.update({'Resection':['Resection', 'electrodes']})
             elif (t.attributes()['modality'] == 'freesurfer_atlas'):
-                dictionnaire_list_images.update({'FreeSurferAtlas pre':['FreesurferAtlaspre', 'electrodes']})
+                dictionnaire_list_images.update({'FreeSurfer Atlas (Destrieux)':['FreesurferAtlaspre', 'electrodes']})
             elif (t.attributes()['modality'] == 'hippofreesurfer_atlas'):
                 dictionnaire_list_images.update({'HippoFreeSurferAtlas pre':['HippoFreesurferAtlaspre', 'electrodes']})
             
-            try:
-                nameAcq = t.attributes()['acquisition']
-                # print "Loading %s as %s"%(t.fileName(), nameAcq)
-                # print repr(t.attributes())
-                # We try to get the acquisition name without the date (if there is one) : T1pre_2000-01-01 -> T1pre
-                if 'Statistics' in nameAcq:
-                    na = nameAcq.split('_')[0] + t.attributes()['subacquisition']
-                else:
-                    na = nameAcq.split('_')[0]
-            except:
-                if moda == 'Electrode Implantation Coronal Image':
-                    na = 'ImplantationCoro'
-                elif moda == 'Electrode Implantation Sagittal Image':
-                    na = 'ImplantationSag'
-                else:
-                    print "CANNOT find a nameAcq for ", repr(t)
-                    na = 'unknown'
+            # Simiplified acquisition name
+            nameAcq = t.attributes()['acquisition']
+            if not na:
+                try:
+                    # print "Loading %s as %s"%(t.fileName(), nameAcq)
+                    # print repr(t.attributes())
+                    # We try to get the acquisition name without the date (if there is one) : T1pre_2000-01-01 -> T1pre
+                    if 'Statistics' in nameAcq:
+                        na = nameAcq.split('_')[0] + t.attributes()['subacquisition']
+                    else:
+                        na = nameAcq.split('_')[0]
+                except:
+                    if moda == 'Electrode Implantation Coronal Image':
+                        na = 'ImplantationCoro'
+                    elif moda == 'Electrode Implantation Sagittal Image':
+                        na = 'ImplantationSag'
+                    else:
+                        print "CANNOT find a nameAcq for ", repr(t)
+                        na = 'unknown'
                     
             # Load volume in anatomist
             obj = self.loadAndDisplayObject(t, na)
             
             # For T1 MRI: Load surfaces and MarsAtlas
-            if (na == 'T1pre') or (na == 'FreesurferAtlaspre'):
+            if (na == 'T1pre') or (na == 'FreesurferT1pre'):
                 # Progress bar
                 if thread is not None:
                     thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
@@ -969,7 +975,7 @@ class LocateElectrodes(QtGui.QDialog):
                     except Exception, e:
                         print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
 
-                elif (na == 'FreesurferAtlaspre'):
+                elif (na == 'FreesurferT1pre'):
                     strVol = 'MRI FreeSurfer'
                     # Load all related transformations
                     self.loadVolTransformations(t)
@@ -2024,7 +2030,8 @@ class LocateElectrodes(QtGui.QDialog):
 #         print ".elecimplant done with MNI"
     
     
-    def exportElectrodesInteractive(self):
+    # EXPORT ALL INFO (INTERACTIVE)
+    def exportAll(self):
         # Ask which options needed to be executed before the export
         dialog = DialogCheckbox([\
             "Compute MNI coordinates for all contacts",\
@@ -2045,8 +2052,8 @@ class LocateElectrodes(QtGui.QDialog):
         if selOptions is None:
             return
         # Run export with a progress bar
-        res = ProgressDialog.call(lambda thr:self.exportElectrodes(selOptions, thr), True, self, "Processing...", "Export")
-        #res = self.exportElectrodes(selOptions)
+        #res = ProgressDialog.call(lambda thr:self.exportAll(selOptions, thr), True, self, "Processing...", "Export")
+        res = self.exportAll(selOptions)
         # Display new files
         if res:
             if res[1]:    # errMsg
@@ -2055,7 +2062,8 @@ class LocateElectrodes(QtGui.QDialog):
                 QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(res[0]))
 
 
-    def exportElectrodes(self, selOptions, thread=None):
+    # EXPORT ALL INFO (WORKER)
+    def exportAllWorker(self, selOptions, thread=None):
         """ Normalize and export the contact coordinates """
         
         # List of new files that are added to the database
@@ -2165,7 +2173,7 @@ class LocateElectrodes(QtGui.QDialog):
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
-            res = self.parcelsExportElectrodes()
+            res = self.exportParcels()
             newFiles += res[0]
             errMsg += res[1]
         # Compute MarsAtlas resection
@@ -2463,8 +2471,7 @@ class LocateElectrodes(QtGui.QDialog):
             snapShots.append(os.path.join(getTmpDir(), "gifCT%03i.png"%(i)))
             i+=1    
         w21.close()
-        brainvisaContext = defaultContext()
-        brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),"animationElec.mp4"),images = snapShots[:-1],encoding='h264',quality=75,passes=1)
+        self.brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),"animationElec.mp4"),images = snapShots[:-1],encoding='h264',quality=75,passes=1)
 
         wdi = WriteDiskItem('MP4 of Electrodes','MP4 film')
         if PresCT==True:
@@ -2597,8 +2604,7 @@ class LocateElectrodes(QtGui.QDialog):
             #os.system('convert -delay 50 -loop 0 /tmp/gif*.png /tmp/animation.gif')
             #line1 = runCmd(cmd1)
             
-            brainvisaContext = defaultContext()
-            brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),'animationMA.mp4'),images = new_list_image,encoding='h264',quality=50,passes=1)
+            self.brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),'animationMA.mp4'),images = new_list_image,encoding='h264',quality=50,passes=1)
             wdi = WriteDiskItem('MP4 of Mars Atlas','MP4 film')
             di=wdi.findValue(self.diskItems['T1pre'])
 
@@ -3307,40 +3313,37 @@ class LocateElectrodes(QtGui.QDialog):
         return [di.fullPath()]
 
 
-    def parcelsExportElectrodes(self, saveInDBmarsatlas = True, Callback = None):
+    # ===== EXPORT PARCES: PART I =====
+    def exportParcels(self, saveInDBmarsatlas = True, Callback = None):
 
         newFiles = []
         errMsg = []
-        #check presence of marsatlas data
+        # Check marsatlas
         LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={ 'side': 'left' ,'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'parcellation_type':'marsAtlas' })
-        # LeftGyri = LeftGyri.findValue(self.diskItems['FreesurferAtlaspre'])
         LeftGyri = LeftGyri.findValue(self.diskItems['T1pre'])
-        
-        #check the presence of freesurfer data
-        freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-        rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
-        
-        #check the presence of Hippo subfield freesurfer data
-        HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-        rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-        
-        #if either marsatlas and freesurfer are not found. stop (for now but later has to go throw the MNI)
         if LeftGyri is None:
-            print('no hemisphere parcellation texture found')
+            print('Error: No hemisphere parcellation texture found')
             errMsg += ["Export CSV: MarsAtlas not found"]
             TemplateMarsAtlas = True
         else:
             TemplateMarsAtlas = False
         
+        # Check freesurfer
+        freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+        rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
         if len(rdi_freesurfer) == 0:
-            print('no freesurfer atlas found')
+            print('Error: No freesurfer atlas found')
             errMsg += ["Export CSV: FreeSurfer atlas not found"]
             TemplateFreeSurfer = True
         else:
             TemplateFreeSurfer = False
         
+        # Check Hippo subfield freesurfer data
+        HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+        rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
         if len(rdi_HippoSubfield)  == 0:
-            print('no hippo subfield atlas found')
+            print('Error: No hippo subfield atlas found')
+            errMsg += ["Export CSV: FreeSurfer atlas not found"]
             TemplateHippoSubfieldFreesurfer = True
         else:
             TemplateHippoSubfieldFreesurfer = False
@@ -3348,21 +3351,19 @@ class LocateElectrodes(QtGui.QDialog):
         # Get MNI coordinates for all the plots
         dict_plotsMNI = self.getAllPlotsCentersMNIRef()
         if dict_plotsMNI is None:
-            errMsg += ["No MNI coordinates available, compute SPM normalization first."]
+            errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
             return [newFiles, errMsg]
-        
-        brainvisaContext = defaultContext()
 
         ######################
         # Asynchronous process
         ######################
         #pour que lorsque le thread Brainvisa ça appelle parcellationdone ET les autres export si il y a besoin
         #if Callback is not None:
-        #    Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
+        #    Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.exportParcels2(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
         #else:
-        #    Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.parcellationDone(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
+        #    Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.exportParcels2(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
         #try:
-        #    brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
+        #    self.brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
         #except:
         #    Callback2()
             
@@ -3370,54 +3371,53 @@ class LocateElectrodes(QtGui.QDialog):
         # Synchronous process
         ######################
         if LeftGyri is not None:
-            brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
-        newFiles += self.parcellationDone(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
+            self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
         if Callback is not None:
             Callback()
         return [newFiles, errMsg]
         
 
-    def parcellationDone(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False,plot_dict_MNI=None):
+    # ===== EXPORT PARCES: PART II =====
+    def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False,plot_dict_MNI=None):
 
         print "export electrode start"
         timestamp = time.time()
+        
+        # ===== READ: MARS ATLAS =====
+        # Left hemisphere
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
-        
+        if diMaskleft is None:
+            print('Error: left gyri conversion surface to volume failed')
+            useTemplateMarsAtlas = True
+        # Right hemisphere
         Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
-        
-        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_right = MaskGW_right.findValue(self.diskItems['T1pre'])
-        
-        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_left = MaskGW_left.findValue(self.diskItems['T1pre'])
-        
-        
-        #here put if on use template or no
-        if diMaskleft is None:
-            print('left gyri conversion surface to volume failed')
-            useTemplateMarsAtlas = True
-            #return
-        
         if diMaskright is None:
             print('right gyri conversion surface to volume failed')
             useTemplateMarsAtlas = True
-            #return
         
+        # ===== READ: GREY/WHITE =====
         GWAtlas = True
-        
+        # Left hemisphere
+        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskGW_left = MaskGW_left.findValue(self.diskItems['T1pre'])
+        if diMaskGW_right is None:
+            print('not found right grey/white label')
+            GWAtlas = False
+        else:
+            volGW_right = aims.read(diMaskGW_right.fileName())
+        # Right hemisphere
+        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskGW_right = MaskGW_right.findValue(self.diskItems['T1pre'])
         if diMaskGW_left is None:
             print('not found left grey/white label')
             GWAtlas = False
         else:
             volGW_left = aims.read(diMaskGW_left.fileName())
         
-        if diMaskGW_right is None:
-            print('not found right grey/white label')
-            GWAtlas = False
-        else:
-            volGW_right = aims.read(diMaskGW_right.fileName())
+ 
         
         
         #on s'intéresse à la résection
@@ -3448,6 +3448,27 @@ class LocateElectrodes(QtGui.QDialog):
         if len(plots)==0:
             print("no contact found")
             return []
+        
+        # Convert to FreeSurfer coordinates if necessary
+        if (diMaskleft['acquisition'] == 'FreesurferAtlaspre'):
+            # Get T1pre volume
+            diT1 = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center']} )
+            allT1 = list(diT1.findValues({},None,False))
+            idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
+            rdiT1 = allT1[idxT1pre[0]]
+            # Get FreeSurfer => Scanner-based transformation
+            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center'], 'acquisition':diMaskleft['acquisition']})
+            rdiTransFS = list(rdi.findValues({}, None, False ))
+            TransFS = aims.read(rdiTransFS[0].fullName())
+            # Get T1pre => Scanner-based transformation
+            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':rdiT1['modality'], 'subject':rdiT1['subject'], 'center':rdiT1['center'], 'acquisition':rdiT1['acquisition']})
+            rdiTransT1 = list(rdi.findValues({}, None, False ))
+            TransT1 = aims.read(rdiTransT1[0].fullName())
+            # Compute transformation: T1pre=>FreeSurfer
+            Transf = TransFS.inverse() * TransT1
+            # Apply to contact coordinates
+            for key in plots.keys():
+                plots[key] = Transf.transform(plots[key])
         
         if not useTemplateMarsAtlas:
             vol_left = aims.read(diMaskleft.fileName())
@@ -3506,7 +3527,6 @@ class LocateElectrodes(QtGui.QDialog):
         for k,v in plots.iteritems():
             plot_name_split = k.split('-$&_&$-')
             info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-            #plots_label[k]=(label,label_name)
         
         plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
         
@@ -4452,7 +4472,6 @@ class LocateElectrodes(QtGui.QDialog):
             result_cross = cross(vect1.T.tolist(),vect2.T.tolist())/numpy.linalg.norm(cross(vect1.T.tolist(),vect2.T.tolist()))*40
             Lh_postop = numpy.array(Ac[0:3]) + result_cross
             
-            brainvisaContext = defaultContext()
             morphologist = processes.getProcessInstance('morphologist')
             morphologist.executionNode().PrepareSubject.setSelected(True)
             morphologist.executionNode().BiasCorrection.setSelected(True)
@@ -4464,7 +4483,7 @@ class LocateElectrodes(QtGui.QDialog):
             morphologist.executionNode().HeadMesh.setSelected(False)
             morphologist.executionNode().HemispheresProcessing.setSelected(False)
             morphologist.executionNode().SulcalMorphometry.setSelected(False)
-            brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord,methodo=method:self.resectionStart(trm,resec_coord,methodo) , morphologist, t1mri = T1postop, perform_normalization = False, anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
+            self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord,methodo=method:self.resectionStart(trm,resec_coord,methodo) , morphologist, t1mri = T1postop, perform_normalization = False, anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
                                    posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
 
         if method == 'CT':
@@ -4561,10 +4580,8 @@ class LocateElectrodes(QtGui.QDialog):
         
         wdi_resec_roi = WriteDiskItem( 'ROI IntrAnat', 'Graph' )
         di_resec_roi = wdi_resec_roi.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
-        
-        brainvisaContext = defaultContext()
-        
-        brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi,di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Volume To ROI Graph Converter', read = di_resec, write = di_resec_roi)  #, sulcus_identification ='label')
+
+        self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi,di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Volume To ROI Graph Converter', read = di_resec, write = di_resec_roi)  #, sulcus_identification ='label')
 
 
     def roiconversionDone(self,di_resec_roi,di_resec):
@@ -4588,9 +4605,8 @@ class LocateElectrodes(QtGui.QDialog):
         
         wdi_resec_roi = ReadDiskItem( 'ROI Intranat', 'Graph', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
         di_resec_roi = list(wdi_resec_roi.findValues({}, None, False))
-        
-        brainvisaContext = defaultContext()
-        brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
+
+        self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
 
 
     def DeleteMarsAtlasFiles(self):

@@ -324,7 +324,6 @@ class ImageImport (QtGui.QDialog):
 
         # Allow calling brainvisa
         self.brainvisaContext = defaultContext()
-
         # Get Transformation Manager
         self.transfoManager = registration.getTransformationManager()
 
@@ -1359,8 +1358,7 @@ class ImageImport (QtGui.QDialog):
     
                 #mri_convert -rl /data/brainvisa/Epilepsy/Gre_2015_BESk/t1mri/T1pre_2015-1-1/Gre_2015_BESk.nii /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/aparc.a2009s+aseg.mgz /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/test.nii -rt nearest -ncD
                 #remplacer par launchFreesurferCommand
-                context = defaultContext()
-                context.write("mri_convert from freesurfer")
+                self.brainvisaContext.write("mri_convert from freesurfer")
     
                 launchFreesurferCommand(context, None, 'mri_convert', '-i',path,'-o',tmp_nii_path,'-rl',str(allT1[idxT1pre[0]].fullPath()),'-rt','nearest','-nc')
                 #mriconvert_call ='mri_convert -i {} -o {} -rl {} -rt nearest -nc'.format(path,tmp_nii_path,str(allT1[idxT1pre[0]].fullPath()))
@@ -1703,8 +1701,7 @@ class ImageImport (QtGui.QDialog):
 #         Destrieuxfound = list(FreesurferDestrieux.findValues({},None,False))
 # 
 #         #generer tous les writediskitem
-#         context = defaultContext()
-#         context.write("convert output from freesurfer")
+#         self.brainvisaContext.write("convert output from freesurfer")
 #         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Nufound),'-o',os.path.join(os.path.dirname(str(Nufound)),'nu.nii'),'-rl',str(diT1pre.fullPath()))
 #         launchFreesurferCommand(context, None, 'mri_convert', '-i',str(Ribbonfound),'-o',os.path.join(os.path.dirname(str(Ribbonfound)),'ribbon.nii'),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
 # 
@@ -2251,7 +2248,7 @@ class ImageImport (QtGui.QDialog):
             return
     
         # Check that there is no FreeSurfer segmentation available: otherwise delete it
-        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':t1preImage['subject'], 'center':t1preImage['center'], "acquisition":"FreesurferAtlaspre"})
+        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':t1preImage['subject'], 'center':t1preImage['center'], "acquisition":"FreesurferAtlaspre", "modality":"t1mri"})
         hemis = list(rdi._findValues({}, None, False))
         # Existing segmentation: Ask for confirmation before deleting
         if hemis:
@@ -3337,8 +3334,7 @@ class ImageImport (QtGui.QDialog):
             print('no T1pre image')
             return
 
-        context = defaultContext()
-        context.write("recon-all from freesurfer")
+        self.brainvisaContext.write("recon-all from freesurfer")
 
         if t1preImage and FlairpreImage:
             FreesurferMethod = 1
