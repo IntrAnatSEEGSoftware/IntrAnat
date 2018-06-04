@@ -1582,8 +1582,8 @@ class ImageImport (QtGui.QDialog):
                 return
         
         # Run copy and conversion in a separate thread
-#         res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
-        res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        #res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
@@ -1636,7 +1636,6 @@ class ImageImport (QtGui.QDialog):
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
-        print("TODO: Fix generation of hippocampus and amygdala meshes.")
         self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
  
         
