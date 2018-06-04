@@ -863,7 +863,7 @@
         <item>
          <widget class="QPushButton" name="runMarsAtlasFreesurferButton">
           <property name="text">
-           <string>Run HipHop on Freesurfer mesh</string>
+           <string>Run HipHop on Freesurfer segmentation</string>
           </property>
          </widget>
         </item>

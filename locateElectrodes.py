@@ -837,8 +837,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo1.blockSignals(True)
         self.windowCombo2.blockSignals(True)
         # Call loading function
-#        ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
-        self.loadPatientWorker()
+        ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
+        # self.loadPatientWorker()
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
@@ -2052,8 +2052,8 @@ class LocateElectrodes(QtGui.QDialog):
         if selOptions is None:
             return
         # Run export with a progress bar
-        #res = ProgressDialog.call(lambda thr:self.exportAll(selOptions, thr), True, self, "Processing...", "Export")
-        res = self.exportAll(selOptions)
+        res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export")
+        #res = self.exportAllWorker(selOptions)
         # Display new files
         if res:
             if res[1]:    # errMsg
@@ -3112,13 +3112,16 @@ class LocateElectrodes(QtGui.QDialog):
                 #fieldnames=['MarsAtlas','GreyWhite','Resection']
                 writer = csv.writer(csvfile, delimiter='\t')
                 writer.writerow([u'Contacts Positions'])
-                writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer'],'HippoSubfieldFreesurfer',info_label_elec['Template']['HippocampalSubfield Freesurfer']])
+#                 writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer'],'HippoSubfieldFreesurfer',info_label_elec['Template']['HippocampalSubfield Freesurfer']])
+                writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer']])
                 
                 #add a row with "MNI or Patient for MarsAtlas and Freesurfer
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
-                list_by_default = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
+#                 list_by_default = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
+                list_by_default = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
                 diff_list = list(list_to_write.difference(list_by_default))
-                full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
+#                 full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
+                full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
                 full_list.extend(diff_list)
                 writer.writerow(full_list)
                 
@@ -3129,7 +3132,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['MarsAtlas'][1])
                     listwrite.append(vv['MarsAtlasFull'])
                     listwrite.append(vv['Freesurfer'][1])
-                    listwrite.append(vv['Hippocampal Subfield'][1])
+                    #listwrite.append(vv['Hippocampal Subfield'][1])
                     listwrite.append(vv['GreyWhite'][1])
                     listwrite.append(vv['AAL'][1])
                     listwrite.append(vv['AALDilate'][1])
@@ -3155,7 +3158,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['MarsAtlas'][1])
                     listwrite.append(vv['MarsAtlasFull'])
                     listwrite.append(vv['Freesurfer'][1])
-                    listwrite.append(vv['Hippocampal Subfield'][1])
+                    #listwrite.append(vv['Hippocampal Subfield'][1])
                     listwrite.append(vv['GreyWhite'][1])
                     listwrite.append(vv['AAL'][1])
                     listwrite.append(vv['AALDilate'][1])
@@ -3226,7 +3229,7 @@ class LocateElectrodes(QtGui.QDialog):
         di_resec = list(wdi_resec.findValues({}, None, False ))
         
         if len(di_resec)==0:
-            print('no resection image found')
+            print('Warning: No resection image found')
             return []
         
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
@@ -3336,15 +3339,15 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             TemplateFreeSurfer = False
         
-        # Check Hippo subfield freesurfer data
-        HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-        rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-        if len(rdi_HippoSubfield)  == 0:
-            print('Error: No hippo subfield atlas found')
-            errMsg += ["Export CSV: FreeSurfer atlas not found"]
-            TemplateHippoSubfieldFreesurfer = True
-        else:
-            TemplateHippoSubfieldFreesurfer = False
+#         # Check Hippo subfield freesurfer data
+#         HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+#         rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
+#         if len(rdi_HippoSubfield)  == 0:
+#             print('Error: No hippo subfield atlas found')
+#             TemplateHippoSubfieldFreesurfer = True
+#         else:
+#             TemplateHippoSubfieldFreesurfer = False
+        TemplateHippoSubfieldFreesurfer = False
         
         # Get MNI coordinates for all the plots
         dict_plotsMNI = self.getAllPlotsCentersMNIRef()
@@ -3459,13 +3462,13 @@ class LocateElectrodes(QtGui.QDialog):
             vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
             vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
         
-        # ===== READ: HIPPOCAMPUS SUBFIELD =====
-        if not useTemplateHippoSubFreesurfer:
-            HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-            rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-            vol_hipposubfieldFS = aims.read(str(rdi_HippoSubfield[0]))
-        else:
-            vol_hipposubfieldFS = aims.read('MNI_Freesurfer/mri/bhHippoMNI.nii')
+#         # ===== READ: HIPPOCAMPUS SUBFIELD =====
+#         if not useTemplateHippoSubFreesurfer:
+#             HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+#             rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
+#             vol_hipposubfieldFS = aims.read(str(rdi_HippoSubfield[0]))
+#         else:
+#             vol_hipposubfieldFS = aims.read('MNI_Freesurfer/mri/bhHippoMNI.nii')
 
         # ===== READ: RESECTION =====
         wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
@@ -3495,7 +3498,14 @@ class LocateElectrodes(QtGui.QDialog):
         if len(plots)==0:
             print("no contact found")
             return []
+        # Sort by contact names
+        info_plot = []
+        for k,v in plots.iteritems():
+            plot_name_split = k.split('-$&_&$-')
+            info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
+        plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
         # Convert to FreeSurfer coordinates if necessary
+        plot_fs_sorted = plot_sorted
         if (diMaskleft['acquisition'] == 'FreesurferAtlaspre'):
             # Get T1pre volume
             diT1 = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center']} )
@@ -3513,28 +3523,17 @@ class LocateElectrodes(QtGui.QDialog):
             # Compute transformation: T1pre=>FreeSurfer
             Transf = TransFS.inverse() * TransT1
             # Apply to contact coordinates
-            for key in plots.keys():
-                plots[key] = Transf.transform(plots[key])
-        
-        
-        # ===== READ MNI ATLASES =====
+            for i in range(len(plot_fs_sorted)):
+                plot_fs_sorted[i] = (plot_fs_sorted[i][0], Transf.transform(plot_fs_sorted[i][1]))
+
+        # ===== READ: MNI ATLASES =====
         # Chargement des atlas dans le MNI (broadman, aal etc ...)
         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii')
         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii')
         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii')
         vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii')
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii')
-        
-        info_image = self.diskItems['T1pre'].attributes() 
-        #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
-        
-        info_plot = []
-        for k,v in plots.iteritems():
-            plot_name_split = k.split('-$&_&$-')
-            info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-        
-        plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
-        
+        # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plot_dict_MNI_Native = {}
         for vv,kk in plot_dict_MNI.iteritems():
@@ -3542,32 +3541,40 @@ class LocateElectrodes(QtGui.QDialog):
             inter_pos = numpy.matrix(inter_pos).reshape([4,1])
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
             plot_dict_MNI_Native.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
+        # Read parcel names
+        parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
+        freesurfer_parcel_names = readFreesurferLabelFile('freesurfer_label.txt')
+        Hammers_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_Hammers.txt')
+        AAL_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_AAL.txt')
+        AALDilate_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_AALDilate.txt')
         
-        #montage bipolaire
-        info_plot_bipolaire= []
+        # ===== BIPOLAR MONTAGE =====
+        # Native coordinates
+        info_plot_bipolaire = []
         for pindex in range(1,len(plot_sorted)):
             previous_contact = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
             current_contact = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
             if previous_contact == current_contact:
                  info_plot_bipolaire.append((plot_sorted[pindex][0]+' - '+ plot_sorted[pindex-1][0],(plot_sorted[pindex][1]+plot_sorted[pindex-1][1])/2 ))
-        
-        #if useTemplateMarsAtlas or useTemplateFreeSurfer or useTemplateHippoSubFreesurfer: #on fait le mni dans tous les cas à cause des atlas mni
+        # FreeSurfer coordinates
+        info_plot_bipolaire_fs = []
+        for pindex in range(1,len(plot_fs_sorted)):
+            previous_contact = "".join([i for i in plot_fs_sorted[pindex-1][0] if not i.isdigit()])
+            current_contact = "".join([i for i in plot_fs_sorted[pindex][0] if not i.isdigit()])
+            if previous_contact == current_contact:
+                 info_plot_bipolaire_fs.append((plot_fs_sorted[pindex][0]+' - '+ plot_fs_sorted[pindex-1][0],(plot_fs_sorted[pindex][1]+plot_fs_sorted[pindex-1][1])/2 ))
+        # MNI coordinates
         info_plot_bipolaire_MNI = {}
         for pindex in range(1,len(plot_sorted)):
             previous_contact = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
             current_contact = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
             if previous_contact == current_contact:
                 info_plot_bipolaire_MNI.update({plot_sorted[pindex][0]+' - '+ plot_sorted[pindex-1][0]:(numpy.array(plot_dict_MNI_Native[plot_sorted[pindex][0]])+numpy.array(plot_dict_MNI_Native[plot_sorted[pindex-1][0]]))/2})
+
         
-        
-        parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
-        freesurfer_parcel_names = readFreesurferLabelFile('freesurfer_label.txt')
-        Hammers_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_Hammers.txt')
-        AAL_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_AAL.txt')
-        AALDilate_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_AALDilate.txt')
-        #parcels_AAL_names = 
-        #parcels_Broadmann_names = 
-        #parcels_Hammers_names = 
+        # ===== VOXEL COORDINATES =====
+        info_image = self.diskItems['T1pre'].attributes() 
+        #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
         
         #conversion x mm en nombre de voxel:
         sphere_size_stat = 10
@@ -3575,43 +3582,41 @@ class LocateElectrodes(QtGui.QDialog):
         
         sphere_size = 3 #en mm
         nb_voxel_sphere = [int(round(sphere_size/info_image['voxel_size'][i])) for i in range(3)]
-        #if useTemplateMarsAtlas or useTemplateFreeSurfer or useTemplateHippoSubFreesurfer:
-        nb_voxel_sphere_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution #int(round(sphere_size/info_image['voxel_size'][i])) for i in range(0,3)]
+        nb_voxel_sphere_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution
         
+        
+        # ===== PROCESS ALL CONTACTS ===== 
         print("start contact estimation")
         plots_label = {}
         for pindex in range(len(plot_sorted)):
-        
-            print(plot_sorted[pindex][0])
+
             plot_pos_pix_indi = [round(plot_sorted[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
-            
+            plot_pos_pix_fs = [round(plot_fs_sorted[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(plot_dict_MNI_Native[plot_sorted[pindex][0]][i]) for i in range(3)]
             
-            #mars atlas:
+            # === PROCESS: MARS ATLAS ===
             if not useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_indi
+                plot_pos_pixMA = plot_pos_pix_fs
                 nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
+                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
                 nb_voxel_sphereMA = nb_voxel_sphere_MNI
             
             #on regarde si une sphère de x mm de rayon touche une parcel
             voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0], nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            
             voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
             
             if GWAtlas:
-                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            
+                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
                 voxelGW_to_keep = [x for x in voxelGW_within_sphere_left+voxelGW_within_sphere_right if x !=255 and x !=0]
             else:
                 GW_label = 255
             
-            #freesurfer:
+            # === PROCESS: FREESURFER ===
             if not useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_indi
+                plot_pos_pixFS = plot_pos_pix_fs
                 nb_voxel_sphereFS = nb_voxel_sphere
             elif useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_MNI  #I have to apply the transfo Scanner-Based to Native #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
@@ -3620,35 +3625,31 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_within_sphere_FS = [vol_freesurfer.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
             
-            #HippoSubfield
+            # === PROCESS: HIPPO SUBFIELD ===
             if not useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_indi
+                plot_pos_pixHippoFS = plot_pos_pix_fs
                 nb_voxel_sphereHippoFS = nb_voxel_sphere
             elif useTemplateHippoSubFreesurfer:
                 plot_pos_pixHippoFS = plot_pos_pix_MNI
                 nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
             
-            voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
+#             voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+#             voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
             
-            #MNI Atlases
-            #AAL
+            # === PROCESS: MNI ATLASES ===
+            # AAL
             voxel_within_sphere_AAL = [round(vol_AAL.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepAAL = [x for x in voxel_within_sphere_AAL if x != 0 and not math.isnan(x)]
-            
-            #AALDilate
+            # AALDilate
             voxel_within_sphere_AALdilate = [round(vol_AALDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepAALDilate = [x for x in voxel_within_sphere_AALdilate if x != 0 and not math.isnan(x)]
-            
-            #Broadmann
+            # Broadmann
             voxel_within_sphere_Broadmann = [round(vol_Broadmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepBroadmann = [x for x in voxel_within_sphere_Broadmann if x != 0 and not math.isnan(x)]
-            
-            #Brodmann dilate
+            # Brodmann dilate
             voxel_within_sphere_Broadmanndilate = [round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepBroadmannDilate = [x for x in voxel_within_sphere_Broadmanndilate if x != 0 and not math.isnan(x)]
-            
-            #Hammers
+            # Hammers
             voxel_within_sphere_Hammers = [round(vol_Hammers.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepHammers = [x for x in voxel_within_sphere_Hammers if x != 0 and not math.isnan(x)]
             
@@ -3696,17 +3697,17 @@ class LocateElectrodes(QtGui.QDialog):
                     label_freesurfer = most_common
                     label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
             
-            if not voxel_to_keep_HippoFS:
-                label_hippoFS_name = 'not in a hippocamp subfield'
-                label_hippoFS = vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0],plot_pos_pixHippoFS[1],plot_pos_pixHippoFS[2])
-            else:
-                most_common,num_most_common = Counter(voxel_to_keep_HippoFS).most_common(1)[0]
-                label_hippoFS = most_common
-                label_hippoFS_name = freesurfer_parcel_names[str(int(label_hippoFS))][0]
+#             if not voxel_to_keep_HippoFS:
+#                 label_hippoFS_name = 'not in a hippocamp subfield'
+#                 label_hippoFS = vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0],plot_pos_pixHippoFS[1],plot_pos_pixHippoFS[2])
+#             else:
+#                 most_common,num_most_common = Counter(voxel_to_keep_HippoFS).most_common(1)[0]
+#                 label_hippoFS = most_common
+#                 label_hippoFS_name = freesurfer_parcel_names[str(int(label_hippoFS))][0]
             
             if GWAtlas:
                 if not voxelGW_to_keep:
-                    GW_label = max(volGW_left.value(plot_pos_pix_indi[0],plot_pos_pix_indi[1],plot_pos_pix_indi[2]), volGW_right.value(plot_pos_pix_indi[0],plot_pos_pix_indi[1],plot_pos_pix_indi[2]))
+                    GW_label = max(volGW_left.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]), volGW_right.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]))
                 else:
                     most_common2,num_most_common2 = Counter(voxelGW_to_keep).most_common(1)[0]
                     GW_label = most_common2
@@ -3768,7 +3769,9 @@ class LocateElectrodes(QtGui.QDialog):
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_name = {0:'not in resection',1:'in resection',255:'resection not calculated'}[Resec_label]
             
-            plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
+#             plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
+            plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
+            
             # add subacq_stat dictionnaries
             if len(subacq_existing)>0:
                 for i_substat in range(len(subacq_stat)):
@@ -3791,12 +3794,13 @@ class LocateElectrodes(QtGui.QDialog):
         
         plots_label_bipolar = {}
         for pindex in range(len(info_plot_bipolaire)):
-            plot_pos_pix_indi= [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
+            plot_pos_pix_indi = [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
+            plot_pos_pix_fs = [round(info_plot_bipolaire_fs[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(info_plot_bipolaire_MNI[info_plot_bipolaire[pindex][0]][i]) for i in range(3)]
             #on regarde si une sphère de x mm de rayon touche une parcel
             #mars atlas:
             if not useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_indi
+                plot_pos_pixMA = plot_pos_pix_fs
                 nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
@@ -3808,8 +3812,8 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
             
             if GWAtlas:
-                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
+                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
+                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
             
                 voxelGW_to_keep = [x for x in voxelGW_within_sphere_left+voxelGW_within_sphere_right if x !=255 and x !=0]
             else:
@@ -3817,7 +3821,7 @@ class LocateElectrodes(QtGui.QDialog):
             
             #freesurfer:
             if not useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_indi
+                plot_pos_pixFS = plot_pos_pix_fs
                 nb_voxel_sphereFS = nb_voxel_sphere
             elif useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
@@ -3828,14 +3832,14 @@ class LocateElectrodes(QtGui.QDialog):
             
             #HippoSubfield
             if not useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_indi
+                plot_pos_pixHippoFS = plot_pos_pix_fs
                 nb_voxel_sphereHippoFS = nb_voxel_sphere
             elif useTemplateHippoSubFreesurfer:
                 plot_pos_pixHippoFS = plot_pos_pix_MNI
                 nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
             
-            voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
+#             voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+#             voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
             
             #MNI Atlases
             #AAL
@@ -3898,17 +3902,17 @@ class LocateElectrodes(QtGui.QDialog):
                     label_freesurfer = most_common
                     label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
             
-            if not voxel_to_keep_HippoFS:
-                label_hippoFS_name = 'not in a hippocamp subfield'
-                label_hippoFS = vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0],plot_pos_pixHippoFS[1],plot_pos_pixHippoFS[2])
-            else:
-                most_common,num_most_common = Counter(voxel_to_keep_HippoFS).most_common(1)[0]
-                label_hippoFS = most_common
-                label_hippoFS_name = freesurfer_parcel_names[str(int(label_hippoFS))][0]
+#             if not voxel_to_keep_HippoFS:
+#                 label_hippoFS_name = 'not in a hippocamp subfield'
+#                 label_hippoFS = vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0],plot_pos_pixHippoFS[1],plot_pos_pixHippoFS[2])
+#             else:
+#                 most_common,num_most_common = Counter(voxel_to_keep_HippoFS).most_common(1)[0]
+#                 label_hippoFS = most_common
+#                 label_hippoFS_name = freesurfer_parcel_names[str(int(label_hippoFS))][0]
             
             if GWAtlas:
                 if not voxelGW_to_keep:
-                    GW_label = max(volGW_left.value(plot_pos_pix_indi[0],plot_pos_pix_indi[1],plot_pos_pix_indi[2]), volGW_right.value(plot_pos_pix_indi[0],plot_pos_pix_indi[1],plot_pos_pix_indi[2]))
+                    GW_label = max(volGW_left.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]), volGW_right.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]))
                 else:
                     most_common2,num_most_common2 = Counter(voxelGW_to_keep).most_common(1)[0]
                     GW_label = most_common2
@@ -3971,7 +3975,9 @@ class LocateElectrodes(QtGui.QDialog):
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_name = {0:'not in resection',1:'in resection',255:'resection not calculated'}[Resec_label]
             
-            plots_label_bipolar[info_plot_bipolaire[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name),'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
+#             plots_label_bipolar[info_plot_bipolaire[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name),'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
+            plots_label_bipolar[info_plot_bipolaire[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name),'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
+            
             #plots_label_bipolar.append((info_plot_bipolaire[pindex][0],label,label_name,GW_label))
             # add subacq_stat dictionnaries
             if len(subacq_existing)>0:
