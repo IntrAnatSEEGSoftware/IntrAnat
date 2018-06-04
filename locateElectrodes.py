@@ -2210,9 +2210,7 @@ class LocateElectrodes(QtGui.QDialog):
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 90)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
             newFiles += self.makeMP4()
-            
-        # Compute fiber contact distance
-        #    self.generateFiberContactDistance()
+
         # Compute MarsAtlas contacts positions
         #     self.generateMappingContactCortex()
         # Generate Bipole Stimulation excel file
@@ -3370,85 +3368,133 @@ class LocateElectrodes(QtGui.QDialog):
         ######################
         # Synchronous process
         ######################
+        # Generate 3D version of the MarsAtlas surface-based atlas
         if LeftGyri is not None:
             self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+        # Continue export
         newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
+        # Call additional function at the end
         if Callback is not None:
             Callback()
         return [newFiles, errMsg]
         
 
     # ===== EXPORT PARCES: PART II =====
-    def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False,plot_dict_MNI=None):
+    def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False, plot_dict_MNI=None):
 
         print "export electrode start"
         timestamp = time.time()
         
         # ===== READ: MARS ATLAS =====
-        # Left hemisphere
-        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
-        if diMaskleft is None:
-            print('Error: left gyri conversion surface to volume failed')
-            useTemplateMarsAtlas = True
-        # Right hemisphere
-        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
-        if diMaskright is None:
-            print('right gyri conversion surface to volume failed')
-            useTemplateMarsAtlas = True
+        # Get left hemisphere
+        if not useTemplateMarsAtlas:
+            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+            diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
+            if diMaskleft is None:
+                print('Error: left gyri conversion surface to volume failed')
+                useTemplateMarsAtlas = True
+        # Get right hemisphere
+        if not useTemplateMarsAtlas:
+            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+            diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
+            if diMaskright is None:
+                print('right gyri conversion surface to volume failed')
+                useTemplateMarsAtlas = True
+        # Read volumes
+        if not useTemplateMarsAtlas:
+            vol_left = aims.read(diMaskleft.fileName())
+            vol_right = aims.read(diMaskright.fileName())
+        else:
+            vol_left = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_L_gyriVolume.nii.gz')
+            vol_right = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_R_gyriVolume.nii.gz')
         
         # ===== READ: GREY/WHITE =====
         GWAtlas = True
         # Left hemisphere
         MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskGW_left = MaskGW_left.findValue(self.diskItems['T1pre'])
-        if diMaskGW_right is None:
-            print('not found right grey/white label')
-            GWAtlas = False
-        else:
-            volGW_right = aims.read(diMaskGW_right.fileName())
-        # Right hemisphere
-        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_right = MaskGW_right.findValue(self.diskItems['T1pre'])
         if diMaskGW_left is None:
-            print('not found left grey/white label')
+            print('Error: Left grey/white mask not found')
             GWAtlas = False
         else:
             volGW_left = aims.read(diMaskGW_left.fileName())
+        # Right hemisphere
+        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskGW_right = MaskGW_right.findValue(self.diskItems['T1pre'])
+        if diMaskGW_right is None:
+            print('Error: Right grey/white mask not found')
+            GWAtlas = False
+        else:
+            volGW_right = aims.read(diMaskGW_right.fileName())
         
- 
+        # ===== READ: FREESURFER =====
+        # Subject data
+        if not useTemplateFreeSurfer:
+            # Read FreeSurfer Destrieux atlas
+            freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+            rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
+            vol_freesurfer = aims.read(str(rdi_freesurfer[0]))
+            # FreeSurfer hippocampus atlas (generated by ImageImport)
+            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+            difreesurfHippoAntPostleft = list(freesurfHippoAntPostleft.findValues({}, None, False ))
+            difreesurfHippoAntPostright = list(freesurfHippoAntPostright.findValues({}, None, False ))
+            if len(difreesurfHippoAntPostright)>0:
+                vol_hippoanteropostright = aims.read(str(difreesurfHippoAntPostright[0]))
+                if len(difreesurfHippoAntPostleft)>0:
+                    vol_hippoanteropostleft = aims.read(str(difreesurfHippoAntPostleft[0]))
+                    vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
+                else:
+                    vol_hippoanteropost = vol_hippoanteropostright
+            else:
+                if len(difreesurfHippoAntPostleft)>0:
+                    vol_hippoanteropostleft = aims.read(str(difreesurfHippoAntPostleft[0]))
+                    vol_hippoanteropost = vol_hippoanteropostleft
+            if len(difreesurfHippoAntPostleft) == 0 and len(difreesurfHippoAntPostright) == 0:
+                vol_hippoanteropost = False
+        # MNI template
+        else:
+            vol_hippoanteropostleft = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/leftHippocampusGre_2016_MNI1.nii')
+            vol_hippoanteropostright = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/rightHippocampusGre_2016_MNI1.nii')
+            vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
+            vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
         
-        
-        #on s'intéresse à la résection
+        # ===== READ: HIPPOCAMPUS SUBFIELD =====
+        if not useTemplateHippoSubFreesurfer:
+            HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+            rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
+            vol_hipposubfieldFS = aims.read(str(rdi_HippoSubfield[0]))
+        else:
+            vol_hipposubfieldFS = aims.read('MNI_Freesurfer/mri/bhHippoMNI.nii')
+
+        # ===== READ: RESECTION =====
         wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         di_resec = list(wdi_resec.findValues({}, None, False ))
         #careful, if we use templates, the resection has to be deformed in the mni template
-        
         if len(di_resec)==0:
-            print('no resection image found')
+            print('Warning: No resection image found')
             DoResection = False
         else:
             DoResection = True
             vol_resec = aims.read(di_resec[0].fileName())
         
-        #is there any statistic-Data
+        # ===== READ: STATISTICS =====
+        # Is there any statistic-Data
         wdi_stat = ReadDiskItem('Statistic-Data','NIFTI-1 image',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         di_stat = list(wdi_stat.findValues({}, None, False ))
-        
-        #number of different subacquisition #not used for now, subacquisition has to be all different
+        # Different subacquisition
         subacq_existing = [di_stat[i].attributes()['subacquisition'] for i in range(len(di_stat))]
-        
         if len(subacq_existing) >0:
             subacq_stat=[]
             for i_subacq in range(len(subacq_existing)):
                 subacq_stat.append(aims.read(di_stat[i_subacq].fileName()))
         
-        plots = self.getAllPlotsCentersT1preRef() #coordonnées en mm à convertir en voxel
+        # ===== GET: CONTACT COORDINATES =====
+        # Get contact coordinates in T1pre coordinates
+        plots = self.getAllPlotsCentersT1preRef()
         if len(plots)==0:
             print("no contact found")
             return []
-        
         # Convert to FreeSurfer coordinates if necessary
         if (diMaskleft['acquisition'] == 'FreesurferAtlaspre'):
             # Get T1pre volume
@@ -3470,58 +3516,17 @@ class LocateElectrodes(QtGui.QDialog):
             for key in plots.keys():
                 plots[key] = Transf.transform(plots[key])
         
-        if not useTemplateMarsAtlas:
-            vol_left = aims.read(diMaskleft.fileName())
-            vol_right = aims.read(diMaskright.fileName())
-        else:
-            vol_left = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_L_gyriVolume.nii.gz')
-            vol_right = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_R_gyriVolume.nii.gz')
         
-        if not useTemplateFreeSurfer:
-            freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-            rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
-            vol_freesurfer = aims.read(str(rdi_freesurfer[0]))
-            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-            difreesurfHippoAntPostleft = list(freesurfHippoAntPostleft.findValues({}, None, False ))
-            difreesurfHippoAntPostright = list(freesurfHippoAntPostright.findValues({}, None, False ))
-            
-            if len(difreesurfHippoAntPostright)>0:
-                vol_hippoanteropostright = aims.read(str(difreesurfHippoAntPostright[0]))
-                if len(difreesurfHippoAntPostleft)>0:
-                    vol_hippoanteropostleft = aims.read(str(difreesurfHippoAntPostleft[0]))
-                    vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
-                else:
-                    vol_hippoanteropost = vol_hippoanteropostright
-            else:
-                if len(difreesurfHippoAntPostleft)>0:
-                    vol_hippoanteropostleft = aims.read(str(difreesurfHippoAntPostleft[0]))
-                    vol_hippoanteropost = vol_hippoanteropostleft
-            
-            if len(difreesurfHippoAntPostleft) == 0 and len(difreesurfHippoAntPostright) == 0:
-                vol_hippoanteropost = False
-        
-        else:
-            vol_hippoanteropostleft = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/leftHippocampusGre_2016_MNI1.nii')
-            vol_hippoanteropostright = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/rightHippocampusGre_2016_MNI1.nii')
-            vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
-            vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
-        
-        if not useTemplateHippoSubFreesurfer:
-            HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-            rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-            vol_hipposubfieldFS = aims.read(str(rdi_HippoSubfield[0]))
-        else:
-            vol_hipposubfieldFS = aims.read('MNI_Freesurfer/mri/bhHippoMNI.nii')
-        
-        #chargement des atlas dans le MNI (broadman, aal etc ...)
+        # ===== READ MNI ATLASES =====
+        # Chargement des atlas dans le MNI (broadman, aal etc ...)
         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii')
         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii')
         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii')
         vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii')
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii')
         
-        info_image = self.diskItems['T1pre'].attributes() #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
+        info_image = self.diskItems['T1pre'].attributes() 
+        #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
         
         info_plot = []
         for k,v in plots.iteritems():
@@ -4488,12 +4493,6 @@ class LocateElectrodes(QtGui.QDialog):
 
         if method == 'CT':
             self.resectionStart(trmpostop_to_pre_path,ResecCenterCoord,method = 'CT')
-
-
-#   def generateFiberContactDistance(self):
-#       
-#       print("not finished")
-#       return
 
   
     def resectionStart(self,trm_postop_to_pre,resec_coord,method = 'T1'):
