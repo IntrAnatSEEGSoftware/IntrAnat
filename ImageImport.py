@@ -320,7 +320,8 @@ class ImageImport (QtGui.QDialog):
         self.brainCenter = None
         self.defaultAcqDate = QtCore.QDate(1900,1,1)
         self.ui.acqDate.setDate(self.defaultAcqDate)
-        self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR', 'hippofreesurfer_atlas':'HippoFreesurferAtlas'}
+        #self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR', 'hippofreesurfer_atlas':'HippoFreesurferAtlas'}
+        self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR'}
 
         # Allow calling brainvisa
         self.brainvisaContext = defaultContext()
@@ -973,8 +974,8 @@ class ImageImport (QtGui.QDialog):
         images += list( rdi._findValues( {}, None, False ) )
         rdi = ReadDiskItem( 'FGATIR', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
         images += list( rdi._findValues( {}, None, False ) )
-        rdi = ReadDiskItem( 'HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
-        images += list( rdi._findValues( {}, None, False ) )
+#         rdi = ReadDiskItem( 'HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
+#         images += list( rdi._findValues( {}, None, False ) )
     
         return images
 
@@ -1411,7 +1412,8 @@ class ImageImport (QtGui.QDialog):
             # Determines the BrainVisa file type (depends on the imaging modality)
             modality = str(self.ui.niftiSeqType.currentText()) # T1 / T2 / CT / PET /fMRI
     
-        filetype = {'T1':'Raw T1 MRI', 'T2':'T2 MRI', 'CT':'CT', 'TEP':'PET', 'PET':'PET', 'fMRI':'fMRI-epile', 'Statistics':'Statistic-Data', 'FLAIR':'FLAIR', 'FreesurferAtlas':'FreesurferAtlas', 'FGATIR':'FGATIR','HippoFreesurferAtlas':'HippoFreesurferAtlas'}[modality]
+        #filetype = {'T1':'Raw T1 MRI', 'T2':'T2 MRI', 'CT':'CT', 'TEP':'PET', 'PET':'PET', 'fMRI':'fMRI-epile', 'Statistics':'Statistic-Data', 'FLAIR':'FLAIR', 'FreesurferAtlas':'FreesurferAtlas', 'FGATIR':'FGATIR','HippoFreesurferAtlas':'HippoFreesurferAtlas'}[modality]
+        filetype = {'T1':'Raw T1 MRI', 'T2':'T2 MRI', 'CT':'CT', 'TEP':'PET', 'PET':'PET', 'fMRI':'fMRI-epile', 'Statistics':'Statistic-Data', 'FLAIR':'FLAIR', 'FreesurferAtlas':'FreesurferAtlas', 'FGATIR':'FGATIR'}[modality]
     
         write_filters = { 'center': proto, 'acquisition': str(acq), 'subject' : str(patient) }
     
@@ -2118,7 +2120,7 @@ class ImageImport (QtGui.QDialog):
             patient = image.attributes()['subject']
             acq = image.attributes()['acquisition']
             # Store Scanner-based referential and referential files in the DB
-            if not image.attributes()['modality'] == 'statistic_data' and not image.attributes()['modality'] == 'freesurfer_atlas'  and not image.attributes()['modality'] == 'hippofreesurfer_atlas':
+            if not image.attributes()['modality'] == 'statistic_data' and not image.attributes()['modality'] == 'freesurfer_atlas':   # and not image.attributes()['modality'] == 'hippofreesurfer_atlas':
                 print "do the coregistration"
                 self.storeImageReferentialsAndTransforms(image)
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
@@ -2145,7 +2147,7 @@ class ImageImport (QtGui.QDialog):
                 print("Coregistration: Skipping FreesurferAtlaspre...")
                 continue
             # Statistics: Same referential as t1pre
-            elif image.attributes()['modality'] == 'statistic_data' or image.attributes()['modality'] == 'freesurfer_atlas' or image.attributes()['modality'] == 'hippofreesurfer_atlas':
+            elif image.attributes()['modality'] == 'statistic_data' or image.attributes()['modality'] == 'freesurfer_atlas':  # or image.attributes()['modality'] == 'hippofreesurfer_atlas':
                 print "Coregistration: Attribute T1pre referential to this modality {}".format(image.attributes()['modality'])
                 self.transfoManager.setReferentialTo(image, t1preImage.attributes()['referential'] )
                 continue

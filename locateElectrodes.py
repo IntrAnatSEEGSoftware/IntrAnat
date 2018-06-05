@@ -453,7 +453,8 @@ class LocateElectrodes(QtGui.QDialog):
     
         # Load the list of protocols, patients and electrode models from BrainVisa
         if loadAll == True:
-            self.modalities = ['Raw T1 MRI', 'T2 MRI', 'CT', 'PET', 'Electrode Implantation Coronal Image', 'Electrode Implantation Sagittal Image','fMRI-epile', 'Statistic-Data','FLAIR', 'resection', 'FreesurferAtlas', 'FGATIR','HippoFreesurferAtlas']
+#             self.modalities = ['Raw T1 MRI', 'T2 MRI', 'CT', 'PET', 'Electrode Implantation Coronal Image', 'Electrode Implantation Sagittal Image','fMRI-epile', 'Statistic-Data','FLAIR', 'resection', 'FreesurferAtlas', 'FGATIR','HippoFreesurferAtlas']
+            self.modalities = ['Raw T1 MRI', 'T2 MRI', 'CT', 'PET', 'Electrode Implantation Coronal Image', 'Electrode Implantation Sagittal Image','fMRI-epile', 'Statistic-Data','FLAIR', 'resection', 'FreesurferAtlas', 'FGATIR']
             # Electrode models
             self.elecModelList = []
             self.elecModelListByName = []
@@ -838,7 +839,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo2.blockSignals(True)
         # Call loading function
         ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
-        # self.loadPatientWorker()
+        #self.loadPatientWorker()
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
@@ -906,8 +907,8 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'Resection':['Resection', 'electrodes']})
             elif (t.attributes()['modality'] == 'freesurfer_atlas'):
                 dictionnaire_list_images.update({'FreeSurfer Atlas (Destrieux)':['FreesurferAtlaspre', 'electrodes']})
-            elif (t.attributes()['modality'] == 'hippofreesurfer_atlas'):
-                dictionnaire_list_images.update({'HippoFreeSurferAtlas pre':['HippoFreesurferAtlaspre', 'electrodes']})
+#             elif (t.attributes()['modality'] == 'hippofreesurfer_atlas'):
+#                 dictionnaire_list_images.update({'HippoFreeSurferAtlas pre':['HippoFreesurferAtlaspre', 'electrodes']})
             
             # Simiplified acquisition name
             nameAcq = t.attributes()['acquisition']
@@ -982,8 +983,8 @@ class LocateElectrodes(QtGui.QDialog):
 
                 # === CORTEX MESHES ===
                 # Get the hemisphere meshes for the acquisition : name = na + filename base : for example, if the acquisition is T1pre_2000-01-01 and the file head.gii, we want T1pre-head
-                rdi3 = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
-                hemis = list(rdi3._findValues({}, None, False))
+                rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
+                hemis = list(rdi._findValues({}, None, False))
                 for hh in hemis:
                     self.loadAndDisplayObject(hh, na + '-' + hh.attributes()['side'] + 'Hemi', color=[0.8, 0.7, 0.4, 0.7])
                     dictionnaire_list_images.update({strVol + ' + ' + hh.attributes()['side'] + ' cortex':[na, na + '-' + hh.attributes()['side'] + 'Hemi', 'electrodes']})
@@ -1014,14 +1015,34 @@ class LocateElectrodes(QtGui.QDialog):
                         
                 # === HEAD MESH ===
                 # Get head mesh for the acquisition
-                rdi3 = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
-                head = list(rdi3._findValues({}, None, False))
+                rdi = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
+                head = list(rdi._findValues({}, None, False))
                 # Only if the hemispheres and the head are available
                 if (len(hemis) >= 2) and (len(head) > 0):
                     if thread is not None:
                         thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading head mesh...")
                     self.loadAndDisplayObject(head[0], na + '-' + 'head', color=[0.0, 0.0, 0.8, 0.3])
                     dictionnaire_list_images.update({strVol + ' + cortex + head':[na, na + '-rightHemi', na + '-leftHemi', na + '-head', 'electrodes']})
+    
+                # === AMYGDALA + HIPPOCAMPUS ===
+                # Get the amygdala+hippo meshes for the acquisition
+                rdi = ReadDiskItem('Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
+                allMeshes = list(rdi._findValues({}, None, False))
+                amygHippoMesh = []
+                for hh in allMeshes:
+                    hFilename = hh.fileNames()[0]
+                    if ("Amygdala" in hFilename): 
+                        self.loadAndDisplayObject(hh, hFilename, color=[1, 0, 0, 0.7])
+                        amygHippoMesh.append(hFilename)
+                    elif ("anteroHippocampus" in hFilename):
+                        self.loadAndDisplayObject(hh, hFilename, color=[1, 1, 0, 0.7])
+                        amygHippoMesh.append(hFilename)
+                    elif ("posteroHippocampus" in hFilename):
+                        self.loadAndDisplayObject(hh, hFilename, color=[1, 0.7, 0, 0.7])
+                        amygHippoMesh.append(hFilename)
+                # Add display with all the structures
+                if amygHippoMesh:
+                    dictionnaire_list_images.update({strVol + ' + hippocampus + amygdala':[na, 'electrodes'] + amygHippoMesh})
     
         # Update list of available items in the combo boxes
         self.windowContent = dictionnaire_list_images;
