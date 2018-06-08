@@ -861,7 +861,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo1.blockSignals(True)
         self.windowCombo2.blockSignals(True)
         # Call loading function
-        ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient")
+        ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
         #self.loadPatientWorker()
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
@@ -2135,7 +2135,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Display final report after a loop of export of multiple subjects
         if pFailed or pSuccess:
             QtGui.QMessageBox.information(self, u'Export done', u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed)))
-            print("\n\nSuccess: " + "\n".join(pSuccess) + "\n\nFailed:\n" + "\n".join(pFailed))
+            print("\n\nSuccess: \n" + "\n".join(pSuccess) + "\n\nFailed:\n" + "\n".join(pFailed))
 
 
     # EXPORT ALL INFO (WORKER)
