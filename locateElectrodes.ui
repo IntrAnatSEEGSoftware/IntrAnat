@@ -38,6 +38,9 @@
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::ExtendedSelection</enum>
+         </property>
         </widget>
        </item>
        <item row="0" column="0">
@@ -89,7 +92,7 @@
       </layout>
      </item>
      <item>
-      <widget class="QGroupBox" name="groupBox_2">
+      <widget class="QGroupBox" name="groupManip">
        <property name="title">
         <string>Image Manipulation</string>
        </property>
@@ -396,7 +399,7 @@
              <string>Exporter les coordonnées des plots au format PTS et TXT dans le référentiel T1 et MNI</string>
             </property>
             <property name="text">
-             <string>Normalize/Export</string>
+             <string>Export</string>
             </property>
             <property name="autoDefault">
              <bool>false</bool>
@@ -409,7 +412,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QGroupBox" name="groupBox_3">
+      <widget class="QGroupBox" name="groupDisplay">
        <property name="font">
         <font>
          <weight>50</weight>

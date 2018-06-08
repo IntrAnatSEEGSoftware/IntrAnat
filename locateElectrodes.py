@@ -534,7 +534,7 @@ class LocateElectrodes(QtGui.QDialog):
             # Patient selection
             self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), self.loadPatient)
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
-            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.loadPatient)
+            self.connect(self.patientList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), lambda x:self.loadPatient())
             self.connect(self.protocolCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateBrainvisaProtocol)
             self.connect(self.filterSiteCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
             self.connect(self.filterYearCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
@@ -569,6 +569,19 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(0, s, True))
             self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(1 ,s, True))
             self.connect(self.referentialCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateCoordsDisplay)
+
+            # List of controls to enable when a subject is loaded
+            self.widgetsLoaded = [self.loadPatientButton, self.patientList, self.protocolCombo, self.filterSiteCombo, self.filterYearCombo]
+            self.widgetsUnloaded = [self.changePatientButton, self.groupManip, self.groupDisplay, self.referentialCombo, self.referentialCombo,\
+                                    self.referentialCombo, self.addElectrodeButton, self.removeElectrodeButton, self.nameEdit, \
+                                    self.typeComboBox, self.targetButton, self.entryButton, self.electrodeList, self.contactList, \
+                                    self.electrodeSaveButton, self.electrodeLoadButton, self.windowCombo1, self.windowCombo2, \
+                                    self.windowContainer1, self.windowContainer2, self.ImportTheoriticalImplantation, self.approximateButton]
+            # Update enabled/disabled controls
+            for w in self.widgetsLoaded:
+                w.setEnabled(True)
+            for w in self.widgetsUnloaded:
+                w.setEnabled(False)
 
             # Preferences
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
@@ -784,12 +797,16 @@ class LocateElectrodes(QtGui.QDialog):
 
 
     def changePatient(self):
-        self.loadPatientButton.setEnabled(True)
-        self.patientList.setEnabled(True)
+        # Update enabled/disabled controls
+        for w in self.widgetsLoaded:
+            w.setEnabled(True)
+        for w in self.widgetsUnloaded:
+            w.setEnabled(False)
+        # Delete all the graphical objects
         self.a.removeObjects(self.a.getObjects(), self.wins[0])
         self.a.removeObjects(self.a.getObjects(), self.wins[1])
         # self.a.config()[ 'linkedCursor' ] = 0
-        # Remove ununsed referentials
+        # Remove unused referentials
         referentials = self.a.getReferentials()
         for element in referentials:
             if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
@@ -833,12 +850,18 @@ class LocateElectrodes(QtGui.QDialog):
         self.__init__(loadAll=False)
   
   
-    def loadPatient(self):
+    def loadPatient(self, patient=None):
+        # If multiple subjects selected: Select only one
+        if (len(self.patientList.selectedItems()) > 1):
+            self.patientList.setCurrentItem(self.patientList.selectedItems()[0])
+        # Get current patient
+        if not patient:
+            patient = str(self.patientList.selectedItems()[0].text())
         # Block callbacks
         self.windowCombo1.blockSignals(True)
         self.windowCombo2.blockSignals(True)
         # Call loading function
-        ProgressDialog.call(self.loadPatientWorker, True, self, "Processing...", "Load patient")
+        ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient")
         #self.loadPatientWorker()
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
@@ -847,10 +870,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateAllWindows(True)
         
   
-    def loadPatientWorker(self, thread=None):
-        # Get current patient
-        patient = str(self.patientList.selectedItems()[0].text())
-
+    def loadPatientWorker(self, patient, thread=None):
         self.t1pre2ScannerBasedTransform = None
         self.clearT1preMniTransform()
     
@@ -1055,11 +1075,13 @@ class LocateElectrodes(QtGui.QDialog):
         self.refreshAvailableDisplayReferentials()
         # Center view on AC
         self.centerCursor()
-        # Disable the button because no cleanup is attempted when loading a patient when one is already loaded -> there may be a mixup
-        self.loadPatientButton.setEnabled(False)
-        self.patientList.setEnabled(False)
-
-
+        # Update enabled/disabled controls
+        for w in self.widgetsLoaded:
+            w.setEnabled(False)
+        for w in self.widgetsUnloaded:
+            w.setEnabled(True)
+            
+            
     # Chargement d'un objet (MRI, mesh...) dans Anatomist et mise à jour de l'affichage
     def loadAndDisplayObject(self, diskitem, name = None, color=None, palette=None, texture_item = None):
 
@@ -2053,6 +2075,10 @@ class LocateElectrodes(QtGui.QDialog):
     
     # EXPORT ALL INFO (INTERACTIVE)
     def exportAll(self):
+        # If no subject is selected: stop
+        selPatients = self.patientList.selectedItems()
+        if not selPatients:
+            return
         # Ask which options needed to be executed before the export
         dialog = DialogCheckbox([\
             "Compute MNI coordinates for all contacts",\
@@ -2072,15 +2098,44 @@ class LocateElectrodes(QtGui.QDialog):
         # If user cancelled the selection
         if selOptions is None:
             return
-        # Run export with a progress bar
-        res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export")
-        #res = self.exportAllWorker(selOptions)
-        # Display new files
-        if res:
-            if res[1]:    # errMsg
-                QtGui.QMessageBox.critical(self, u'Export error', u"Errors occured during the export: \n\n" + u"\n".join(res[1]))
-            if res[0]:    # newFiles
-                QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(res[0]))
+        # If no patient is not loaded: load all the selected patients in a loop
+        pSuccess = []
+        pFailed = []
+        isLoad = self.patientList.isEnabled()
+        for p in selPatients:
+            # Get patient name
+            patient = p.text()
+            # Load patient
+            if isLoad:
+                self.loadPatient(patient)
+                
+            # Run export with a progress bar
+            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            #res = self.exportAllWorker(selOptions)
+            
+            # Unload patient
+            if isLoad:
+                self.changePatient()
+
+            # Display errors and new files (if processing only one subject)
+            if (len(selPatients) == 1) and res:
+                if res[1]:    # errMsg
+                    QtGui.QMessageBox.critical(self, u'Export error', u"Errors occured during the export: \n\n" + u"\n".join(res[1]))
+                if res[0]:    # newFiles
+                    QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(res[0]))
+            # If processing multiple subjects: log success/failure
+            elif res:
+                if res[1]:
+                    pFailed.append(patient)
+                else:
+                    pSuccess.append(patient)
+            else:
+                pFailed.append(patient)
+                
+        # Display final report after a loop of export of multiple subjects
+        if pFailed or pSuccess:
+            QtGui.QMessageBox.information(self, u'Export done', u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed)))
+            print("\n\nSuccess: " + "\n".join(pSuccess) + "\n\nFailed:\n" + "\n".join(pFailed))
 
 
     # EXPORT ALL INFO (WORKER)
@@ -4274,6 +4329,10 @@ class LocateElectrodes(QtGui.QDialog):
         items = sorted(self.windowContent.keys())
         if not items:
             return
+        # If the first one is a "FreeSurfer Atlas": put last
+        if ("FreeSurfer Atlas" in items[0]):
+            items.append(items[0])
+            del items[0]
         # Set new list of items
         self.windowCombo1.addItems(items)
         self.windowCombo2.addItems(items)
