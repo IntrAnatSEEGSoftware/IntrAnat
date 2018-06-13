@@ -2236,6 +2236,35 @@ class ImageImport (QtGui.QDialog):
         self.clearAnatomist()
 
 
+    def deleteExistingMeshes(self, rdi, acq):
+        delFiles = []
+        subject = rdi.attributes()['subject']
+        protocol = rdi.attributes()['center']
+        # Get reference to current database
+        db = neuroHierarchy.databases.database(rdi.get("_database"))
+        # Delete folder default_analysis/segmentation/mesh/surface_analysis                
+        delPath = os.path.dirname(os.path.abspath(rdi.fullPath())) + '/surface_analysis'
+        if os.path.isdir(delPath):
+            removeFromDB(delPath, db)
+        # Get pial meshes
+        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
+        delFiles += list(rdi._findValues({}, None, False))
+        # Get white meshes
+        rdi = ReadDiskItem('Hemisphere White Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
+        delFiles += list(rdi._findValues({}, None, False))
+        # Get head meshe
+        rdi = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
+        delFiles += list(rdi._findValues({}, None, False))
+        # Delete all files
+        for h in delFiles:
+            # Delete only the ones in T1pri
+            if acq in h.attributes()["acquisition"]:
+                removeFromDB(h.fullPath(), db)
+                # Delete associated .minf
+                if os.path.isfile(h.fullPath() + '.minf'):
+                    os.remove(h.fullPath() + '.minf')
+
+
     def runPipelineBV(self):
 
         proto = str(self.ui.regProtocolCombo.currentText())
@@ -2254,7 +2283,6 @@ class ImageImport (QtGui.QDialog):
         # No T1pre : nothing else to do
         if t1preImage is None:
             return
-    
         # Check that there is no FreeSurfer segmentation available: otherwise delete it
         rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':t1preImage['subject'], 'center':t1preImage['center'], "modality":"t1mri"})
         hemis = list(rdi._findValues({}, None, False))
@@ -2263,11 +2291,10 @@ class ImageImport (QtGui.QDialog):
         if iFS:
             rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing FreeSurfer+Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
-                delPath = os.path.dirname(os.path.abspath(hemis[0].fullPath()))
-                removeFromDB(delPath, neuroHierarchy.databases.database(hemis[0].get("_database")))
+                self.deleteExistingMeshes(hemis[iFS[0]], 'FreesurferAtlaspre')
             else:
                 return
-    
+        # Run Morphologist + HipHop
         self.mriAcPc = t1preImage
         self.runMorphologistBV(t1preImage)
 
@@ -2307,27 +2334,7 @@ class ImageImport (QtGui.QDialog):
         if idxT1pre:
             rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing BrainVISA/Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
-                # Get reference to current database
-                db = neuroHierarchy.databases.database(hemis[idxT1pre[0]].get("_database"))
-                # Delete folder default_analysis/segmentation/mesh/surface_analysis                
-                delPath = os.path.dirname(os.path.abspath(hemis[idxT1pre[0]].fullPath())) + '/surface_analysis'
-                removeFromDB(delPath, db)
-                # Get pial meshes
-                delFiles = hemis
-                # Get white meshes
-                rdi = ReadDiskItem('Hemisphere White Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
-                delFiles += list(rdi._findValues({}, None, False))
-                # Get head meshe
-                rdi = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
-                delFiles += list(rdi._findValues({}, None, False))
-                # Delete all files
-                for h in delFiles:
-                    # Delete only the ones in T1pri
-                    if 'T1pre' in h.attributes()["acquisition"]:
-                        removeFromDB(h.fullPath(), db)
-                        # Delete associated .minf
-                        if os.path.isfile(h.fullPath() + '.minf'):
-                            os.remove(h.fullPath() + '.minf')
+                self.deleteExistingMeshes(hemis[idxT1pre[0]], 'T1pre')
             else:
                 return
 
