@@ -706,6 +706,20 @@ class LocateElectrodes(QtGui.QDialog):
         self.patientList.addItems(sorted(subs))
 
 
+    def getFreeSurferAtlas(self):
+        # New way of saving FreeSurfer atlas (FreeSurfer=>BrainVISA conversion pipeline)
+        freesurferdi = ReadDiskItem('Label volume', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
+        iFS = [i for i in range(len(rdi_freesurfer)) if 'FreesurferAtlaspre' in freesurferdi[i].attributes()["acquisition"]]
+        if iFS:
+            rdi_freesurfer = [rdi_freesurfer[iFS[0]]]
+        else:
+            # Old way of saving FreeSurfer atls (Pierre)
+            freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+            rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
+        return rdi_freesurfer
+    
+
     def getT1preMniTransform(self):
         """Returns the path of the transformation to MNI (vector field) and compute it if necessary (from _sn.mat)"""
     
@@ -894,10 +908,10 @@ class LocateElectrodes(QtGui.QDialog):
             self.brainvisaPatientAttributes = t.attributes()
             na = None
             # Add elements in the display list
-            if (t.attributes()['modality'] == 't1mri') and (t.attributes()['acquisition'] == 'FreesurferAtlaspre'):
+            if (t.attributes()['modality'] == 't1mri') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferT1pre', 'electrodes']})
                 na = 'FreesurferT1pre'
-            elif (t.attributes()['modality'] == 't1mri') and ('pre' in t.attributes()['acquisition']):
+            elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})         
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI post-op':['T1postOp', 'electrodes']})
@@ -905,6 +919,8 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'MRI post':['T1post', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI pre T2':['T2pre', 'electrodes']})
+            elif (t.attributes()['modality'] == 't2mri') and ('postOp' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'MRI post-op T2':['T2postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('post' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI post T2':['T2post', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
@@ -3314,9 +3330,9 @@ class LocateElectrodes(QtGui.QDialog):
         Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
         
-        FreesurferMask = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diFreesurferMask = list(FreesurferMask.findValues({}, None, False ))
-        
+        # Get FreeSurfer atlas
+        diFreesurferMask = self.getFreeSurferAtlas()
+
         if diMaskleft is None:
             print('left gyri volume failed, perform export mars atlas export contact first')
             #return []
@@ -3404,10 +3420,9 @@ class LocateElectrodes(QtGui.QDialog):
             TemplateMarsAtlas = True
         else:
             TemplateMarsAtlas = False
-        
+
         # Check freesurfer
-        freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-        rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
+        rdi_freesurfer = self.getFreeSurferAtlas()
         if len(rdi_freesurfer) == 0:
             print('Error: No freesurfer atlas found')
             errMsg += ["Export CSV: FreeSurfer atlas not found"]
@@ -3510,8 +3525,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Subject data
         if not useTemplateFreeSurfer:
             # Read FreeSurfer Destrieux atlas
-            freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-            rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
+            rdi_freesurfer = self.getFreeSurferAtlas()
             vol_freesurfer = aims.read(str(rdi_freesurfer[0]))
             # FreeSurfer hippocampus atlas (generated by ImageImport)
             freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
@@ -3582,7 +3596,7 @@ class LocateElectrodes(QtGui.QDialog):
         plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
         # Convert to FreeSurfer coordinates if necessary
         plot_fs_sorted = plot_sorted
-        if (diMaskleft['acquisition'] == 'FreesurferAtlaspre'):
+        if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
             # Get T1pre volume
             diT1 = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center']} )
             allT1 = list(diT1.findValues({},None,False))
@@ -4425,7 +4439,7 @@ class LocateElectrodes(QtGui.QDialog):
         T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diT1 = list(T1.findValues({}, None, False ))
         for t in diT1:
-            if 'pre' in t.attributes()['acquisition']:
+            if 'T1pre' in t.attributes()['acquisition']:
                 T1pre = t.fullPath()
                 try:
                     SB_transf = t.attributes()['SB_Transform']
@@ -4457,7 +4471,7 @@ class LocateElectrodes(QtGui.QDialog):
         T1pre = None
         T1postop = None
         
-        id_pre = [x for x in range(len(diT1)) if 'pre' in str(diT1[x])]
+        id_pre = [x for x in range(len(diT1)) if 'T1T1T1pre' in str(diT1[x])]
         T1pre = diT1[id_pre[0]]
         
         if method == 'T1':          
@@ -4500,7 +4514,7 @@ class LocateElectrodes(QtGui.QDialog):
                 if t.attributes()['modality'] == 't1mri' and 'postOp' in t.attributes()['acquisition']:
                     trmpostop_to_SB = t
                     #transfo_postop_to_SB = aims.read(trmpostop_to_SB.fullPath()).toMatrix()
-                if t.attributes()['modality'] == 't1mri' and 'pre' in t.attributes()['acquisition']:
+                if t.attributes()['modality'] == 't1mri' and 'T1T1pre' in t.attributes()['acquisition']:
                     trmpre_to_SB = t
                     #transfo_pre_to_SB = aims.read(trmpre_to_SB.fullPath()).toMatrix()
 
@@ -4519,7 +4533,7 @@ class LocateElectrodes(QtGui.QDialog):
                 if t.attributes()['modality'] == 'ct' and 'postOp' in t.attributes()['acquisition']:
                     trmpostop_to_SB = t
                     #transfo_postop_to_SB = aims.read(trmpostop_to_SB.fullPath()).toMatrix()
-                if t.attributes()['modality'] == 't1mri' and 'pre' in t.attributes()['acquisition']:
+                if t.attributes()['modality'] == 't1mri' and 'T1pre' in t.attributes()['acquisition']:
                     trmpre_to_SB = t
                     #transfo_pre_to_SB = aims.read(trmpre_to_SB.fullPath()).toMatrix()
 
@@ -4594,7 +4608,7 @@ class LocateElectrodes(QtGui.QDialog):
             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
             diBrain = list(brainMask.findValues({}, None, False ))
             
-            id_pre = [x for x in range(len(diBrain)) if 'pre' in str(diBrain[x])]
+            id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
             id_postop = [x for x in range(len(diBrain)) if 'postOp' in str(diBrain[x])]
             
             fullname_postop = diBrain[id_postop[0]].fullPath()
@@ -4612,7 +4626,7 @@ class LocateElectrodes(QtGui.QDialog):
             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
             diBrain = list(brainMask.findValues({}, None, False ))
             
-            id_pre = [x for x in range(len(diBrain)) if 'pre' in str(diBrain[x])]
+            id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
             
             CTs = ReadDiskItem('CT', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
             diCTs = list(CTs.findValues({},None,False))

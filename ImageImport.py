@@ -976,7 +976,6 @@ class ImageImport (QtGui.QDialog):
         images += list( rdi._findValues( {}, None, False ) )
 #         rdi = ReadDiskItem( 'HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
 #         images += list( rdi._findValues( {}, None, False ) )
-    
         return images
 
     def selectBvSubject(self, subj):
@@ -1352,7 +1351,7 @@ class ImageImport (QtGui.QDialog):
                 #on reslice par rapport au t1 pre
                 di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.currentSubject } )
                 allT1 = list(di.findValues({},None,False))
-                idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+                idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
                 if len(idxT1pre)==0:
                     print "to import freesurfer images, the T1pre has to be imported because a reslicing is necessary"
                     return
@@ -1464,8 +1463,8 @@ class ImageImport (QtGui.QDialog):
                 self.StatisticDataMNItoScannerBased(proto, patient, acq)
             except:
                 pass
-        if filetype == 'FreesurferAtlas':
-            self.generateAmygdalaHippoMesh(proto, patient, acq, di)
+#         if filetype == 'FreesurferAtlas':
+#             self.generateAmygdalaHippoMesh(proto, patient, acq, di)
             
         # self.importNiftiWorker(di, path, filetype, proto, patient)
         self.setStatus(u"Sequence %s importation done"%acq)
@@ -1529,7 +1528,7 @@ class ImageImport (QtGui.QDialog):
         if not allT1:
             QtGui.QMessageBox.warning(self, "Error", u"No T1 MRI found for patient: " + subject)
             return
-        idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+        idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
         if not idxT1pre:
             QtGui.QMessageBox.warning(self, "Error", u"No T1pre found for this patient: " + subject)
             return
@@ -1584,8 +1583,8 @@ class ImageImport (QtGui.QDialog):
                 return
         
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
-        #res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        # res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
@@ -1625,22 +1624,30 @@ class ImageImport (QtGui.QDialog):
         # Progress bar
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Converting Destrieux atlas...")
+        
         # Importing Destrieux atlas to BrainVISA database
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
+
+#         # Get output folder
+#         wdi = WriteDiskItem('Acquisition', 'Directory')
+#         diFolder = wdi.findValue(write_filters)
+#         # Importing Destrieux atlas to BrainVISA database
+#         wdi = WriteDiskItem('Label volume', 'NIFTI-1 image', requiredAttributes={'subject':subject, '_ontology':diFolder.attributes()["_ontology"], '_database':diFolder.attributes()["_database"]})
+#         diFSDestrieux = wdi.findValue(diFolder.fullPath() + '/aparc_a2009s+aseg_' + subject + '.nii')
+        
         # Create the folder if doesn't exist
         self.createItemDirs(diFSDestrieux)
         # Reslice and convert to AIMS
         launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles['destrieux']['file']),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
         ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
         # Add reference in the database (creates .minf)
-        neuroHierarchy.databases.insertDiskItem(di, update=True)
+        neuroHierarchy.databases.insertDiskItem(diFSDestrieux, update=True)
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
         self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
  
-        
         
 #     def importFSoutputOld(self,subject=None):
 # 
@@ -1650,7 +1657,7 @@ class ImageImport (QtGui.QDialog):
 #         #find T1pre of the subject
 #         rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
 #         allT1 = list(rT1BV.findValues({},None,False))
-#         idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+#         idxT1pre = [i for i in range(len(allT1)) if 'T1T1T1pre' in str(allT1[i])]
 #         diT1pre = allT1[idxT1pre[0]]
 # 
 #         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
@@ -2139,20 +2146,20 @@ class ImageImport (QtGui.QDialog):
         # COREGISTER
         self.setStatus(u"Coregistration of all images to T1pre...")
         for image in images:
+            acq = image.attributes()['acquisition']
+            patient = image.attributes()['subject']
             # A T1pre is there, coregister all images to it
             if image == t1preImage:
                 continue
             # FreeSurfer MRI: Skip this step, transformation was saved at the import time
-            elif (image.attributes()['acquisition'] == 'FreesurferAtlaspre'):
-                print("Coregistration: Skipping FreesurferAtlaspre...")
+            elif ('FreesurferAtlas' in image.attributes()['acquisition']) or ('FreesurferAtlas' in acq):
+                print("Coregistration: Skipping " + image.attributes()['acquisition'] + "...")
                 continue
             # Statistics: Same referential as t1pre
             elif image.attributes()['modality'] == 'statistic_data' or image.attributes()['modality'] == 'freesurfer_atlas':  # or image.attributes()['modality'] == 'hippofreesurfer_atlas':
                 print "Coregistration: Attribute T1pre referential to this modality {}".format(image.attributes()['modality'])
                 self.transfoManager.setReferentialTo(image, t1preImage.attributes()['referential'] )
                 continue
-            acq = image.attributes()['acquisition']
-            patient = image.attributes()['subject']
     
             # ===== ANTS =====
             if self.coregMethod == 'ANTs':
@@ -2222,7 +2229,7 @@ class ImageImport (QtGui.QDialog):
                 #if ret < 0:
                 #   print "coregistration error: "+ str(image.fullPath())#terminal
                 #   QtGui.QMessageBox.warning(self, "Error", u"The coregistration didn't work") #utilisateur
-                #   return
+                #   returnFreesurferAtlaspre
                 #self.insertTransformationToT1pre(tmp_trm_path,image)
         self.taskfinished(u"Coregistration done")
         # Clear all the views
@@ -2249,10 +2256,11 @@ class ImageImport (QtGui.QDialog):
             return
     
         # Check that there is no FreeSurfer segmentation available: otherwise delete it
-        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':t1preImage['subject'], 'center':t1preImage['center'], "acquisition":"FreesurferAtlaspre", "modality":"t1mri"})
+        rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':t1preImage['subject'], 'center':t1preImage['center'], "modality":"t1mri"})
         hemis = list(rdi._findValues({}, None, False))
+        iFS = [i for i in range(len(hemis)) if 'FreesurferAtlaspre' in hemis[i].attributes()["acquisition"]]
         # Existing segmentation: Ask for confirmation before deleting
-        if hemis:
+        if iFS:
             rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing FreeSurfer+Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
                 delPath = os.path.dirname(os.path.abspath(hemis[0].fullPath()))
@@ -2277,9 +2285,18 @@ class ImageImport (QtGui.QDialog):
             QtGui.QMessageBox.warning(self, 'Error', "You must import the output of the FreeSurfer segmentation first.\n(Tab \"Import\")")
             return
         diOrig = allT1[iOrig[0]]
+
+        # Find T1pre of the subject
+        rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
+        allT1 = list(rT1BV.findValues({},None,False))
+        idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
+        diT1pre = allT1[idxT1pre[0]]
+        
+        # Get output acquisition name
+        acq = str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
         # Get output T1 (BrainVISA DB)
         wdi = WriteDiskItem("Raw T1 MRI", "NIFTI-1 image", requiredAttributes={'center':protocol, 'subject':subject})
-        diOut = wdi.findValue({'center':protocol, 'subject':subject, 'acquisition':'FreesurferAtlaspre', 'modality':'freesurfer_atlas'})
+        diOut = wdi.findValue({'center':protocol, 'subject':subject, 'acquisition':acq, 'modality':'freesurfer_atlas'})
         T1_output = str(diOut.fullPath())
         
         # Check that there is no BrainVISA segmentation available: otherwise delete it
@@ -2454,7 +2471,7 @@ class ImageImport (QtGui.QDialog):
             print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
             nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
             nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-            id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
+            id_pre = [x for x in range(len(nobiasimages)) if 'T1T1T1pre' in str(nobiasimages[x])]
             nobiasPre = str(nobiasimages[id_pre[0]])
             # Run SPM segmentation
             pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
@@ -2541,7 +2558,7 @@ class ImageImport (QtGui.QDialog):
 #         print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
 #         nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
 #         nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-#         id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
+#         id_pre = [x for x in range(len(nobiasimages)) if 'T1T1pre' in str(nobiasimages[x])]
 #         nobiasPre = str(nobiasimages[id_pre[0]])
 #         # Run SPM segmentation
 #         pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
@@ -2853,7 +2870,7 @@ class ImageImport (QtGui.QDialog):
 
             diT1 = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient } )
             allT1 = list(diT1.findValues({},None,False))
-            idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+            idxT1pre = [i for i in range(len(allT1)) if 'T1T1pre' in str(allT1[i])]
             self.mriAcPc = allT1[idxT1pre[0]]
 
             spm_version = checkSpmVersion(str(self.prefs['spm']))
@@ -2998,7 +3015,7 @@ class ImageImport (QtGui.QDialog):
 
         di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient } )
         allT1 = list(di.findValues({},None,False))
-        idxT1pre = [i for i in range(len(allT1)) if 'pre' in str(allT1[i])]
+        idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
         self.storeImageReferentialsAndTransforms(allT1[idxT1pre[0]])
         constraints =  { 'center':protocol, 'subject':patient, 'acquisition':allT1[idxT1pre[0]].attributes()['acquisition'] }
 
@@ -3150,8 +3167,8 @@ class ImageImport (QtGui.QDialog):
                 wdirighthippoNII =  WriteDiskItem('rightHippocampusNII', 'NIFTI-1 image' )
                 dirightHippoNII = wdirighthippoNII.findValue(constraints)
 
-                meshantero = aims.read(dirighthippoantero.fullName())
-                meshpostero = aims.read(dirighthippopostero.fullName())
+                meshantero = aims.read(dirighthippoantero.fullPath())
+                meshpostero = aims.read(dirighthippopostero.fullPath())
                 aims.SurfaceManip.rasterizeMesh(meshantero,hippo_vol_antero,1)
                 aims.SurfaceManip.rasterizeMesh(meshpostero,hippo_vol_postero,1)
                 #fill the insides voxel
@@ -3273,8 +3290,8 @@ class ImageImport (QtGui.QDialog):
                     wdilefthippoNII =  WriteDiskItem('leftHippocampusNII', 'NIFTI-1 image' )
                     dileftHippoNII = wdilefthippoNII.findValue(constraints)
 
-                    meshantero = aims.read(dilefthippoantero.fullName())
-                    meshpostero = aims.read(dilefthippopostero.fullName())
+                    meshantero = aims.read(dilefthippoantero.fullPath())
+                    meshpostero = aims.read(dilefthippopostero.fullPath())
                     aims.SurfaceManip.rasterizeMesh(meshantero,hippo_vol_antero,1)
                     aims.SurfaceManip.rasterizeMesh(meshpostero,hippo_vol_postero,1)
                     #fill the insides voxel
