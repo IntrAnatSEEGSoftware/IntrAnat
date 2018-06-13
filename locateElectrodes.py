@@ -876,7 +876,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo2.blockSignals(True)
         # Call loading function
         ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        #self.loadPatientWorker()
+        #self.loadPatientWorker(patient)
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
@@ -1014,6 +1014,10 @@ class LocateElectrodes(QtGui.QDialog):
 
                 elif (na == 'FreesurferT1pre'):
                     strVol = 'MRI FreeSurfer'
+                    # Delete existing normalized transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
+                    for trm in self.a.getTransformations():
+                        if ('source_referential' in trm.getInfos().keys()) and (trm.getInfos()['source_referential'] == obj.getReferential().getInfo()['uuid']):
+                            self.a.deleteElements(trm)
                     # Load all related transformations
                     self.loadVolTransformations(t)
 
@@ -1230,9 +1234,10 @@ class LocateElectrodes(QtGui.QDialog):
     
 
     def loadVolTransformations(self, t):
+        allTransf = []
         # Find transformations
         rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
-        allTransf = list(rdi.findValues({}, None, False))
+        allTransf += list(rdi.findValues({}, None, False))
         rdi = ReadDiskItem('Transform Raw T1 MRI to another image', 'Transformation matrix', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
         allTransf += list(rdi.findValues({}, None, False))
         # Load all transformations

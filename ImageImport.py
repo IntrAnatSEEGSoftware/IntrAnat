@@ -2333,7 +2333,7 @@ class ImageImport (QtGui.QDialog):
 
         # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
         ProgressDialog.call(lambda thr:self.runPipelineFSWorker(diOrig, diOut, thr), True, self, "Running Morphologist on FreeSurfer output...", "FreeSufer")
-        # self.runPipelineFSWorker(diOrig, diOut)
+        #self.runPipelineFSWorker(diOrig, diOut)
         # Update list of images
         self.selectRegSubject(subject)
         
