@@ -1583,8 +1583,8 @@ class ImageImport (QtGui.QDialog):
                 return
         
         # Run copy and conversion in a separate thread
-        # res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
-        res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        # res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
@@ -1657,7 +1657,7 @@ class ImageImport (QtGui.QDialog):
 #         #find T1pre of the subject
 #         rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
 #         allT1 = list(rT1BV.findValues({},None,False))
-#         idxT1pre = [i for i in range(len(allT1)) if 'T1T1T1pre' in str(allT1[i])]
+#         idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
 #         diT1pre = allT1[idxT1pre[0]]
 # 
 #         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
@@ -2307,8 +2307,27 @@ class ImageImport (QtGui.QDialog):
         if idxT1pre:
             rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing BrainVISA/Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
-                delPath = os.path.dirname(os.path.abspath(hemis[idxT1pre[0]].fullPath()))
-                removeFromDB(delPath, neuroHierarchy.databases.database(hemis[idxT1pre[0]].get("_database")))
+                # Get reference to current database
+                db = neuroHierarchy.databases.database(hemis[idxT1pre[0]].get("_database"))
+                # Delete folder default_analysis/segmentation/mesh/surface_analysis                
+                delPath = os.path.dirname(os.path.abspath(hemis[idxT1pre[0]].fullPath())) + '/surface_analysis'
+                removeFromDB(delPath, db)
+                # Get pial meshes
+                delFiles = hemis
+                # Get white meshes
+                rdi = ReadDiskItem('Hemisphere White Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
+                delFiles += list(rdi._findValues({}, None, False))
+                # Get head meshe
+                rdi = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':subject, 'center':protocol})
+                delFiles += list(rdi._findValues({}, None, False))
+                # Delete all files
+                for h in delFiles:
+                    # Delete only the ones in T1pri
+                    if 'T1pre' in h.attributes()["acquisition"]:
+                        removeFromDB(h.fullPath(), db)
+                        # Delete associated .minf
+                        if os.path.isfile(h.fullPath() + '.minf'):
+                            os.remove(h.fullPath() + '.minf')
             else:
                 return
 
@@ -2471,7 +2490,7 @@ class ImageImport (QtGui.QDialog):
             print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
             nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
             nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-            id_pre = [x for x in range(len(nobiasimages)) if 'T1T1T1pre' in str(nobiasimages[x])]
+            id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
             nobiasPre = str(nobiasimages[id_pre[0]])
             # Run SPM segmentation
             pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
@@ -2558,7 +2577,7 @@ class ImageImport (QtGui.QDialog):
 #         print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
 #         nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
 #         nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
-#         id_pre = [x for x in range(len(nobiasimages)) if 'T1T1pre' in str(nobiasimages[x])]
+#         id_pre = [x for x in range(len(nobiasimages)) if 'T1pre' in str(nobiasimages[x])]
 #         nobiasPre = str(nobiasimages[id_pre[0]])
 #         # Run SPM segmentation
 #         pathTPMseg = os.path.join(str(self.prefs['spm']),'tpm','TPM.nii')
@@ -2870,7 +2889,7 @@ class ImageImport (QtGui.QDialog):
 
             diT1 = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient } )
             allT1 = list(diT1.findValues({},None,False))
-            idxT1pre = [i for i in range(len(allT1)) if 'T1T1pre' in str(allT1[i])]
+            idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
             self.mriAcPc = allT1[idxT1pre[0]]
 
             spm_version = checkSpmVersion(str(self.prefs['spm']))
@@ -3016,11 +3035,12 @@ class ImageImport (QtGui.QDialog):
         di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient } )
         allT1 = list(di.findValues({},None,False))
         idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
-        self.storeImageReferentialsAndTransforms(allT1[idxT1pre[0]])
-        constraints =  { 'center':protocol, 'subject':patient, 'acquisition':allT1[idxT1pre[0]].attributes()['acquisition'] }
+        T1pre = allT1[idxT1pre[0]]
+        self.storeImageReferentialsAndTransforms(T1pre)
+        constraints =  { 'center':protocol, 'subject':patient, 'acquisition':T1pre.attributes()['acquisition'] }
 
         #il faudrait mettre le referentiel à freesurferatlas la aussi ça serait fait comme ça.
-        self.transfoManager.setReferentialTo(diFS, allT1[idxT1pre[0]].attributes()['referential'] )
+        self.transfoManager.setReferentialTo(diFS, T1pre.attributes()['referential'] )
 
         if AmygdalaRight:
             for ii in range(len(notrightamygdalapx[0])):
@@ -3037,8 +3057,8 @@ class ImageImport (QtGui.QDialog):
                     os.makedirs(os.path.dirname(dirightamygdala.fullPath()))
                 ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'rightamygdala.nii'), '-o', dirightamygdala.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dirightamygdala, update = True)
-                if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                    self.transfoManager.setReferentialTo(dirightamygdala, allT1[idxT1pre[0]].attributes()['referential'] )
+                if 'referential' in T1pre.attributes().keys():
+                    self.transfoManager.setReferentialTo(dirightamygdala, T1pre.attributes()['referential'] )
 
         if AmygdalaLeft:
             for ii in range(len(notleftamygdalapx[0])):
@@ -3055,15 +3075,15 @@ class ImageImport (QtGui.QDialog):
                     os.makedirs(os.path.dirname(dileftamygdala.fullPath()))
                 ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'leftamygdala.nii'), '-o', dileftamygdala.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dileftamygdala, update = True)
-                if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                    self.transfoManager.setReferentialTo(dileftamygdala, allT1[idxT1pre[0]].attributes()['referential'] )
+                if 'referential' in T1pre.attributes().keys():
+                    self.transfoManager.setReferentialTo(dileftamygdala, T1pre.attributes()['referential'] )
 
         #pour pouvoir decouper les hippocampes en deux
-        if isinstance(allT1[idxT1pre[0]].attributes()['SB_Transform'],basestring):
+        if isinstance(T1pre.attributes()['SB_Transform'],basestring):
             import ast
-            m = aims.Motion(ast.literal_eval(allT1[idxT1pre[0]].attributes()['SB_Transform']))
+            m = aims.Motion(ast.literal_eval(T1pre.attributes()['SB_Transform']))
         else:
-            m = aims.Motion(allT1[idxT1pre[0]].attributes()['SB_Transform'])
+            m = aims.Motion(T1pre.attributes()['SB_Transform'])
 
         if HippoRight:
             for ii in range(len(notrighthippopx[0])):
@@ -3080,8 +3100,8 @@ class ImageImport (QtGui.QDialog):
                     os.makedirs(os.path.dirname(dirightHippo.fullPath()))
             ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'righthippo.nii'), '-o', dirightHippo.fullPath()])
             neuroHierarchy.databases.insertDiskItem(dirightHippo, update = True)
-            if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                self.transfoManager.setReferentialTo(dirightHippo, allT1[idxT1pre[0]].attributes()['referential'] )
+            if 'referential' in T1pre.attributes().keys():
+                self.transfoManager.setReferentialTo(dirightHippo, T1pre.attributes()['referential'] )
 
             wdirighthippoantero =  WriteDiskItem('rightanteroHippocampus', 'GIFTI file' )
             wdirighthippopostero =  WriteDiskItem('rightposteroHippocampus', 'GIFTI file' )
@@ -3133,9 +3153,9 @@ class ImageImport (QtGui.QDialog):
                     line2 = runCmd(cmd2)
                     neuroHierarchy.databases.insertDiskItem(dirighthippoantero, update = True)
                     neuroHierarchy.databases.insertDiskItem(dirighthippopostero, update = True)
-                    if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                        self.transfoManager.setReferentialTo(dirighthippoantero, allT1[idxT1pre[0]].attributes()['referential'] )
-                        self.transfoManager.setReferentialTo(dirighthippopostero, allT1[idxT1pre[0]].attributes()['referential'] )
+                    if 'referential' in T1pre.attributes().keys():
+                        self.transfoManager.setReferentialTo(dirighthippoantero, T1pre.attributes()['referential'] )
+                        self.transfoManager.setReferentialTo(dirighthippopostero, T1pre.attributes()['referential'] )
             elif coords2[1] < coords1[1]:
                 #1 est l'antero; 2 est le posterieur
                 if dirighthippoantero is None or dirighthippopostero is None:
@@ -3147,19 +3167,19 @@ class ImageImport (QtGui.QDialog):
                     line2 = runCmd(cmd2)
                     neuroHierarchy.databases.insertDiskItem(dirighthippoantero, update = True)
                     neuroHierarchy.databases.insertDiskItem(dirighthippopostero, update = True)
-                    if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                        self.transfoManager.setReferentialTo(dirighthippoantero, allT1[idxT1pre[0]].attributes()['referential'] )
-                        self.transfoManager.setReferentialTo(dirighthippopostero, allT1[idxT1pre[0]].attributes()['referential'] )
+                    if 'referential' in T1pre.attributes().keys():
+                        self.transfoManager.setReferentialTo(dirighthippoantero, T1pre.attributes()['referential'] )
+                        self.transfoManager.setReferentialTo(dirighthippopostero, T1pre.attributes()['referential'] )
 
             #  aims.TimeTexture() puis AimsMeshParcellation2VolumeParcellation
             if dirighthippoantero is not None and dirighthippopostero is not None:
                 #we read it, estimate the number of vertex, and attribute the good value to the good number of vertex
                 #nb vertex of right antero
-                voxel_size_T1 = [allT1[idxT1pre[0]].attributes()['voxel_size'][0], allT1[idxT1pre[0]].attributes()['voxel_size'][1], allT1[idxT1pre[0]].attributes()['voxel_size'][2], 1.0]
+                voxel_size_T1 = [T1pre.attributes()['voxel_size'][0], T1pre.attributes()['voxel_size'][1], T1pre.attributes()['voxel_size'][2], 1.0]
 
-                hippo_vol_antero=aims.Volume(*allT1[idxT1pre[0]].attributes()['volume_dimension'][:3],dtype='S16')
-                hippo_vol_postero=aims.Volume(*allT1[idxT1pre[0]].attributes()['volume_dimension'][:3],dtype='S16')
-                hippo_vol_full=aims.Volume(*allT1[idxT1pre[0]].attributes()['volume_dimension'][:3],dtype='S16')
+                hippo_vol_antero=aims.Volume(*T1pre.attributes()['volume_dimension'][:3],dtype='S16')
+                hippo_vol_postero=aims.Volume(*T1pre.attributes()['volume_dimension'][:3],dtype='S16')
+                hippo_vol_full=aims.Volume(*T1pre.attributes()['volume_dimension'][:3],dtype='S16')
                 hippo_vol_antero.header()['voxel_size']= voxel_size_T1
                 hippo_vol_postero.header()['voxel_size']= voxel_size_T1
                 hippo_vol_full.header()['voxel_size']= voxel_size_T1
@@ -3189,8 +3209,8 @@ class ImageImport (QtGui.QDialog):
 
                 aims.write(hippo_vol_full,str(dirightHippoNII.fullPath()))
                 neuroHierarchy.databases.insertDiskItem(dirightHippoNII, update = True)
-                if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                    self.transfoManager.setReferentialTo(dirightHippoNII, allT1[idxT1pre[0]].attributes()['referential'] )
+                if 'referential' in T1pre.attributes().keys():
+                    self.transfoManager.setReferentialTo(dirightHippoNII, T1pre.attributes()['referential'] )
 
 
         if HippoLeft:
@@ -3207,8 +3227,8 @@ class ImageImport (QtGui.QDialog):
                     os.makedirs(os.path.dirname(dileftHippo.fullPath()))
                 ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'lefthippo.nii'), '-o', dileftHippo.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dileftHippo, update = True)
-                if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                    self.transfoManager.setReferentialTo(dileftHippo, allT1[idxT1pre[0]].attributes()['referential'] )
+                if 'referential' in T1pre.attributes().keys():
+                    self.transfoManager.setReferentialTo(dileftHippo, T1pre.attributes()['referential'] )
 
                 wdilefthippoantero =  WriteDiskItem('leftanteroHippocampus', 'GIFTI file' )
                 wdilefthippopostero =  WriteDiskItem('leftposteroHippocampus', 'GIFTI file' )
@@ -3257,9 +3277,9 @@ class ImageImport (QtGui.QDialog):
                         line2 = runCmd(cmd2)
                         neuroHierarchy.databases.insertDiskItem(dilefthippoantero, update = True)
                         neuroHierarchy.databases.insertDiskItem(dilefthippopostero, update = True)
-                        if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                            self.transfoManager.setReferentialTo(dilefthippoantero, allT1[idxT1pre[0]].attributes()['referential'] )
-                            self.transfoManager.setReferentialTo(dilefthippopostero, allT1[idxT1pre[0]].attributes()['referential'] )
+                        if 'referential' in T1pre.attributes().keys():
+                            self.transfoManager.setReferentialTo(dilefthippoantero, T1pre.attributes()['referential'] )
+                            self.transfoManager.setReferentialTo(dilefthippopostero, T1pre.attributes()['referential'] )
                 elif coords2[1] < coords1[1]:
                     #1 est l'antero; 2 est le posterieur
                     if dilefthippoantero is None or dilefthippopostero is None:
@@ -3271,18 +3291,18 @@ class ImageImport (QtGui.QDialog):
                         line2 = runCmd(cmd2)
                         neuroHierarchy.databases.insertDiskItem(dilefthippoantero, update = True)
                         neuroHierarchy.databases.insertDiskItem(dilefthippopostero, update = True)
-                        if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                            self.transfoManager.setReferentialTo(dilefthippoantero, allT1[idxT1pre[0]].attributes()['referential'] )
-                            self.transfoManager.setReferentialTo(dilefthippopostero, allT1[idxT1pre[0]].attributes()['referential'] )
+                        if 'referential' in T1pre.attributes().keys():
+                            self.transfoManager.setReferentialTo(dilefthippoantero, T1pre.attributes()['referential'] )
+                            self.transfoManager.setReferentialTo(dilefthippopostero, T1pre.attributes()['referential'] )
 
                 if dilefthippoantero is not None and dilefthippopostero is not None:
                     #we read it, estimate the number of vertex, and attribute the good value to the good number of vertex
                     #nb vertex of right antero
-                    voxel_size_T1 = [allT1[idxT1pre[0]].attributes()['voxel_size'][0], allT1[idxT1pre[0]].attributes()['voxel_size'][1], allT1[idxT1pre[0]].attributes()['voxel_size'][2], 1.0]
+                    voxel_size_T1 = [T1pre.attributes()['voxel_size'][0], T1pre.attributes()['voxel_size'][1], T1pre.attributes()['voxel_size'][2], 1.0]
 
-                    hippo_vol_antero=aims.Volume(*allT1[idxT1pre[0]].attributes()['volume_dimension'][:3],dtype='S16')
-                    hippo_vol_postero=aims.Volume(*allT1[idxT1pre[0]].attributes()['volume_dimension'][:3],dtype='S16')
-                    hippo_vol_full=aims.Volume(*allT1[idxT1pre[0]].attributes()['volume_dimension'][:3],dtype='S16')
+                    hippo_vol_antero=aims.Volume(*T1pre.attributes()['volume_dimension'][:3],dtype='S16')
+                    hippo_vol_postero=aims.Volume(*T1pre.attributes()['volume_dimension'][:3],dtype='S16')
+                    hippo_vol_full=aims.Volume(*T1pre.attributes()['volume_dimension'][:3],dtype='S16')
                     hippo_vol_antero.header()['voxel_size']= voxel_size_T1
                     hippo_vol_postero.header()['voxel_size']= voxel_size_T1
                     hippo_vol_full.header()['voxel_size']= voxel_size_T1
@@ -3312,8 +3332,8 @@ class ImageImport (QtGui.QDialog):
 
                     aims.write(hippo_vol_full,str(dileftHippoNII.fullPath()))
                     neuroHierarchy.databases.insertDiskItem(dileftHippoNII, update = True)
-                    if 'referential' in allT1[idxT1pre[0]].attributes().keys():
-                        self.transfoManager.setReferentialTo(dileftHippoNII, allT1[idxT1pre[0]].attributes()['referential'] )
+                    if 'referential' in T1pre.attributes().keys():
+                        self.transfoManager.setReferentialTo(dileftHippoNII, T1pre.attributes()['referential'] )
 
 
         print "generation of amygdala and hippocamp meshes done"
