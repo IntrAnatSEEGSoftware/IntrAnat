@@ -710,7 +710,7 @@ class LocateElectrodes(QtGui.QDialog):
         # New way of saving FreeSurfer atlas (FreeSurfer=>BrainVISA conversion pipeline)
         freesurferdi = ReadDiskItem('Label volume', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
-        iFS = [i for i in range(len(rdi_freesurfer)) if 'FreesurferAtlaspre' in freesurferdi[i].attributes()["acquisition"]]
+        iFS = [i for i in range(len(rdi_freesurfer)) if 'FreesurferAtlaspre' in rdi_freesurfer[i].attributes()["acquisition"]]
         if iFS:
             rdi_freesurfer = [rdi_freesurfer[iFS[0]]]
         else:
@@ -877,6 +877,11 @@ class LocateElectrodes(QtGui.QDialog):
         # Call loading function
         ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
         #self.loadPatientWorker(patient)
+        # Update enabled/disabled controls
+        for w in self.widgetsLoaded:
+            w.setEnabled(False)
+        for w in self.widgetsUnloaded:
+            w.setEnabled(True)
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
@@ -1095,11 +1100,6 @@ class LocateElectrodes(QtGui.QDialog):
         self.refreshAvailableDisplayReferentials()
         # Center view on AC
         self.centerCursor()
-        # Update enabled/disabled controls
-        for w in self.widgetsLoaded:
-            w.setEnabled(False)
-        for w in self.widgetsUnloaded:
-            w.setEnabled(True)
             
             
     # Chargement d'un objet (MRI, mesh...) dans Anatomist et mise à jour de l'affichage
@@ -1962,6 +1962,9 @@ class LocateElectrodes(QtGui.QDialog):
             self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False)
         # Update display
         self.updateElectrodeMeshes()
+        # Update display if the function was called from a button click
+        if not patientName:
+            self.updateAllWindows(True)
 
 
     def saveElectrodes(self):
