@@ -427,9 +427,9 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
-        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
+        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
-        self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
+        #self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.ui.FreeSurferReconAllpushButton.setEnabled(False)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
@@ -2133,7 +2133,8 @@ class ImageImport (QtGui.QDialog):
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
             if acq.startswith('T1'):
                 self.setStatus(u"SPM normalization %s..."%acq)
-                progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
+                if progressThread:
+                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 self.spmNormalize(image.fileName(), proto, patient, acq)
                 self.taskfinished(u"SPM normalization done")
                 # If there is a T1pre, remember the image
@@ -2164,7 +2165,8 @@ class ImageImport (QtGui.QDialog):
             # ===== ANTS =====
             if self.coregMethod == 'ANTs':
                 print("Coregistration method: ANTs")
-                progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
+                if progressThread:
+                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
 #                 thr = Executor(ants_call.split())
@@ -2183,7 +2185,8 @@ class ImageImport (QtGui.QDialog):
                 print("Coregistration method: SPM")
                 # SPM coregister
                 if self.ui.regResampleCheck.isChecked():
-                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
+                    if progressThread:
+                        progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
                     # Call SPM coregister+resample
                     call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(t1preImage)+",1'}", "{'"+str(image.fileName())+",1'}")
                     spl = os.path.split(image.fileName())
@@ -2194,7 +2197,8 @@ class ImageImport (QtGui.QDialog):
                     
                 # SPM coregister
                 else:
-                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
+                    if progressThread:
+                        progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                     self.setStatus('Coregistration of the image: '+ acq)
                     #self.spmCoregister(image, t1preImage)
                     
@@ -2263,6 +2267,29 @@ class ImageImport (QtGui.QDialog):
                 # Delete associated .minf
                 if os.path.isfile(h.fullPath() + '.minf'):
                     os.remove(h.fullPath() + '.minf')
+
+
+    def deleteExistingNormalization(self, rdi, acq):
+        delFiles = []
+        subject = rdi.attributes()['subject']
+        protocol = rdi.attributes()['center']
+        # Get reference to current database
+        db = neuroHierarchy.databases.database(rdi.get("_database"))
+        # Get normalized volume
+        rdi = ReadDiskItem('T1 SPM resampled in MNI', 'NIFTI-1 image', requiredAttributes={'subject':subject, 'center':protocol, 'acquisition':acq})
+        delFiles += list(rdi._findValues({}, None, False))
+        # Get white meshes
+        rdi = ReadDiskItem('SPM normalization deformation field', 'NIFTI-1 image', requiredAttributes={'subject':subject, 'center':protocol, 'acquisition':acq})
+        delFiles += list(rdi._findValues({}, None, False))
+        # Get head meshe
+        rdi = ReadDiskItem('SPM normalization inverse deformation field', 'NIFTI-1 image', requiredAttributes={'subject':subject, 'center':protocol, 'acquisition':acq})
+        delFiles += list(rdi._findValues({}, None, False))
+        # Delete all files
+        for h in delFiles:
+            removeFromDB(h.fullPath(), db)
+            # Delete associated .minf
+            if os.path.isfile(h.fullPath() + '.minf'):
+                os.remove(h.fullPath() + '.minf')
 
 
     def runPipelineBV(self):
@@ -2757,7 +2784,13 @@ class ImageImport (QtGui.QDialog):
             return "{'"+str(self.ui.prefSpmTemplateEdit.text())+os.sep+'templates/T1.nii'+",1'}"
 
     def spmNormalize(self, image, protocol, patient, acq):
-        """ Normalize one image (filepath of nifti file) to the T1 template MNI referential"""
+        """ Normalize one image (filepath of nifti file) to the T1 template MNI referential""" 
+        # Delete existing normalization
+        rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':str(acq) })
+        rdi_y = list(rdi_y.findValues({}, None, False))
+        if rdi_y:
+            print("Deleting existing SPM normalization...")
+            self.deleteExistingNormalization(rdi_y[0], acq)
         # Check SPM version
         spm_version = checkSpmVersion(str(self.prefs['spm']))
         if spm_version == '(SPM12)':
