@@ -903,6 +903,9 @@ class LocateElectrodes(QtGui.QDialog):
             volumes.extend(list(rdi2._findValues({}, None, False)))
         # Load all volumes
         dictionnaire_list_images = dict()
+        t1pre = None
+        objAtlas = None
+        refT1pre = None
         for t in volumes:
             if "skull_stripped" in t.fullName():
                 continue
@@ -974,58 +977,54 @@ class LocateElectrodes(QtGui.QDialog):
             # Load volume in anatomist
             obj = self.loadAndDisplayObject(t, na)
             
+            # === REFERENTIALS ===
+            if (na == 'T1pre'):
+                strVol = 'MRI pre'
+                refT1pre = obj.getReferential()
+                # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
+                self.deleteNormalizedTransformations(obj)
+                # Save volume center (in mm)
+                if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
+                    self.t1preCenter = t.get('brainCenter')
+                elif (t.get('volume_dimension') is not None) and (t.get('volume_dimension') is not empty)\
+                      and (t.get('voxel_size') is not None) and (t.get('voxel_size') is not empty):
+                    volSize = t.get('volume_dimension')
+                    voxSize = t.get('voxel_size')
+                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+                else:
+                    self.t1preCenter = [128, 128, 128]
+                try:
+                    tr2sb = self.t1pre2ScannerBased()
+                    if tr2sb is not None:
+                        self.refConv.setAnatomistTransform("Scanner-based", tr2sb, toRef=True)
+                        # Add the AC-centered Scanner-Based (for PTS importation using AC-centered Olivier David method
+                        if self.refConv.isRefAvailable('AC-PC'):
+                            acInScannerBased = self.refConv.anyRef2AnyRef([0.0, 0.0, 0.0], 'AC-PC', 'Scanner-based')
+                            inf = tr2sb.getInfos()
+                            rot = inf['rotation_matrix']
+                            trans = [inf['translation'][0] - acInScannerBased[0], inf['translation'][1] - acInScannerBased[1], inf['translation'][2] - acInScannerBased[2]]
+                            m = aims.Motion(rot[:3] + [trans[0]] + rot[3:6] + [trans[1]] + rot[6:] + [trans[2]] + [0, 0, 0, 1])
+                            self.refConv.setTransformMatrix('AC-centered Scanner-Based', m.inverse(), m)
+                except Exception, e:
+                    print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
+
+            elif (na == 'FreesurferT1pre'):
+                strVol = 'MRI FreeSurfer'
+                # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
+                self.deleteNormalizedTransformations(obj)
+                # Load all related transformations
+                self.loadVolTransformations(t)
+                
+            elif (na == 'FreesurferAtlaspre'):
+                objAtlas = obj
+
+            # ===== SURFACES =====
             # For T1 MRI: Load surfaces and MarsAtlas
             if (na == 'T1pre') or (na == 'FreesurferT1pre'):
                 # Progress bar
                 if thread is not None:
                     thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
                     
-                # === REFERENTIALS ===
-                if (na == 'T1pre'):
-                    strVol = 'MRI pre'
-                    # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
-                    self.deleteExistingTransformations(obj)
-                    # Save volume center (in mm)
-                    if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
-                        self.t1preCenter = t.get('brainCenter')
-                    elif (t.get('volume_dimension') is not None) and (t.get('volume_dimension') is not empty)\
-                          and (t.get('voxel_size') is not None) and (t.get('voxel_size') is not empty):
-                        volSize = t.get('volume_dimension')
-                        voxSize = t.get('voxel_size')
-                        self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
-                    else:
-                        self.t1preCenter = [128, 128, 128]
-                    # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
-                    try:
-                        self.refConv.loadACPC(t)
-                    except Exception, e:
-                        print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
-                    try:
-                        self.refConv.loadTalairach(t)
-                    except Exception, e:
-                        print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
-                    try:
-                        tr2sb = self.t1pre2ScannerBased()
-                        if tr2sb is not None:
-                            self.refConv.setAnatomistTransform("Scanner-based", tr2sb, toRef=True)
-                            # Add the AC-centered Scanner-Based (for PTS importation using AC-centered Olivier David method
-                            if self.refConv.isRefAvailable('AC-PC'):
-                                acInScannerBased = self.refConv.anyRef2AnyRef([0.0, 0.0, 0.0], 'AC-PC', 'Scanner-based')
-                                inf = tr2sb.getInfos()
-                                rot = inf['rotation_matrix']
-                                trans = [inf['translation'][0] - acInScannerBased[0], inf['translation'][1] - acInScannerBased[1], inf['translation'][2] - acInScannerBased[2]]
-                                m = aims.Motion(rot[:3] + [trans[0]] + rot[3:6] + [trans[1]] + rot[6:] + [trans[2]] + [0, 0, 0, 1])
-                                self.refConv.setTransformMatrix('AC-centered Scanner-Based', m.inverse(), m)
-                    except Exception, e:
-                        print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
-
-                elif (na == 'FreesurferT1pre'):
-                    strVol = 'MRI FreeSurfer'
-                    # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
-                    self.deleteExistingTransformations(obj)
-                    # Load all related transformations
-                    self.loadVolTransformations(t)
-
                 # === CORTEX MESHES ===
                 # Get the hemisphere meshes for the acquisition : name = na + filename base : for example, if the acquisition is T1pre_2000-01-01 and the file head.gii, we want T1pre-head
                 rdi = ReadDiskItem('Hemisphere Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
@@ -1088,7 +1087,21 @@ class LocateElectrodes(QtGui.QDialog):
                 # Add display with all the structures
                 if amygHippoMesh:
                     dictionnaire_list_images.update({strVol + ' + hippocampus + amygdala':[na, 'electrodes'] + amygHippoMesh})
-    
+
+        # ===== LOAD NORMALIZED TRANSFORMATIONS =====
+        # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
+        try:
+            self.refConv.loadACPC(t)
+        except Exception, e:
+            print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
+        try:
+            self.refConv.loadTalairach(t)
+        except Exception, e:
+            print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
+        # FreeSurfer atlas was resliced using T1pre: force T1pre referential
+        if objAtlas and refT1pre:
+            objAtlas.assignReferential(refT1pre)
+        
         # Update list of available items in the combo boxes
         self.windowContent = dictionnaire_list_images;
         self.updateComboboxes(pre_select_1, pre_select_2)
@@ -1256,11 +1269,19 @@ class LocateElectrodes(QtGui.QDialog):
             loadedTrm += [self.a.loadTransformation(trm.fullPath(), srcr, dstr)]
         return loadedTrm
     
-    def deleteExistingTransformations(self, obj):
+    def deleteNormalizedTransformations(self, obj):
         # Delete existing normalized transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
         for trm in self.a.getTransformations():
-            if ('source_referential' in trm.getInfos().keys()) and (trm.getInfos()['source_referential'] == obj.getReferential().getInfo()['uuid']):
-                self.a.deleteElements(trm)    
+            if trm.getInfos()\
+            and ('source_referential' in trm.getInfos().keys()) \
+            and (trm.getInfos()['source_referential'] == obj.getReferential().getInfo()['uuid']):
+                # Remove only normalized transformations
+                for ref in self.a.getReferentials():
+                    if ('destination_referential' in trm.getInfos().keys()) \
+                    and (ref.getInfo()['uuid'] == trm.getInfos()['destination_referential']) \
+                    and ref.getInfo() and ('name' in ref.getInfo().keys()) \
+                    and ((ref.getInfo()['name'] == 'Talairach-MNI template-SPM') or (ref.getInfo()['name'] == 'Talairach-AC/PC-Anatomist')):
+                        self.a.deleteElements(trm)
 
     def mniReferentialId(self):
         return aims.StandardReferentials.mniTemplateReferentialID()

@@ -1638,11 +1638,13 @@ class ImageImport (QtGui.QDialog):
         
         # Create the folder if doesn't exist
         self.createItemDirs(diFSDestrieux)
-        # Reslice and convert to AIMS
+        # Reslice volume to match T1pre
         launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles['destrieux']['file']),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+        # Convert to AIMS
         ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
         # Add reference in the database (creates .minf)
         neuroHierarchy.databases.insertDiskItem(diFSDestrieux, update=True)
+
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
@@ -2384,16 +2386,8 @@ class ImageImport (QtGui.QDialog):
         self.brainvisaContext.runProcess(proc)
         
         # ===== STEP 2: REGISTER =====
-        # Create identity transform
-        trmpath = getTmpFilePath('trm')
-        id_trm = numpy.matrix('0 0 0; 1 0 0; 0 1 0; 0 0 1')
-        numpy.savetxt(trmpath, id_trm, delimiter =' ', fmt='%d')
-        # Re-generate scanner-based transformations
-        self.storeImageReferentialsAndTransforms(diOut)
-        # Add identity transform from "Freesurfer T1 scanner-based" to "BrainVISA T1 scanner-based"
-        transformT1 = self.insertTransformationToT1pre(trmpath, diOut)
-        if not transformT1:
-            return
+        # Add identity transform between "FreeSurfer MRI scanner-based" and "T1pre MRI scanner-based"
+        self.insertFreesurferTransformation(diOut)
         
         # ===== STEP 3: MARS ATLAS =====
         # Start hip-hop
@@ -2844,7 +2838,20 @@ class ImageImport (QtGui.QDialog):
         # The referential of this image is the same as the T1 pre
         self.transfoManager.setReferentialTo(image, self.getT1preNativeRef(image.attributes()['center'], image.attributes()['subject'])) #replace self.getT1preNativeRef(image.attributes()['center'], image.attributes()['subject']) by talairachMNIReferentialId
         os.remove(registeredPath)
+        
 
+    def insertFreesurferTransformation(self, diOut):
+        # Create identity transform
+        trmpath = getTmpFilePath('trm')
+        id_trm = numpy.matrix('0 0 0; 1 0 0; 0 1 0; 0 0 1')
+        numpy.savetxt(trmpath, id_trm, delimiter =' ', fmt='%d')
+        # Re-generate scanner-based transformations
+        self.storeImageReferentialsAndTransforms(diOut)
+        # Add identity transform from "Freesurfer T1 scanner-based" to "BrainVISA T1 scanner-based"
+        transformT1 = self.insertTransformationToT1pre(trmpath, diOut)
+        if not transformT1:
+            return
+        
 
     def insertTransformationToT1pre(self, trmpath, image):
         """Inserts a TRM file in the DB as the transformation between image and the T1pre scanner-based ref from the same subject"""
