@@ -983,6 +983,8 @@ class LocateElectrodes(QtGui.QDialog):
                 # === REFERENTIALS ===
                 if (na == 'T1pre'):
                     strVol = 'MRI pre'
+                    # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
+                    self.deleteExistingTransformations(obj)
                     # Save volume center (in mm)
                     if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
                         self.t1preCenter = t.get('brainCenter')
@@ -1019,10 +1021,8 @@ class LocateElectrodes(QtGui.QDialog):
 
                 elif (na == 'FreesurferT1pre'):
                     strVol = 'MRI FreeSurfer'
-                    # Delete existing normalized transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
-                    for trm in self.a.getTransformations():
-                        if ('source_referential' in trm.getInfos().keys()) and (trm.getInfos()['source_referential'] == obj.getReferential().getInfo()['uuid']):
-                            self.a.deleteElements(trm)
+                    # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
+                    self.deleteExistingTransformations(obj)
                     # Load all related transformations
                     self.loadVolTransformations(t)
 
@@ -1256,6 +1256,11 @@ class LocateElectrodes(QtGui.QDialog):
             loadedTrm += [self.a.loadTransformation(trm.fullPath(), srcr, dstr)]
         return loadedTrm
     
+    def deleteExistingTransformations(self, obj):
+        # Delete existing normalized transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
+        for trm in self.a.getTransformations():
+            if ('source_referential' in trm.getInfos().keys()) and (trm.getInfos()['source_referential'] == obj.getReferential().getInfo()['uuid']):
+                self.a.deleteElements(trm)    
 
     def mniReferentialId(self):
         return aims.StandardReferentials.mniTemplateReferentialID()
