@@ -2160,8 +2160,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            #res = self.exportAllWorker(selOptions)
+            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3630,7 +3630,8 @@ class LocateElectrodes(QtGui.QDialog):
         plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
         # Convert to FreeSurfer coordinates if necessary
         plot_fs_sorted = plot_sorted
-        if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
+        info_fs = None
+        if not useTemplateMarsAtlas and ('FreesurferAtlaspre' in diMaskleft['acquisition']):
             # Get T1pre volume
             diT1 = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center']} )
             allT1 = list(diT1.findValues({},None,False))
@@ -3649,6 +3650,8 @@ class LocateElectrodes(QtGui.QDialog):
             # Apply to contact coordinates
             for i in range(len(plot_fs_sorted)):
                 plot_fs_sorted[i] = (plot_fs_sorted[i][0], Transf.transform(plot_fs_sorted[i][1]))
+            # Get FS image information
+            info_fs = diMaskleft.attributes()
 
         # ===== READ: MNI ATLASES =====
         # Chargement des atlas dans le MNI (broadman, aal etc ...)
@@ -3697,7 +3700,9 @@ class LocateElectrodes(QtGui.QDialog):
 
         
         # ===== VOXEL COORDINATES =====
-        info_image = self.diskItems['T1pre'].attributes() 
+        info_image = self.diskItems['T1pre'].attributes()
+        if not info_fs:
+            info_fs = info_image
         #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
         
         #conversion x mm en nombre de voxel:
@@ -3706,6 +3711,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         sphere_size = 3 #en mm
         nb_voxel_sphere = [int(round(sphere_size/info_image['voxel_size'][i])) for i in range(3)]
+        nb_voxel_sphere_fs = [int(round(sphere_size/info_fs['voxel_size'][i])) for i in range(3)]
         nb_voxel_sphere_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution
         
         
@@ -3715,13 +3721,13 @@ class LocateElectrodes(QtGui.QDialog):
         for pindex in range(len(plot_sorted)):
 
             plot_pos_pix_indi = [round(plot_sorted[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
-            plot_pos_pix_fs = [round(plot_fs_sorted[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
+            plot_pos_pix_fs = [round(plot_fs_sorted[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(plot_dict_MNI_Native[plot_sorted[pindex][0]][i]) for i in range(3)]
             
             # === PROCESS: MARS ATLAS ===
             if not useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_fs
-                nb_voxel_sphereMA = nb_voxel_sphere
+                nb_voxel_sphereMA = nb_voxel_sphere_fs
             elif useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
                 nb_voxel_sphereMA = nb_voxel_sphere_MNI
@@ -3732,8 +3738,8 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
             
             if GWAtlas:
-                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
                 voxelGW_to_keep = [x for x in voxelGW_within_sphere_left+voxelGW_within_sphere_right if x !=255 and x !=0]
             else:
                 GW_label = 255
@@ -3741,7 +3747,7 @@ class LocateElectrodes(QtGui.QDialog):
             # === PROCESS: FREESURFER ===
             if not useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_fs
-                nb_voxel_sphereFS = nb_voxel_sphere
+                nb_voxel_sphereFS = nb_voxel_sphere_fs
             elif useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_MNI  #I have to apply the transfo Scanner-Based to Native #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
                 nb_voxel_sphereFS = nb_voxel_sphere_MNI
@@ -3750,8 +3756,9 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
             
             # === PROCESS: HIPPO SUBFIELD ===
+            # Hippo+amygdala atlas + surfaces are resliced following the T1pre: Using t1pre coordinates
             if not useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_fs
+                plot_pos_pixHippoFS = plot_pos_pix_indi
                 nb_voxel_sphereHippoFS = nb_voxel_sphere
             elif useTemplateHippoSubFreesurfer:
                 plot_pos_pixHippoFS = plot_pos_pix_MNI
@@ -3913,19 +3920,20 @@ class LocateElectrodes(QtGui.QDialog):
         #conversion x mm en nombre de voxel:
         sphere_size_bipole = 5
         nb_voxel_sphere = [int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
+        nb_voxel_sphere_fs = [int(round(sphere_size_bipole/info_fs['voxel_size'][i])) for i in range(0,3)]
         #if useTemplateMarsAtlas or useTemplateFreeSurfer or useTemplateHippoSubFreesurfer:
         nb_voxel_sphere_MNI = [sphere_size_bipole, sphere_size_bipole, sphere_size_bipole] #[int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
         
         plots_label_bipolar = {}
         for pindex in range(len(info_plot_bipolaire)):
             plot_pos_pix_indi = [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
-            plot_pos_pix_fs = [round(info_plot_bipolaire_fs[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
+            plot_pos_pix_fs = [round(info_plot_bipolaire_fs[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(info_plot_bipolaire_MNI[info_plot_bipolaire[pindex][0]][i]) for i in range(3)]
             #on regarde si une sphère de x mm de rayon touche une parcel
             #mars atlas:
             if not useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_fs
-                nb_voxel_sphereMA = nb_voxel_sphere
+                nb_voxel_sphereMA = nb_voxel_sphere_fs
             elif useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
                 nb_voxel_sphereMA = nb_voxel_sphere_MNI
@@ -3936,8 +3944,8 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
             
             if GWAtlas:
-                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
+                voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
+                voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
             
                 voxelGW_to_keep = [x for x in voxelGW_within_sphere_left+voxelGW_within_sphere_right if x !=255 and x !=0]
             else:
@@ -3946,7 +3954,7 @@ class LocateElectrodes(QtGui.QDialog):
             #freesurfer:
             if not useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_fs
-                nb_voxel_sphereFS = nb_voxel_sphere
+                nb_voxel_sphereFS = nb_voxel_sphere_fs
             elif useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
                 nb_voxel_sphereFS = nb_voxel_sphere_MNI
@@ -3954,9 +3962,9 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_within_sphere_FS = [vol_freesurfer.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
             
-            #HippoSubfield
+            #HippoSubfield  (resliced on T1pre, using T1pre coordinates)
             if not useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_fs
+                plot_pos_pixHippoFS = plot_pos_pix_indi
                 nb_voxel_sphereHippoFS = nb_voxel_sphere
             elif useTemplateHippoSubFreesurfer:
                 plot_pos_pixHippoFS = plot_pos_pix_MNI
