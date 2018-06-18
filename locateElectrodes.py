@@ -3235,19 +3235,23 @@ class LocateElectrodes(QtGui.QDialog):
             
             
             with open(di.fullPath(), 'w') as csvfile:
-                #fieldnames=['MarsAtlas','GreyWhite','Resection']
+                # Get new field InitialSegmentation
+                if 'InitialSegmentation' in info_label_elec['Template'].keys():
+                    InitialSegmentation = info_label_elec['Template']['InitialSegmentation']
+                else:
+                    InitialSegmentation = 'missing_info'
+                # Write file header
                 writer = csv.writer(csvfile, delimiter='\t')
                 writer.writerow([u'Contacts Positions'])
-#                 writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer'],'HippoSubfieldFreesurfer',info_label_elec['Template']['HippocampalSubfield Freesurfer']])
-                writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer']])
+                # writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer'],'HippoSubfieldFreesurfer',info_label_elec['Template']['HippocampalSubfield Freesurfer']])
+                writer.writerow([u'Use of MNI Template', 'MarsAtlas', info_label_elec['Template']['MarsAtlas'], 'Freesurfer', info_label_elec['Template']['Freesurfer'], 'InitialSegmentation', InitialSegmentation])
                 
-                #add a row with "MNI or Patient for MarsAtlas and Freesurfer
+                # Add list of column names
+                # colNames = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
+                colNames = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
-#                 list_by_default = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
-                list_by_default = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
-                diff_list = list(list_to_write.difference(list_by_default))
-#                 full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
-                full_list = [u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
+                diff_list = list(list_to_write.difference(set(colNames)))
+                full_list = colNames
                 full_list.extend(diff_list)
                 writer.writerow(full_list)
                 
@@ -3521,6 +3525,13 @@ class LocateElectrodes(QtGui.QDialog):
             if diMaskleft is None:
                 print('Error: left gyri conversion surface to volume failed')
                 useTemplateMarsAtlas = True
+            else:
+                if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
+                    initSegmentation = "FreeSurfer"
+                else:
+                    initSegmentation = "BrainVISA"
+        else:
+            initSegmentation = "N/A"
         # Get right hemisphere
         if not useTemplateMarsAtlas:
             Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
@@ -4131,7 +4142,7 @@ class LocateElectrodes(QtGui.QDialog):
             print('Can t generate files')
             return []
         
-        UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer,'HippocampalSubfield Freesurfer':useTemplateHippoSubFreesurfer}
+        UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer,'HippocampalSubfield Freesurfer':useTemplateHippoSubFreesurfer,'InitialSegmentation':initSegmentation}
         
         fout = open(di.fullPath(),'w')
         fout.write(json.dumps({'Template':UseTemplateOrPatient,'plots_label':plots_label,'plots_by_label':plots_by_label, 'plots_by_label_FS':plots_by_label_FS, 'plots_by_label_BM':plots_by_label_BM, 'plots_by_label_HM':plots_by_label_HM, 'plots_by_label_AAL':plots_by_label_AAL, 'plots_by_label_AALDilate':plots_by_label_AALDilate, 'plots_label_bipolar':plots_label_bipolar, 'plots_bipolar_by_label':plots_bipolar_by_label, 'plots_bipolar_by_label_FS':plots_bipolar_by_label_FS, 'plots_bipolar_by_label_BM':plots_bipolar_by_label_BM, 'plots_bipolar_by_label_HM':plots_bipolar_by_label_HM, 'plots_bipolar_by_label_AAL':plots_bipolar_by_label_AAL, 'plots_bipolar_by_label_AALDilate':plots_bipolar_by_label_AALDilate}))
