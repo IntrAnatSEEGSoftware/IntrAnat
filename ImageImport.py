@@ -429,7 +429,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
         #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
-        #self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
+        self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.ui.FreeSurferReconAllpushButton.setEnabled(False)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
