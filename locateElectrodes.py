@@ -1566,9 +1566,9 @@ class LocateElectrodes(QtGui.QDialog):
     def removeElectrode(self):
         """Remove an electrode (and all contacts)"""
         elec = self.currentElectrode()
-        idx = self.electrodes.index(elec)
         if elec is None:
             return
+        idx = self.electrodes.index(elec)
         # Remove meshes from Anatomist
         self.updateElectrodeMeshes(clear=True)
         elec['elecModel'].clearDisplay()
@@ -4358,7 +4358,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Loop on ll the options that should be displayed
         for obj in self.dispObj:
             # Is object already displayed
-            isInWindow = (isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj][0].getWindows())) or \
+            isInWindow = (isinstance(self.dispObj[obj], list) and self.dispObj[obj] and (w not in self.dispObj[obj][0].getWindows())) or \
                          (not isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj].getWindows()))
             
             if (obj in self.windowContent[key]):
