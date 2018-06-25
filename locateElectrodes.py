@@ -281,9 +281,6 @@ def moveElectrode(target, entry, referential, newRef, a, meshes):
         print("entry or target is None")
         return
 
-
-    #print "entry : "+repr(entry)+"target : "+repr(target)
-
     if newRef is None:
         newRef = a.createReferential()
     transl = target#[-target[0], -target[1], -target[2]]
@@ -308,15 +305,20 @@ def moveElectrode(target, entry, referential, newRef, a, meshes):
         print("problem transformation")
         return
     a.assignReferential(newRef, meshes)
-    #print " Electrode moved : target = "+repr(target) + ", entry = "+repr(entry) + " and Matrix "+repr(transl+m)
     return (newRef, transf)
 
-def createElectrode(target, entry, referential, ana=None, windows=None, model = None, dispMode=None, dispParams=None):
+def createElectrode(target, entry, referential, ana=None, windows=None, model = None, dispMode=None, dispParams=None, isTransparent=False):
     elecModel = ElectrodeModel(ana)
     elecModel.open(model,dispMode, dispParams)
     #elecModel.setDisplayReferential(newRef)
     meshes = elecModel.getAnatomistObjects()
     (newRef, transf) = moveElectrode(target, entry, referential, None, ana, meshes)
+    # Make electrodes transparent
+    if isTransparent:
+        for m in meshes:
+            mat = m.getInternalRep().GetMaterial().genericDescription()['diffuse']
+            m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 0])
+    # Add objects to all windows
     if windows is not None:
         ana.addObjects(meshes, windows)
     return (newRef, transf, elecModel)
@@ -987,10 +989,9 @@ class LocateElectrodes(QtGui.QDialog):
                 # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
                 self.deleteNormalizedTransformations(obj)
                 # Save volume center (in mm)
-                if (t.get('brainCenter') is not None) and (t.get('brainCenter') is not empty):
+                if t.get('brainCenter'):
                     self.t1preCenter = t.get('brainCenter')
-                elif (t.get('volume_dimension') is not None) and (t.get('volume_dimension') is not empty)\
-                      and (t.get('voxel_size') is not None) and (t.get('voxel_size') is not empty):
+                elif t.get('volume_dimension') and t.get('voxel_size'):
                     volSize = t.get('volume_dimension')
                     voxSize = t.get('voxel_size')
                     self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
@@ -1465,20 +1466,34 @@ class LocateElectrodes(QtGui.QDialog):
 
 
     # Add an electrode from a template
-    def addElectrode(self, name=None, model=None, target=[0,0,0], entry=[0,0,-1], refId=None, isUpdate=True):
+    def addElectrode(self, name=None, model=None, target=None, entry=None, refId=None, isUpdate=True):
         if name is None:
             name = str(self.nameEdit.text())
             self.isModified = True
         if model is None:
             model = str(self.typeComboBox.currentText())
+        isTransparent = False
+        if target is None:
+            if self.t1preCenter:
+                target = self.t1preCenter
+            else:
+                target = [0,0,0]
+            isTransparent = True
+        if entry is None:
+            if self.t1preCenter:
+                entry = [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]
+            else:
+                entry = [0,0,-0.1]
+            isTransparent = True
         if refId is not None:
             if self.preReferential().uuid() != refId:
                 print "ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId)
+        # Create electrode meshes
         for el in self.electrodes:
             if name == el['name']:
                 name = self.findFreeElectrodeName()
         (newRef, transf, elecModel) = createElectrode(target, entry, self.preReferential(), self.a,\
-                                                      model = self.elecModelListByName[str(model)].fullPath(), dispMode = self.dispMode, dispParams = self.dispParams)
+                                                      model = self.elecModelListByName[str(model)].fullPath(), dispMode = self.dispMode, dispParams = self.dispParams, isTransparent = isTransparent)
         self.electrodes.append({'name': name, 'ref':newRef, 'transf':transf, 'elecModel':elecModel,\
                                 'target':target, 'entry':entry, 'model':model})
         self.electrodeList.addItem(name)
@@ -1488,7 +1503,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate:
             self.updateElectrodeMeshes()
-            self.updateAllWindows()
+            self.updateAllWindows(True)
         
 
     def addBipole(self, name=None, positionbip=[0,0,0], refId = None,entry_bipole = None):
@@ -1585,7 +1600,7 @@ class LocateElectrodes(QtGui.QDialog):
         del item
         del self.electrodes[idx]
         self.updateElectrodeMeshes()
-        self.updateAllWindows()
+        self.updateAllWindows(True)
 
     def updateElectrodeModel(self, model):
         elec = self.currentElectrode()
@@ -1605,6 +1620,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateAllWindows()
         self.isModified = True
 
+
     def updateEntry(self, e=None):
         """ Updates the current electrode entry point from the cursor position"""
         el = self.currentElectrode()
@@ -1612,12 +1628,20 @@ class LocateElectrodes(QtGui.QDialog):
         # Just ignore if new entry is identical to target
         if pos == el['target']:
             return
-        (newRef, transf) = moveElectrode(el['target'], pos, self.preReferential(),\
-                                         el['ref'], self.a, el['elecModel'].getAnatomistObjects())
+        # Update electrode meshes
+        meshes = el['elecModel'].getAnatomistObjects()
+        (newRef, transf) = moveElectrode(el['target'], pos, self.preReferential(), el['ref'], self.a, meshes)
+        # Save modifications
         el['entry'] = pos
         el['transf'] = transf
         self.isModified = True
-
+        # If target was not set and now electrode is fully visible: make meshes visible
+        if self.t1preCenter and (el['target'] != self.t1preCenter) and (el['entry'] != [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]):
+            for m in meshes:
+                mat = m.getInternalRep().GetMaterial().genericDescription()['diffuse']
+                m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 1])
+                
+                
     def updateTarget(self, t=None):
         """ Updates the current electrode target point from the cursor position"""
         el = self.currentElectrode()
@@ -1627,15 +1651,20 @@ class LocateElectrodes(QtGui.QDialog):
         # Just ignore if new target is identical to entry
         if pos == el['entry']:
             return
-    
-        (newRef, transf) = moveElectrode(pos, el['entry'], self.preReferential(),\
-                                         el['ref'], self.a, el['elecModel'].getAnatomistObjects())
+        # Update electrode meshes
+        meshes = el['elecModel'].getAnatomistObjects()
+        (newRef, transf) = moveElectrode(pos, el['entry'], self.preReferential(), el['ref'], self.a, meshes)
+        # Save modifications
         el['target'] = pos
         el['transf'] = transf
-        print repr(self.a.getReferentials())
         self.isModified = True
-
-
+        # If target was not set and now electrode is fully visible: make meshes visible
+        if self.t1preCenter and (el['target'] != self.t1preCenter) and (el['entry'] != [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]):
+            for m in meshes:
+                mat = m.getInfos()["material"]["diffuse"]
+                m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 1])
+                
+            
     def editElectrodeName(self):
         """Update the electrode name of the selected contact"""
         name = str(self.nameEdit.text())
