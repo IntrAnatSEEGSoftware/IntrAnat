@@ -42,6 +42,7 @@ from soma import aims
 from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
 from IPython.config.application import catch_config_error
+from operator import pos
 neuroConfig.gui = True
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
@@ -482,6 +483,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.t1preCenter = []
         self.brainvisaPatientAttributes = None # Attributes of a BrainVisa ReadDiskItem MRI of the loaded patient
         self.isModified = False
+        self.lastClickedPos = None
+        self.lastClickedRef = None
         #self.MicromedListener = ML()
     
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
@@ -1175,13 +1178,18 @@ class LocateElectrodes(QtGui.QDialog):
 
     # Get the click events
     def clickHandler(self, eventName, params):
-        #pos=params['position']
-        #currentwin=params['window']
+        # Not a real mouse click
+        if not params:
+            return
+        # Save last mouse click, to compensate for 
+        self.lastClickedPos = params['position']
+        self.lastClickedRef = params['window'].getReferential()
+
         coords = [0.0,0.0,0.0]
         if 'T1pre' in self.dispObj:
             # pT1Pre = self.a.linkCursorLastClickedPosition(self.dispObj['T1pre'].getReferential()).items()
             pT1Pre = self.positionPreRef()
-
+            
             if self.coordsDisplayRef == 'Natif':
                 coords = pT1Pre
             elif self.coordsDisplayRef == 'Scanner-based':
@@ -1195,7 +1203,6 @@ class LocateElectrodes(QtGui.QDialog):
                     coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
                 except:
                     coords = [0.0,0.0,0.0]
-        #print type(coords)
         if coords is None:
             coords = [0.0,0.0,0.0]
         self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
@@ -1209,20 +1216,23 @@ class LocateElectrodes(QtGui.QDialog):
 
 
     def positionPreRef(self):
-# TODO: FIX THE REFERENTIAL CORRECTLY:
-#    Right now, there is a bug in BrainVISA 4.6 that causes linkCursorLastClickedPosition() to return coordinates in the 
-#    referential currently selected in the window, instead of the central referential of anatomist; and when called with an
-#    argument, the function returns something completely random.
-#    Solutions proposed by Denis Riviere:
-#    * if you know in which window the click has been done, you can query the position in a specific window (window.getPosition())
-#       get the window, get its window.position(), get its referential (window.getReferential()), then you can find a transformation to 
-#       any other referential, ex: a.getTransformation(window.getReferential(), a.centralReferential()) and use it to transform coordinates.
-#    * listen clicks on your side and storing their coordinates on your own. This can be done using an event handler. 
-#      See this example (http://brainvisa.info/pyanatomist/sphinx/pyanatomist_examples.html#events-handling). 
-#      You will have to take the referential of the click coordinates into account (using the referential of the clicked window).
+        # MAY 2018: Not using linkCursorLastClickedPosition anymore because of a bug in BrainVISA 4.6
+        # that causes linkCursorLastClickedPosition() to return coordinates in the referential currently
+        # selected in the window, instead of the central referential of anatomist; and when called with
+        # an argument, the function returns something completely random.
+
         #return list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
-        print "TODO: GET THE REFERENTIAL CORRECTLY: See function positionPreRef()"
-        return list(self.a.linkCursorLastClickedPosition().items())
+
+        # Get last click position and referentials
+        pos = self.lastClickedPos
+        refSrc = self.lastClickedRef
+        refDest = self.preReferential()
+        # Convert referential to T1pre_native
+        if pos and refSrc and refDest and (refSrc != refDest):
+            trm = self.a.getTransformation(refSrc, refDest)
+            if trm:
+                pos = trm.motion().transform([pos[0], pos[1], pos[2]])
+        return [pos[0], pos[1], pos[2]]
 
 
     def t1pre2ScannerBased(self):
@@ -1451,7 +1461,6 @@ class LocateElectrodes(QtGui.QDialog):
         elif bipole:
             self.dispObj['electrodes'] = [mesh for elec in self.bipoles for mesh in elec['elecModel'].getAnatomistObjects() if mesh is not None]
             self.setBipoleMeshesNames()
-        #self.dispObj['electrodes'][0].__getattr__('name')
 #        self.updateAllWindows()
 
 
@@ -4419,6 +4428,9 @@ class LocateElectrodes(QtGui.QDialog):
         checkStatus is Qt.CheckState"""
         if checkStatus is None:
             checkStatus = self.electrodeRefCheck.checkState()
+            isRestoreNative = False
+        else:
+            isRestoreNative = True
         if checkStatus == QtCore.Qt.Checked:
             if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
                 #Change to electrode referential
@@ -4432,7 +4444,8 @@ class LocateElectrodes(QtGui.QDialog):
                     self.electrodeGo(electrode = el)
         else:
             # Change back to T1pre native ref
-            self.setWindowsReferential()
+            if isRestoreNative:
+                self.setWindowsReferential()
 
     def updateElectrodeViewRotation(self, degrees):
         """Sets the angle of an electrode referential, degrees is the angle in degrees"""
@@ -4834,7 +4847,7 @@ class LocateElectrodes(QtGui.QDialog):
              #yef=newXYZentry[0][1]
              #zef=newXYZentry[0][2]
              #self.t1pre2ScannerBasedTransform.transform((xt,yt,zt))
-             self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze])
+             self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze], None, True)
         
     def approximateElectrode(self):      
         self.deetoMaison=DeetoMaison(self)
