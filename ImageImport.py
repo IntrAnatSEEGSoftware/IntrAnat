@@ -433,6 +433,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.ui.FreeSurferReconAllpushButton.setEnabled(False)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
+        self.connect(self.ui.runHiphopOnly, QtCore.SIGNAL('clicked()'), self.runProcessHiphop)
     
         self.warningMEDIC()
 
@@ -2394,8 +2395,35 @@ class ImageImport (QtGui.QDialog):
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
             thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
-        self.hiphopStart(diOut.attributes()['center'], diOut.attributes()['subject'])
+        self.hiphopStart(diOut.attributes()['center'], diOut.attributes()['subject'], diOut.attributes()['acquisition'])
         
+        
+    def runProcessHiphop(self):
+        # Get current protocol/subject
+        center = str(self.ui.regProtocolCombo.currentText())
+        subject = str(self.ui.regSubjectCombo.currentText())
+        # Get possible inputs
+        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={'side': 'left', 'subject':subject, 'center':center})
+        Lrdi = list( Lrdi._findValues( {}, None, False ) )
+        # Display list of available files
+        if not Lrdi:
+            QtGui.QMessageBox.warning(self, "Labelled Cortical folds graph", "No segmentation available.", QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+            return
+        elif (len(Lrdi) > 1):
+            iSel = [i for i in range(len(Lrdi)) if 'FreesurferAtlaspre' in str(Lrdi[i])]
+            if not iSel:
+                iSel = 0
+            else:
+                iSel = iSel[0]
+            strFiles = ""
+            for r in Lrdi:
+                strFiles += r.fullPath() + "\n"
+            QtGui.QMessageBox.information(self, "Labelled Cortical folds graph", "Available files:\n" + strFiles + " \nSelecting:\n" + Lrdi[iSel].fullPath(), QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+        else:
+            iSel = 0
+        # Running hiphop
+        self.hiphopStart(center, subject, Lrdi[iSel].attributes()['acquisition'])
+
 
     def setANTstrm_database(self,im, tmp_folder):
 
@@ -2590,7 +2618,7 @@ class ImageImport (QtGui.QDialog):
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
             thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
-        self.hiphopStart(self.mriAcPc.attributes()['center'], self.mriAcPc.attributes()['subject'])
+        self.hiphopStart(self.mriAcPc.attributes()['center'], self.mriAcPc.attributes()['subject'], self.mriAcPc.attributes()['acquisition'])
         
             
             
@@ -2663,7 +2691,7 @@ class ImageImport (QtGui.QDialog):
 #                 posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
 
 #     def morphologistGado4(self, nobiasPre, nobiasBak):
-#         # Task finishesd
+#         # Task finishes
 #         self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
 #         # Restore initial nobias image
 #         print self.currentSubject + ": Restoring original nobias.nii..."
@@ -2673,14 +2701,13 @@ class ImageImport (QtGui.QDialog):
 #         self.hiphopStart()
 
             
-    def hiphopStart(self, center, subject):
+    def hiphopStart(self, center, subject, acq):
         self.taskfinished(self.currentSubject + u': Morphologist segmentation and meshes generation')
         self.setStatus(self.currentSubject + u": Starting Hip-Hop")
 
-        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'left', 'subject':subject, 'center':center})
-        Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'right', 'subject':subject, 'center':center})
+        Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'left', 'subject':subject, 'center':center, 'acquisition':acq})
+        Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'right', 'subject':subject, 'center':center, 'acquisition':acq})
         Lrdi = list( Lrdi._findValues( {}, None, False ) )
-    
         if len(Lrdi) == 0:
             print('no left sulci label found, CANNOT RUN HIP HOP')
             return
@@ -2692,6 +2719,7 @@ class ImageImport (QtGui.QDialog):
     
         self.brainvisaContext.runProcess('Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
         self.taskfinished(u'Hip-Hop done')
+
 
     #def spmRegisterPatient(self, protocol, patient, acq):
         ## Comment choisir le moment pour recaler les post avec les pre, si l'import est fait dans l'ordre post puis pre ?
