@@ -4409,14 +4409,19 @@ class LocateElectrodes(QtGui.QDialog):
         if isUpdateOrient:
             viewType = w.getInternalRep().viewType()
             if (viewType == 0):
+                w.getInternalRep().muteAxial()
                 w.getInternalRep().muteOblique()
             elif (viewType == 1):
+                w.getInternalRep().muteCoronal()
                 w.getInternalRep().muteAxial()
             elif (viewType == 2):
+                w.getInternalRep().muteCoronal()
                 w.getInternalRep().muteSagittal()
-            elif (viewType == 3):       
+            elif (viewType == 3):
+                w.getInternalRep().muteAxial()
                 w.getInternalRep().muteCoronal()
             elif (viewType == 4):
+                w.getInternalRep().muteAxial()
                 w.getInternalRep().mute3D()
             
              
