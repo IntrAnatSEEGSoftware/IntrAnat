@@ -2181,7 +2181,7 @@ class LocateElectrodes(QtGui.QDialog):
             "Save screenshots",\
             "Save video (MP4)"],\
             "Export", "Select options to run:",\
-            [True, True, True, False, True, True, False, False])
+            [True, True, False, False, True, True, False, False])
         selOptions = dialog.exec_()
         # If user cancelled the selection
         if selOptions is None:
