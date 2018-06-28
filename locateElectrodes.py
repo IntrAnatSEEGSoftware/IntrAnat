@@ -2198,8 +2198,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            #res = self.exportAllWorker(selOptions)
+            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3402,6 +3402,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
+        print "TODO: marsatlasExportResection: Use the FreeSurfer segmentation when available"
         
         Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
@@ -3566,14 +3567,17 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
                     initSegmentation = "FreeSurfer"
+                    item = 'FreesurferT1pre'
                 else:
                     initSegmentation = "BrainVISA"
+                    item = 'T1pre'
         else:
             initSegmentation = "N/A"
+            item = 'T1pre'
         # Get right hemisphere
         if not useTemplateMarsAtlas:
             Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
+            diMaskright = Mask_right.findValue(self.diskItems[item])
             if diMaskright is None:
                 print('right gyri conversion surface to volume failed')
                 useTemplateMarsAtlas = True
@@ -3589,7 +3593,7 @@ class LocateElectrodes(QtGui.QDialog):
         GWAtlas = True
         # Left hemisphere
         MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_left = MaskGW_left.findValue(self.diskItems['T1pre'])
+        diMaskGW_left = MaskGW_left.findValue(self.diskItems[item])
         if diMaskGW_left is None:
             print('Error: Left grey/white mask not found')
             GWAtlas = False
@@ -3597,7 +3601,7 @@ class LocateElectrodes(QtGui.QDialog):
             volGW_left = aims.read(diMaskGW_left.fileName())
         # Right hemisphere
         MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_right = MaskGW_right.findValue(self.diskItems['T1pre'])
+        diMaskGW_right = MaskGW_right.findValue(self.diskItems[item])
         if diMaskGW_right is None:
             print('Error: Right grey/white mask not found')
             GWAtlas = False
@@ -3749,7 +3753,7 @@ class LocateElectrodes(QtGui.QDialog):
 
         
         # ===== VOXEL COORDINATES =====
-        info_image = self.diskItems['T1pre'].attributes()
+        info_image = self.diskItems[item].attributes()
         if not info_fs:
             info_fs = info_image
         #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
@@ -4175,7 +4179,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
         plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
         wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
-        di = wdi.findValue(self.diskItems['T1pre'])
+        di = wdi.findValue(self.diskItems[item])
         if di is None:
             print('Can t generate files')
             return []
