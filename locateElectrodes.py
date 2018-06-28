@@ -373,40 +373,40 @@ class Props( object ):
         self.colorlabels = True
         self.center = aims.Point3df()
 
-def makelabel( a, label, gc, pos, ref, color, props ):
-    """ Create a text label designating gc at position pos, using anatomist instance a, a color  and stores the generated elements in props"""
-    objects = []
-    # create a text object
-    to = TObj( label )
-    to.setScale( 0.1 )
-    to.setName( 'label: ' + label )
-    a.releaseObject(to)
-
-    # If we want to show a sphere at the target point
-    if props.usespheres:
-        sph = aims.SurfaceGenerator.icosphere( gc, 2, 50 )
-        asph = a.toAObject( sph )
-        asph.setMaterial( diffuse=color )
-        asph.setName( 'gc: ' + label )
-        a.registerObject( asph, False )
-        a.releaseObject(asph) #registerObject le "dérelease"
-        objects.append( asph )
-    # Choose the color of the label text
-    if props.colorlabels:
-        to.GetMaterial().set( { 'diffuse': color } )
-    # texto is the label (2D texture on a rectangle), but defined to always face the camera
-    texto = anatomist.anatomist.cpp.TransformedObject( [ to ], False, True, pos )
-    texto.setDynamicOffsetFromPoint( props.center )
-    texto.setName( 'annot: ' + label )
-    objects.append( texto )
-    # Add to the polygons a line (to  link the label and the target position)
-    props.lpoly.append( aims.AimsVector_U32_2( ( len( props.lvert ), len( props.lvert ) + 1 ) ) )
-    props.lvert += [ gc, pos ]
-    a.registerObject( texto, False )
-    a.assignReferential(ref, objects)
-    a.releaseObject(texto)
-  
-    return objects
+# def makelabel( a, label, gc, pos, ref, color, props ):
+#     """ Create a text label designating gc at position pos, using anatomist instance a, a color  and stores the generated elements in props"""
+#     objects = []
+#     # create a text object
+#     to = TObj( label )
+#     to.setScale( 0.1 )
+#     to.setName( 'label: ' + label )
+#     a.releaseObject(to)
+# 
+#     # If we want to show a sphere at the target point
+#     if props.usespheres:
+#         sph = aims.SurfaceGenerator.icosphere( gc, 2, 50 )
+#         asph = a.toAObject( sph )
+#         asph.setMaterial( diffuse=color )
+#         asph.setName( 'gc: ' + label )
+#         a.registerObject( asph, False )
+#         a.releaseObject(asph) #registerObject le "dérelease"
+#         objects.append( asph )
+#     # Choose the color of the label text
+#     if props.colorlabels:
+#         to.GetMaterial().set( { 'diffuse': color } )
+#     # texto is the label (2D texture on a rectangle), but defined to always face the camera
+#     texto = anatomist.anatomist.cpp.TransformedObject( [ to ], False, True, pos )
+#     texto.setDynamicOffsetFromPoint( props.center )
+#     texto.setName( 'annot: ' + label )
+#     objects.append( texto )
+#     # Add to the polygons a line (to  link the label and the target position)
+#     props.lpoly.append( aims.AimsVector_U32_2( ( len( props.lvert ), len( props.lvert ) + 1 ) ) )
+#     props.lvert += [ gc, pos ]
+#     a.registerObject( texto, False )
+#     a.assignReferential(ref, objects)
+#     a.releaseObject(texto)
+#   
+#     return objects
 
 ############################### Useful functions
 
@@ -1499,7 +1499,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.electrodeList.addItem(name)
         #index = self.elecCombo.findText("Electrode "+str(self.elecname))
         self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
-        self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.electrodes) - 1)
+#         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.electrodes) - 1)
         # Redraw electrodes
         if isUpdate:
             self.updateElectrodeMeshes()
@@ -1537,7 +1537,7 @@ class LocateElectrodes(QtGui.QDialog):
         #index = self.elecCombo.findText("Electrode "+str(self.elecname))
         #self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
         
-        self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.bipoles) - 1, True)
+#         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.bipoles) - 1, True)
         #self.updateElectrodeMeshes(bipole=True)
         self.isModified = True
         
@@ -1749,17 +1749,17 @@ class LocateElectrodes(QtGui.QDialog):
         if (self.t1preCenter) and (self.currentWindowRef == self.preReferential()):
             self.wins[0].moveLinkedCursor(self.t1preCenter)
 
-    def addElectrodeLabel(self, label, position, ref, elecId, bipole=False):
-        props = Props()
-        props.usespheres = False
-        props.center = [0, 0, 0]
-        gc = aims.Point3df(position)
-        if not bipole:
-            self.electrodes[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
-            self.electrodes[elecId]['props'] = props
-        elif bipole:
-            self.bipoles[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
-            self.bipoles[elecId]['props'] = props      
+#     def addElectrodeLabel(self, label, position, ref, elecId, bipole=False):
+#         props = Props()
+#         props.usespheres = False
+#         props.center = [0, 0, 0]
+#         gc = aims.Point3df(position)
+#         if not bipole:
+#             self.electrodes[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
+#             self.electrodes[elecId]['props'] = props
+#         elif bipole:
+#             self.bipoles[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
+#             self.bipoles[elecId]['props'] = props      
 
 
     def getElectrodeTemplates(self):
