@@ -125,7 +125,6 @@ class ElectrodeModel:
       self.currentColorHue = (self.currentColorHue + 40) % 256
       self.typeColors[t] = QtGui.QColor.fromHsv(self.currentColorHue, 245, 220, 255);
     color = self.typeColors[t] 
-    print [self.typeColors[t].red(), self.typeColors[t].green(), self.typeColors[t].blue()]
     if newCyl is not None:
       self.a.setMaterial(newCyl, diffuse=[color.redF(), color.greenF(), color.blueF(), color.alphaF()]) 
     self.displayed[name] = {'mesh':newCyl, 'type':t}
