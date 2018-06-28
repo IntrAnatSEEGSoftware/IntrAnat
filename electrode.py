@@ -125,6 +125,7 @@ class ElectrodeModel:
       self.currentColorHue = (self.currentColorHue + 40) % 256
       self.typeColors[t] = QtGui.QColor.fromHsv(self.currentColorHue, 245, 220, 255);
     color = self.typeColors[t] 
+    print [self.typeColors[t].red(), self.typeColors[t].green(), self.typeColors[t].blue()]
     if newCyl is not None:
       self.a.setMaterial(newCyl, diffuse=[color.redF(), color.greenF(), color.blueF(), color.alphaF()]) 
     self.displayed[name] = {'mesh':newCyl, 'type':t}
@@ -140,7 +141,8 @@ class ElectrodeModel:
 
   def updateDisplay(self):
     self.clearDisplay()
-    for name in self.cylinders:
+    # Sort objects by name so that Elements/Plot always have the same order, hence same colors
+    for name in sorted(self.cylinders, reverse=True):
       self.displayCylinder(name)
 
   def updateDisplayCylinder(self, name):

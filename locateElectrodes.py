@@ -41,8 +41,8 @@ from PIL import Image
 from soma import aims
 from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
-from IPython.config.application import catch_config_error
-from operator import pos
+# from IPython.config.application import catch_config_error
+# from operator import pos
 neuroConfig.gui = True
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
