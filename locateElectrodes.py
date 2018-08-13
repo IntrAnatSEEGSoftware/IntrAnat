@@ -704,13 +704,20 @@ class LocateElectrodes(QtGui.QDialog):
         self.filterYearCombo.clear()
         self.filterYearCombo.addItems(years)
         # Loading electrode models
+        self.loadElectrodeModels()
+
+
+    # Loading electrode models
+    def loadElectrodeModels(self):
         # rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format', requiredAttributes={'center':self.currentProtocol})
         rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format')
         self.elecModelList = list (rdiEM._findValues( {}, None, False ) )
         elecNames = [e.attributes()['model_name'] for e in self.elecModelList]
         self.elecModelListByName = dict((e.attributes()['model_name'], e) for e in self.elecModelList)
         self.typeComboBox.clear()
-        self.typeComboBox.addItems(sorted(elecNames))
+        listItems = sorted(elecNames)
+        listItems += ['[Reload electrode models]']
+        self.typeComboBox.addItems(listItems)
 
 
     def filterSubjects(self, value=None):
@@ -1616,11 +1623,38 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateAllWindows(True)
 
     def updateElectrodeModel(self, model):
+        # Get current electrode
         elec = self.currentElectrode()
+        
+        # Reload list of electrode models
+        if str(model) == '[Reload electrode models]':
+            # Wait cursor
+            QtGui.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+            # Reload BrainVISA share database
+            for database in neuroHierarchy.databases.iterDatabases():
+                if '/share/brainvisa-share-4.' in database.name:
+                    database.clear()
+                    database.update()
+            # Block callbacks
+            self.typeComboBox.blockSignals(True)
+            # Reload electrode models
+            self.loadElectrodeModels()
+            # Select again the previous model
+            if elec:
+                self.typeComboBox.setCurrentIndex(self.typeComboBox.findText(elec['model']))
+            # Restore callbacks
+            self.typeComboBox.blockSignals(False)
+            # Restore cursor
+            QtGui.QApplication.restoreOverrideCursor()
+            return
+        
+        # No electrode selected: exit
         if elec is None:
             return
         if str(elec['model']) == str(model):
             return
+        
+        # Update electrode model for the selected electrode
         self.updateElectrodeMeshes(clear=True)
         elec['elecModel'].clearDisplay()
         del elec['elecModel']
