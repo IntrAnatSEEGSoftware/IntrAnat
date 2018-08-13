@@ -683,9 +683,22 @@ class LocateElectrodes(QtGui.QDialog):
         #print 'all subjects:' + repr(self.subjects)
         self.patientList.clear()
         self.patientList.addItems(sorted(self.subjects))
+        
         # Update the filters
         sites = ['*',] + sorted(set([s.split('_')[0] for s in self.subjects]))
-        years = ['*',] + sorted(set([s.split('_')[1] for s in self.subjects if len(s.split('_')) > 1]))
+        # years = ['*',] + sorted(set([s.split('_')[1] for s in self.subjects if len(s.split('_')) > 1]))
+        years = []
+        for s in self.subjects:
+            subsplit = s.split('_')
+            if len(subsplit) > 1:
+                # CHUGA subject id format: "GRE_YYYYY_XXXz"
+                if len(subsplit[1]) == 4:
+                    years += [subsplit[1]]
+                # ftract subject id format: "0016GRE_DDMMYYYY"
+                elif len(subsplit[1]) == 8:
+                    years += [subsplit[1][4:]]
+        years = ['*',] + sorted(list(set(years)))
+        
         self.filterSiteCombo.clear()
         self.filterSiteCombo.addItems(sites)
         self.filterYearCombo.clear()
@@ -706,7 +719,7 @@ class LocateElectrodes(QtGui.QDialog):
         if str(self.filterSiteCombo.currentText()) != '*':
             subs = [s for s in subs if s.split('_')[0] == str(self.filterSiteCombo.currentText())]
         if str(self.filterYearCombo.currentText()) != '*':
-            subs = [s for s in subs if len(s.split('_')) > 1 and s.split('_')[1] == str(self.filterYearCombo.currentText())]
+            subs = [s for s in subs if len(s.split('_')) > 1 and str(self.filterYearCombo.currentText()) in s.split('_')[1]]
         self.patientList.clear()
         self.patientList.addItems(sorted(subs))
 
