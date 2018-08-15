@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Importation of data in the database + image registration and normalization
-#(c) Inserm U836 2012-2014 - Manik Bhattacharjee
+#(c) Inserm U836 2012-2018 - Manik Bhattacharjee, Pierre Deman, Francois Tadel 
 #
 # License GNU GPL v3
 #

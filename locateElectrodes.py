@@ -3,7 +3,7 @@
 #
 # Localisation graphique des electrodes
 #
-# (c) Inserm U836 2012-2014 - Manik Bhattacharjee
+# (c) Inserm U836 2012-2018 - Manik Bhattacharjee, Pierre Deman, Francois Tadel 
 #
 # License GNU GPL v3
 
@@ -521,18 +521,32 @@ class LocateElectrodes(QtGui.QDialog):
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
             self.a.onCursorNotifier.add(self.clickHandler)
-            # Axial window
-            layoutAx = QtGui.QHBoxLayout( self.windowContainer1 )
-            self.axWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
-            self.axWindow.setParent(self.windowContainer1)
-            layoutAx.addWidget( self.axWindow.getInternalRep() )
-            # Sagittal window
-            layoutSag = QtGui.QHBoxLayout( self.windowContainer2 )
-            self.sagWindow = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
-            self.sagWindow.setParent(self.windowContainer2)
-            layoutSag.addWidget( self.sagWindow.getInternalRep() )
-            # Keep references to anatomist windows
-            self.wins = [self.axWindow, self.sagWindow]
+
+            # Create 4 windows
+            self.wins = []
+            for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
+                # Create anatomist window
+                w = self.a.createWindow('Sagittal')
+                w.setParent(wcont)#, no_decoration=True )
+                self.wins.append(w)
+                # Add to main window
+                wlayout = QtGui.QHBoxLayout(wcont)
+                wlayout.setSpacing(0)
+                wlayout.setMargin(0)
+                wlayout.addWidget(w.getInternalRep())
+                # Configure window further
+                w.getInternalRep().menuBar().setVisible(False)
+                w.getInternalRep().layout().setMargin(0)
+                w.getInternalRep().centralWidget().layout().setMargin(0)
+                w.getInternalRep().findChild(QtGui.QToolBar,'controls').setVisible(False)
+                
+            # Set correctwindow type (not done at the creation time, otherwise, they get different sizes)
+            self.wins[0].getInternalRep().muteAxial()
+            self.wins[1].getInternalRep().muteSagittal()
+            self.wins[2].getInternalRep().muteCoronal()
+            self.wins[3].getInternalRep().mute3D()
+            # By default: use only two views
+            self.setWindowNumber(2)
 
         # Set callbacks
         if loadAll == True:
@@ -569,19 +583,28 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.dispModeCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.updateDispMode)
             self.connect(self.Clipping_checkbox,QtCore.SIGNAL('clicked()'),self.clippingUpdate)
             self.connect(self.electrodeRefCheck, QtCore.SIGNAL('stateChanged(int)'), self.updateElectrodeView)
-            self.connect(self.electrodeRefRotationSlider, QtCore.SIGNAL('valueChanged(int)'), self.updateElectrodeViewRotation)
+            # self.connect(self.electrodeRefRotationSlider, QtCore.SIGNAL('valueChanged(int)'), self.updateElectrodeViewRotation)
+            self.electrodeRefRotationSlider.hide()
             # Anatomist windows
             self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(0, s, True))
             self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(1 ,s, True))
+            self.connect(self.windowCombo3, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(2, s, True))
+            self.connect(self.windowCombo4, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(3 ,s, True))
             self.connect(self.referentialCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateCoordsDisplay)
+            self.connect(self.buttonWin1, QtCore.SIGNAL('clicked()'), lambda : self.setWindowNumber(1))
+            self.connect(self.buttonWin2, QtCore.SIGNAL('clicked()'), lambda : self.setWindowNumber(2))
+            self.connect(self.buttonWin4, QtCore.SIGNAL('clicked()'), lambda : self.setWindowNumber(4))
+            
 
             # List of controls to enable when a subject is loaded
             self.widgetsLoaded = [self.loadPatientButton, self.patientList, self.protocolCombo, self.filterSiteCombo, self.filterYearCombo]
             self.widgetsUnloaded = [self.changePatientButton, self.groupManip, self.groupDisplay, self.referentialCombo, self.referentialCombo,\
                                     self.referentialCombo, self.addElectrodeButton, self.removeElectrodeButton, self.nameEdit, \
                                     self.typeComboBox, self.targetButton, self.entryButton, self.electrodeList, self.contactList, \
-                                    self.electrodeSaveButton, self.electrodeLoadButton, self.windowCombo1, self.windowCombo2, \
-                                    self.windowContainer1, self.windowContainer2, self.ImportTheoriticalImplantation, self.approximateButton]
+                                    self.electrodeSaveButton, self.electrodeLoadButton, \
+                                    self.windowCombo1, self.windowCombo2, self.windowCombo3, self.windowCombo4, \
+                                    self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4, \
+                                    self.ImportTheoriticalImplantation, self.approximateButton]
             # Update enabled/disabled controls
             for w in self.widgetsLoaded:
                 w.setEnabled(True)
@@ -842,8 +865,7 @@ class LocateElectrodes(QtGui.QDialog):
         for w in self.widgetsUnloaded:
             w.setEnabled(False)
         # Delete all the graphical objects
-        self.a.removeObjects(self.a.getObjects(), self.wins[0])
-        self.a.removeObjects(self.a.getObjects(), self.wins[1])
+        self.a.removeObjects(self.a.getObjects(), self.wins)
         # self.a.config()[ 'linkedCursor' ] = 0
         # Remove unused referentials
         referentials = self.a.getReferentials()
@@ -899,6 +921,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Block callbacks
         self.windowCombo1.blockSignals(True)
         self.windowCombo2.blockSignals(True)
+        self.windowCombo3.blockSignals(True)
+        self.windowCombo4.blockSignals(True)
         # Call loading function
         ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
         #self.loadPatientWorker(patient)
@@ -910,6 +934,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Restore callbacks
         self.windowCombo1.blockSignals(False)
         self.windowCombo2.blockSignals(False)
+        self.windowCombo3.blockSignals(False)
+        self.windowCombo4.blockSignals(False)
         # Display all
         self.updateAllWindows(True)
         
@@ -920,6 +946,8 @@ class LocateElectrodes(QtGui.QDialog):
     
         pre_select_1 = self.windowCombo1.currentText()
         pre_select_2 = self.windowCombo2.currentText()
+        pre_select_3 = self.windowCombo3.currentText()
+        pre_select_4 = self.windowCombo4.currentText()
     
         # Get all subject's volumes
         volumes = []
@@ -1128,7 +1156,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         # Update list of available items in the combo boxes
         self.windowContent = dictionnaire_list_images;
-        self.updateComboboxes(pre_select_1, pre_select_2)
+        self.updateComboboxes(pre_select_1, pre_select_3, pre_select_4)
         # Display referential informations
         self.setWindowsReferential()
         if thread is not None:
@@ -1625,7 +1653,6 @@ class LocateElectrodes(QtGui.QDialog):
     def updateElectrodeModel(self, model):
         # Get current electrode
         elec = self.currentElectrode()
-        
         # Reload list of electrode models
         if str(model) == '[Reload electrode models]':
             # Wait cursor
@@ -4433,10 +4460,40 @@ class LocateElectrodes(QtGui.QDialog):
         self.bipoleSEEGColors.show()
     
     
+    # Set number of windows
+    def setWindowNumber(self, nWin):
+        if nWin == 1:
+            self.windowCombo2.setVisible(False)
+            self.windowContainer2.setVisible(False)
+            self.windowCombo3.setVisible(False)
+            self.windowContainer3.setVisible(False)
+            self.windowCombo4.setVisible(False)
+            self.windowContainer4.setVisible(False)
+            self.verticalLayout_wright.parent().setStretchFactor(self.verticalLayout_wright, 0)
+        elif nWin == 2:
+            self.windowCombo2.setVisible(True)
+            self.windowContainer2.setVisible(True)
+            self.windowCombo3.setVisible(False)
+            self.windowContainer3.setVisible(False)
+            self.windowCombo4.setVisible(False)
+            self.windowContainer4.setVisible(False)
+            self.verticalLayout_wright.parent().setStretchFactor(self.verticalLayout_wright, 1)
+        elif nWin == 4:
+            self.windowCombo2.setVisible(True)
+            self.windowContainer2.setVisible(True)
+            self.windowCombo3.setVisible(True)
+            self.windowContainer3.setVisible(True)
+            self.windowCombo4.setVisible(True)
+            self.windowContainer4.setVisible(True)
+            self.verticalLayout_wright.parent().setStretchFactor(self.verticalLayout_wright, 1)
+            
+            
     # Update all anatomist windows
     def updateAllWindows(self, isUpdateOrient=False):
         self.updateWindow(0, self.windowCombo1.currentText(), isUpdateOrient)
         self.updateWindow(1, self.windowCombo2.currentText(), isUpdateOrient)
+        self.updateWindow(2, self.windowCombo3.currentText(), isUpdateOrient)
+        self.updateWindow(3, self.windowCombo4.currentText(), isUpdateOrient)
 
     # Update a window content
     def updateWindow(self, winId, key, isUpdateOrient=False):
@@ -4477,15 +4534,19 @@ class LocateElectrodes(QtGui.QDialog):
             
              
     # Update combo boxes
-    def updateComboboxes(self, default1=None, default2=None):
+    def updateComboboxes(self, default1=None, default2=None, default3=None, default4=None):
         # Disable combobox callbacks
         isAlreadyBlocked = self.windowCombo1.signalsBlocked()
         if not isAlreadyBlocked:
             self.windowCombo1.blockSignals(True)
             self.windowCombo2.blockSignals(True)
+            self.windowCombo3.blockSignals(True)
+            self.windowCombo4.blockSignals(True)
         # Empty lists
         self.windowCombo1.clear()
         self.windowCombo2.clear()
+        self.windowCombo3.clear()
+        self.windowCombo4.clear()
         # Get the list of items
         items = sorted(self.windowContent.keys())
         if not items:
@@ -4497,15 +4558,23 @@ class LocateElectrodes(QtGui.QDialog):
         # Set new list of items
         self.windowCombo1.addItems(items)
         self.windowCombo2.addItems(items)
+        self.windowCombo3.addItems(items)
+        self.windowCombo4.addItems(items)
         # Set defaults
         if default1:
             self.windowCombo1.setCurrentIndex(max(self.windowCombo1.findText(default1),0))
         if default2:
             self.windowCombo2.setCurrentIndex(max(self.windowCombo2.findText(default2),0))
+        if default3:
+            self.windowCombo3.setCurrentIndex(max(self.windowCombo3.findText(default3),0))
+        if default4:
+            self.windowCombo4.setCurrentIndex(max(self.windowCombo4.findText(default4),0))   
         # Enable combobox callbacks
         if not isAlreadyBlocked:
             self.windowCombo1.blockSignals(False)
             self.windowCombo2.blockSignals(False)
+            self.windowCombo3.blockSignals(False)
+            self.windowCombo4.blockSignals(False)
 
 
     def updateElectrodeView(self, checkStatus=None):
@@ -4522,23 +4591,28 @@ class LocateElectrodes(QtGui.QDialog):
                 el = self.currentElectrode()
                 if el is None:
                     return
-                if 'refRotation' in el:
-                    self.electrodeRefRotationSlider.setValue(el['refRotation'])
+#                 if 'refRotation' in el:
+#                     self.electrodeRefRotationSlider.setValue(el['refRotation'])
                 if 'ref' in el:
                     self.setWindowsReferential(el['ref'])
-                    self.electrodeGo(electrode = el)
+                    #self.electrodeGo(electrode = el)
+                    
+                    #self.wins[0].camera(view_quaternion=[-0.5, 0.5, 0.5, -0.5], zoom=1.5) 
+                    # slice_quaternion=[0.3, 0.3, 0, 0.9]
+                    # observer_position=None, view_quaternion=None, slice_quaternion=None, force_redraw=None, cursor_position=None, boundingbox_min=None, boundingbox_max=None, slice_orientation=None
+                    
         else:
             # Change back to T1pre native ref
             if isRestoreNative:
                 self.setWindowsReferential()
 
-    def updateElectrodeViewRotation(self, degrees):
-        """Sets the angle of an electrode referential, degrees is the angle in degrees"""
-        if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
-            #Change angle of electrode referential
-            el = self.currentElectrode()
-            if el:
-                el['refRotation'] = degrees
+#     def updateElectrodeViewRotation(self, degrees):
+#         """Sets the angle of an electrode referential, degrees is the angle in degrees"""
+#         if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
+#             #Change angle of electrode referential
+#             el = self.currentElectrode()
+#             if el:
+#                 el['refRotation'] = degrees
 
 
     def clippingUpdate(self):
