@@ -521,7 +521,7 @@ class LocateElectrodes(QtGui.QDialog):
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
             self.a.onCursorNotifier.add(self.clickHandler)
-
+            
             # Create 4 windows
             self.wins = []
             for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
@@ -539,12 +539,15 @@ class LocateElectrodes(QtGui.QDialog):
                 w.getInternalRep().layout().setMargin(0)
                 w.getInternalRep().centralWidget().layout().setMargin(0)
                 w.getInternalRep().findChild(QtGui.QToolBar,'controls').setVisible(False)
+                w.getInternalRep().statusBar().setSizeGripEnabled(False)
                 
             # Set correctwindow type (not done at the creation time, otherwise, they get different sizes)
             self.wins[0].getInternalRep().muteAxial()
             self.wins[1].getInternalRep().muteSagittal()
             self.wins[2].getInternalRep().muteCoronal()
             self.wins[3].getInternalRep().mute3D()
+            # Set 3D orientation
+            
             # By default: use only two views
             self.setWindowNumber(2)
 
@@ -986,6 +989,12 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'MRI post T2':['T2post', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'CT post':['CTpost', 'electrodes']})
+                if not pre_select_1:
+                    pre_select_1 = 'CT post'
+                if not pre_select_2:
+                    pre_select_2 = 'CT post'
+                if not pre_select_3:
+                    pre_select_3 = 'CT post'
             elif (t.attributes()['modality'] == 'ct') and ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'CT post-op':['CTpostOp', 'electrodes']})   
             elif (t.attributes()['modality'] == 'pet') and ('pre' in t.attributes()['acquisition']):
@@ -1088,7 +1097,10 @@ class LocateElectrodes(QtGui.QDialog):
                 # Add display with both hemispheres
                 if (len(hemis) >= 2):
                     dictionnaire_list_images.update({strVol + ' + cortex':[na, na + '-rightHemi', na + '-leftHemi', 'electrodes']})
-                
+                    dictionnaire_list_images.update({'Cortex':[na + '-rightHemi', na + '-leftHemi', 'electrodes']})
+                    if not pre_select_4:
+                        pre_select_4 = 'Cortex'
+                    
                 # === MARS ATLAS ===
                 # Get MarsAtlas textures
                 atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false', 'subject':patient, 'center':self.currentProtocol, 'acquisition':nameAcq })
@@ -1119,7 +1131,8 @@ class LocateElectrodes(QtGui.QDialog):
                         thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading head mesh...")
                     self.loadAndDisplayObject(head[0], na + '-' + 'head', color=[0.0, 0.0, 0.8, 0.3])
                     dictionnaire_list_images.update({strVol + ' + cortex + head':[na, na + '-rightHemi', na + '-leftHemi', na + '-head', 'electrodes']})
-    
+                    dictionnaire_list_images.update({'Cortex + head':[na + '-rightHemi', na + '-leftHemi', na + '-head', 'electrodes']})
+                    
                 # === AMYGDALA + HIPPOCAMPUS ===
                 # Get the amygdala+hippo meshes for the acquisition
                 rdi = ReadDiskItem('Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
@@ -1156,7 +1169,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         # Update list of available items in the combo boxes
         self.windowContent = dictionnaire_list_images;
-        self.updateComboboxes(pre_select_1, pre_select_3, pre_select_4)
+        self.updateComboboxes(pre_select_1, pre_select_2, pre_select_3, pre_select_4)
         # Display referential informations
         self.setWindowsReferential()
         if thread is not None:
@@ -4551,10 +4564,20 @@ class LocateElectrodes(QtGui.QDialog):
         items = sorted(self.windowContent.keys())
         if not items:
             return
-        # If the first one is a "FreeSurfer Atlas": put last
-        if ("FreeSurfer Atlas" in items[0]):
-            items.append(items[0])
-            del items[0]
+        # Move "Cortex" and "Cortex + ..." at the end
+        iCortex = [i for i in range(len(items)) if items[i] == 'Cortex']
+        if iCortex:
+            items.append(items[iCortex[0]])
+            del items[iCortex[0]]
+        iCortex = [i for i in range(len(items)) if items[i] == 'Cortex + head']
+        if iCortex:
+            items.append(items[iCortex[0]])
+            del items[iCortex[0]]
+        # Move "FreeSurfer Atlas" at the end
+        iFreeSurfer = [i for i in range(len(items)) if 'FreeSurfer Atlas' in items[i]]
+        if iFreeSurfer:
+            items.append(items[iFreeSurfer[0]])
+            del items[iFreeSurfer[0]]
         # Set new list of items
         self.windowCombo1.addItems(items)
         self.windowCombo2.addItems(items)
