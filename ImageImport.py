@@ -1558,6 +1558,11 @@ class ImageImport (QtGui.QDialog):
         allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
         allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',  'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
         allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
+        allFiles['lausanne33'] =     {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'}
+        allFiles['lausanne60'] =     {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'}
+        allFiles['lausanne125'] =    {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'}
+        allFiles['lausanne250'] =    {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale250.nii.gz'}
+        allFiles['lausanne500'] =    {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz'}
         allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
         allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
         allFiles['leftWhite'] =      {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/lh.white'}
@@ -1577,9 +1582,9 @@ class ImageImport (QtGui.QDialog):
         allFiles['rightCurvPial'] =  {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferCurvPial',         'file':importDir + '/surf/rh.curv.pial'}
         allFiles['rightGyri'] =      {'side':'right', 'type':'FreesurferGyriTexture',      'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.annot'}
         allFiles['rightSulciGyri'] = {'side':'right', 'type':'FreesurferSulciGyriTexture', 'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.a2009s.annot'}
-        # Check that all the files exist
+        # Check that all the files exist (skip the lausanne files)
         for key in allFiles:
-            if not os.path.isfile(allFiles[key]['file']):
+            if (not 'lausanne' in key) and (not os.path.isfile(allFiles[key]['file'])):
                 QtGui.QMessageBox.warning(self, "Error", u"FreeSurfer file not found:\n" + allFiles[key]['file'])
                 return
         
@@ -1597,6 +1602,9 @@ class ImageImport (QtGui.QDialog):
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying files to freesurfer database...")
         # Add all the files to the local freesurfer database
         for key in allFiles:
+            # Skip files that do not have a format or placeholder in the freesurfer ontology
+            if not allFiles[key]['type']:
+                continue
             # Get target into the local FreeSurfer database
             if allFiles[key]['side']:
                 wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer', 'side':allFiles[key]['side']})
@@ -1625,18 +1633,9 @@ class ImageImport (QtGui.QDialog):
         # Progress bar
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Converting Destrieux atlas...")
-        
         # Importing Destrieux atlas to BrainVISA database
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
-
-#         # Get output folder
-#         wdi = WriteDiskItem('Acquisition', 'Directory')
-#         diFolder = wdi.findValue(write_filters)
-#         # Importing Destrieux atlas to BrainVISA database
-#         wdi = WriteDiskItem('Label volume', 'NIFTI-1 image', requiredAttributes={'subject':subject, '_ontology':diFolder.attributes()["_ontology"], '_database':diFolder.attributes()["_database"]})
-#         diFSDestrieux = wdi.findValue(diFolder.fullPath() + '/aparc_a2009s+aseg_' + subject + '.nii')
-        
         # Create the folder if doesn't exist
         self.createItemDirs(diFSDestrieux)
         # Reslice volume to match T1pre
@@ -1646,6 +1645,37 @@ class ImageImport (QtGui.QDialog):
         # Add reference in the database (creates .minf)
         neuroHierarchy.databases.insertDiskItem(diFSDestrieux, update=True)
 
+        # Importing all the Lausanne2008 parcellations to BrainVISA database
+        for n in [33, 60, 125, 250, 500]:
+            # File reference
+            key = 'lausanne{}'.format(n)
+            # Skip if file doesn't exist
+            if (not os.path.isfile(allFiles[key]['file'])):
+                continue
+            # Progress bar
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Importing Lausanne2008-{} parcellation...".format(n))
+            # Where to copy the new files
+            acqLaus = str(diT1pre.attributes()['acquisition']).replace('T1','Lausanne2008-{}-'.format(n))
+            # Importing Destrieux atlas to BrainVISA database
+            wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
+            diLaus = wdi.findValue({'center' : write_filters['center'], 'acquisition' : acqLaus, 'subject' : subject})
+            # Create the folder if doesn't exist
+            self.createItemDirs(diLaus)
+            # Copy file to database
+            cmdCopy = 'gunzip -c "{}" > "{}"'.format(allFiles[key]['file'], str(diLaus.fullPath()))
+            print("Copy: " + cmdCopy)
+            ret = os.system(cmdCopy)
+            # Add reference in the database (creates .minf)
+            neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
+        
+#         # Get output folder
+#         wdi = WriteDiskItem('Acquisition', 'Directory')
+#         diFolder = wdi.findValue(write_filters)
+#         # Importing Destrieux atlas to BrainVISA database
+#         wdi = WriteDiskItem('Label volume', 'NIFTI-1 image', requiredAttributes={'subject':subject, '_ontology':diFolder.attributes()["_ontology"], '_database':diFolder.attributes()["_database"]})
+#         diFSDestrieux = wdi.findValue(diFolder.fullPath() + '/aparc_a2009s+aseg_' + subject + '.nii')
+        
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
