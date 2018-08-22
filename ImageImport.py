@@ -613,7 +613,7 @@ class ImageImport (QtGui.QDialog):
         else:
             if len(configuration.SPM.spm12_path)>0:
                 print("used brainvisa spm path")
-                elf.setSpmTemplatePath(brainvisa_spm12_path)
+                self.setSpmTemplatePath(brainvisa_spm12_path)
                 self.prefs['spm']=brainvisa_spm12_path
             else:
                 QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined (or wrong) in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
