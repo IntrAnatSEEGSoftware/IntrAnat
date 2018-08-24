@@ -3698,8 +3698,10 @@ class LocateElectrodes(QtGui.QDialog):
             vol_left = aims.read(diMaskleft.fileName())
             vol_right = aims.read(diMaskright.fileName())
         else:
-            vol_left = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_L_gyriVolume.nii.gz')
-            vol_right = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_R_gyriVolume.nii.gz')
+            # vol_left = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_L_gyriVolume.nii.gz')
+            # vol_right = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_R_gyriVolume.nii.gz')
+            vol_left = aims.read('MNI_Brainvisa/Gre_2016_MNI1_L_gyriVolume.nii.gz')
+            vol_right = aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
         
         # ===== READ: GREY/WHITE =====
         GWAtlas = True
@@ -3754,10 +3756,13 @@ class LocateElectrodes(QtGui.QDialog):
                 vol_hippoanteropost = False
         # MNI template
         else:
-            vol_hippoanteropostleft = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/leftHippocampusGre_2016_MNI1.nii')
-            vol_hippoanteropostright = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/rightHippocampusGre_2016_MNI1.nii')
+            #vol_hippoanteropostleft = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/leftHippocampusGre_2016_MNI1.nii')
+            #vol_hippoanteropostright = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/rightHippocampusGre_2016_MNI1.nii')
+            vol_hippoanteropostleft = aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
+            vol_hippoanteropostright = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz')
             vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
-            vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
+            #vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
+            vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii.gz')
             vol_lausanne = None
         # Read template lausanne2008 volumes
         if not vol_lausanne:
@@ -3838,11 +3843,16 @@ class LocateElectrodes(QtGui.QDialog):
 
         # ===== READ: MNI ATLASES =====
         # Chargement des atlas dans le MNI (broadman, aal etc ...)
-        vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii')
-        vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii')
-        vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii')
-        vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii')
-        vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii')
+#         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii')
+#         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii')
+#         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii')
+#         vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii')
+#         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii')
+        vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii.gz')
+        vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii.gz')
+        vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
+        vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii.gz')
+        vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plot_dict_MNI_Native = {}
