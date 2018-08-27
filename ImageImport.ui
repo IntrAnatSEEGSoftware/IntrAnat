@@ -48,7 +48,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="tab_5">
        <attribute name="title">
@@ -496,11 +496,22 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="ImportFSoutputspushButton">
-          <property name="text">
-           <string>Import Freesurfer outputs</string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout_22">
+          <item>
+           <widget class="QPushButton" name="ImportFSoutputspushButton">
+            <property name="text">
+             <string>Import Freesurfer outputs</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="buttonImportLausanne">
+            <property name="text">
+             <string>Import Lausanne2008 parcellation</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <widget class="QLabel" name="niftiFileLabel">

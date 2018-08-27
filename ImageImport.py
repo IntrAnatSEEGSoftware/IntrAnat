@@ -413,6 +413,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.niftiImportButton, QtCore.SIGNAL('clicked()'), self.importNifti)
         self.connect(self.ui.niftiSetBraincenterButton, QtCore.SIGNAL('clicked()'), self.setBrainCenter)
         self.connect(self.ui.ImportFSoutputspushButton, QtCore.SIGNAL('clicked()'),self.importFSoutput)
+        self.connect(self.ui.buttonImportLausanne, QtCore.SIGNAL('clicked()'),self.importLausanne2008)
         #PACS
         self.connect(self.ui.pacsImportBVButton, QtCore.SIGNAL('clicked()'), self.importPacs)
         #DICOM
@@ -1788,6 +1789,67 @@ class ImageImport (QtGui.QDialog):
 #         pialL.assignReferential(ref)
 #         pialR=self.a.loadObject(diPialright)
 #         pialR.assignReferential(ref)
+
+
+
+    # Sub-selection of the operations done when importing the full FreeSurfer segmentation
+    # Added only for O.David to add the Lausanne 2008 parcellation to patients for which FreeSurfer was already imported
+    def importLausanne2008(self):
+        # Get current subject
+        subject = self.currentSubject
+        # Find T1pre of the subject
+        rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
+        allT1 = list(rT1BV.findValues({},None,False))
+        idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
+        if not idxT1pre:
+            QtGui.QMessageBox.warning(self, "Error", u"No T1pre found for this patient: " + subject)
+            return
+        diT1pre = allT1[idxT1pre[0]]
+
+        # Ask input folder
+        importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Lausanne2008 folder", "", QtGui.QFileDialog.ShowDirsOnly))
+        if not importDir:
+            return
+        # Get files of interest in the input folder
+        allFiles = {'lausanne33'  : importDir + '/ROIv_HR_th_scale33.nii.gz',\
+                    'lausanne60'  : importDir + '/ROIv_HR_th_scale60.nii.gz',\
+                    'lausanne125' : importDir + '/ROIv_HR_th_scale125.nii.gz',\
+                    'lausanne250' : importDir + '/ROIv_HR_th_scale250.nii.gz',\
+                    'lausanne500' : importDir + '/ROIv_HR_th_scale500.nii.gz'}
+        # Check that all the files exist (skip the lausanne files)
+        for key in allFiles:
+            if not os.path.isfile(allFiles[key]):
+                QtGui.QMessageBox.warning(self, "Error", u"Lausanne2008 file not found:\n" + allFiles[key])
+                return
+        # Run copy and conversion in a separate thread
+        res = ProgressDialog.call(lambda thr:self.importLausanne2008Worker(subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+
+        
+    def importLausanne2008Worker(self, subject, allFiles, diT1pre, thread=None):
+        # Importing all the Lausanne2008 parcellations to BrainVISA database
+        for n in [33, 60, 125, 250, 500]:
+            # File reference
+            key = 'lausanne{}'.format(n)
+            # Skip if file doesn't exist
+            if (not os.path.isfile(allFiles[key])):
+                continue
+            # Progress bar
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Importing Lausanne2008-{} parcellation...".format(n))
+            # Where to copy the new files
+            acqLaus = str(diT1pre.attributes()['acquisition']).replace('T1','Lausanne2008-{}-'.format(n))
+            # Importing Destrieux atlas to BrainVISA database
+            wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
+            diLaus = wdi.findValue({'center' : str(self.ui.niftiProtocolCombo.currentText()), 'acquisition' : acqLaus, 'subject' : subject})
+            # Create the folder if doesn't exist
+            self.createItemDirs(diLaus)
+            # Copy file to database
+            cmdCopy = 'gunzip -c "{}" > "{}"'.format(allFiles[key], str(diLaus.fullPath()))
+            print("Copy: " + cmdCopy)
+            ret = os.system(cmdCopy)
+            # Add reference in the database (creates .minf)
+            neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
+
 
 
     def importPacs(self):
