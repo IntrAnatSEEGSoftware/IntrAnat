@@ -4016,7 +4016,8 @@ class ImageImport (QtGui.QDialog):
 def main():
     
     # Create application
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
+    if hasattr(QtCore.Qt, 'AA_X11InitThreads'):
+        QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
     app = QtGui.QApplication(sys.argv)
     axon.initializeProcesses()
     

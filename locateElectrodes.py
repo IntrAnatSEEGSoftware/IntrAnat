@@ -5250,8 +5250,8 @@ def main(noapp=0):
     # Create application
     app = None
     if noapp == 0:
-        # print "NO APP"
-        QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
+        if hasattr(QtCore.Qt, 'AA_X11InitThreads'):
+            QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
         app = QtGui.QApplication(sys.argv)
         axon.initializeProcesses()
 
