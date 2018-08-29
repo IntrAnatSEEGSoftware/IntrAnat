@@ -3388,7 +3388,7 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 # Add list of column names
                 # colNames = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
-                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCPMMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection']
+                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection']
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
                 diff_list = list(list_to_write.difference(set(colNames)))
                 full_list = colNames
@@ -3411,7 +3411,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['Broadmann'][1])
                     listwrite.append(vv['BroadmannDilate'][1])            
                     listwrite.append(vv['Hammers'][1])
-                    listwrite.append(vv['HCPMMP1'][1])
+                    listwrite.append(vv['HCP-MMP1'][1])
                     listwrite.append(vv['Lausanne2008-33'][1])
                     listwrite.append(vv['Lausanne2008-60'][1])
                     listwrite.append(vv['Lausanne2008-125'][1])
@@ -3443,7 +3443,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['Broadmann'][1])
                     listwrite.append(vv['BroadmannDilate'][1])   
                     listwrite.append(vv['Hammers'][1])
-                    listwrite.append(vv['HCPMMP1'][1])
+                    listwrite.append(vv['HCP-MMP1'][1])
                     listwrite.append(vv['Lausanne2008-33'][1])
                     listwrite.append(vv['Lausanne2008-60'][1])
                     listwrite.append(vv['Lausanne2008-125'][1])
@@ -3855,7 +3855,7 @@ class LocateElectrodes(QtGui.QDialog):
         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
         vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii.gz')
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
-        vol_HCP = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
+        vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305.nii.gz')
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plot_dict_MNI_Native = {}
@@ -3870,7 +3870,7 @@ class LocateElectrodes(QtGui.QDialog):
         Hammers_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rHammersSEEG12_labels.txt')
         AAL_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12_labels.txt')
         AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
-        HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCPMMP1_on_MNI152_ICBM2009a_nlin_labels.txt')
+        HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305.txt')
         # Lausanne2008 parcel names ???
         Lausanne33_parcels_names = {i:"{}".format(i) for i in range(1,100)}
         Lausanne60_parcels_names = {i:"{}".format(i) for i in range(1,150)}
@@ -3993,7 +3993,7 @@ class LocateElectrodes(QtGui.QDialog):
             # Hammers
             voxel_within_sphere_Hammers = [round(vol_Hammers.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepHammers = [x for x in voxel_within_sphere_Hammers if x != 0 and not math.isnan(x)]
-            # HCPMMP1
+            # HCP-MMP1
             voxel_within_sphere_HCP = [round(vol_HCP.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepHCP = [x for x in voxel_within_sphere_HCP if x != 0 and not math.isnan(x)]
 
@@ -4120,7 +4120,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Hammers_name = Hammers_parcels_names[label_Hammers]
             
             if not voxel_to_keepHCP:
-                label_HCP_name = "not in a HCPMMP1 parcel" 
+                label_HCP_name = "not in a HCP-MMP1 parcel" 
                 label_HCP = round(vol_HCP.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
@@ -4147,7 +4147,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Broadmann'        : (label_Broadmann, label_Broadmann_name), \
                 'BroadmannDilate'  : (label_BroadmannDilate, label_BroadmannDilate_name), \
                 'Hammers'          : (label_Hammers, label_Hammers_name), \
-                'HCPMMP1'          : (label_HCP, label_HCP_name), \
+                'HCP-MMP1'          : (label_HCP, label_HCP_name), \
                 'Lausanne2008-33'  : (label_lausanne[0], label_lausanne_name[0]), \
                 'Lausanne2008-60'  : (label_lausanne[1], label_lausanne_name[1]), \
                 'Lausanne2008-125' : (label_lausanne[2], label_lausanne_name[2]), \
@@ -4166,7 +4166,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots_by_label_FS = dict([(Lab,[p for p in plot_name if plots_label[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
         plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
         plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCPMMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
+        plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
         plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
         plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
         plots_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
@@ -4386,7 +4386,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Hammers_name = Hammers_parcels_names[label_Hammers]
             
             if not voxel_to_keepHCP:
-                label_HCP_name = "not in a HCPMMP1 parcel" 
+                label_HCP_name = "not in a HCP-MMP1 parcel" 
                 label_HCP = round(vol_HCP.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
@@ -4413,7 +4413,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Broadmann'        : (label_Broadmann, label_Broadmann_name), \
                 'BroadmannDilate'  : (label_BroadmannDilate, label_BroadmannDilate_name), \
                 'Hammers'          : (label_Hammers, label_Hammers_name), \
-                'HCPMMP1'              : (label_HCP, label_HCP_name), \
+                'HCP-MMP1'              : (label_HCP, label_HCP_name), \
                 'Lausanne2008-33'  : (label_lausanne[0], label_lausanne_name[0]), \
                 'Lausanne2008-60'  : (label_lausanne[1], label_lausanne_name[1]), \
                 'Lausanne2008-125' : (label_lausanne[2], label_lausanne_name[2]), \
@@ -4435,7 +4435,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots_bipolar_by_label_FS = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
         plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
         plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCPMMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
+        plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
         plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
         plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
         plots_bipolar_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
