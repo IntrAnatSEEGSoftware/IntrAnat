@@ -3629,7 +3629,7 @@ class LocateElectrodes(QtGui.QDialog):
 #             TemplateHippoSubfieldFreesurfer = True
 #         else:
 #             TemplateHippoSubfieldFreesurfer = False
-        TemplateHippoSubfieldFreesurfer = False
+#         TemplateHippoSubfieldFreesurfer = False
         
         # Get MNI coordinates for all the plots
         dict_plotsMNI = self.getAllPlotsCentersMNIRef()
@@ -3657,7 +3657,8 @@ class LocateElectrodes(QtGui.QDialog):
         if LeftGyri is not None:
             self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
         # Continue export
-        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
+        # newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
+        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI)
         # Call additional function at the end
         if Callback is not None:
             Callback()
@@ -3665,7 +3666,8 @@ class LocateElectrodes(QtGui.QDialog):
         
 
     # ===== EXPORT PARCELS: PART II =====
-    def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False, plot_dict_MNI=None):
+    # def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False, plot_dict_MNI=None):
+    def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, plot_dict_MNI=None):
 
         print "export electrode start"
         timestamp = time.time()
@@ -3965,15 +3967,15 @@ class LocateElectrodes(QtGui.QDialog):
                     voxel_within_sphere_Laus = [vol_lausanne[iVol].value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
                     voxel_to_keep_Laus[iVol] = [x for x in voxel_within_sphere_Laus if x != 0]
             
-            # === PROCESS: HIPPO SUBFIELD ===
-            # Hippo+amygdala atlas + surfaces are resliced following the T1pre: Using t1pre coordinates
-            if not useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_indi
-                nb_voxel_sphereHippoFS = nb_voxel_sphere
-            elif useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_MNI
-                nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
-            
+#             # === PROCESS: HIPPO SUBFIELD ===
+#             # Hippo+amygdala atlas + surfaces are resliced following the T1pre: Using t1pre coordinates
+#             if not useTemplateHippoSubFreesurfer:
+#                 plot_pos_pixHippoFS = plot_pos_pix_indi
+#                 nb_voxel_sphereHippoFS = nb_voxel_sphere
+#             elif useTemplateHippoSubFreesurfer:
+#                 plot_pos_pixHippoFS = plot_pos_pix_MNI
+#                 nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
+#             
 #             voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
 #             voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
             
@@ -4231,16 +4233,18 @@ class LocateElectrodes(QtGui.QDialog):
                     voxel_to_keep_Laus[iVol] = [x for x in voxel_within_sphere_Laus if x != 0]
             
             
-            #HippoSubfield  (resliced on T1pre, using T1pre coordinates)
-            if not useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_indi
-                nb_voxel_sphereHippoFS = nb_voxel_sphere
-            elif useTemplateHippoSubFreesurfer:
-                plot_pos_pixHippoFS = plot_pos_pix_MNI
-                nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
-            
+#             # === PROCESS HIPPOCAMPUS SUBFIELD ===
+#             #HippoSubfield  (resliced on T1pre, using T1pre coordinates)
+#             if not useTemplateHippoSubFreesurfer:
+#                 plot_pos_pixHippoFS = plot_pos_pix_indi
+#                 nb_voxel_sphereHippoFS = nb_voxel_sphere
+#             elif useTemplateHippoSubFreesurfer:
+#                 plot_pos_pixHippoFS = plot_pos_pix_MNI
+#                 nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
+#             
 #             voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
 #             voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
+            
             
             #MNI Atlases
             #AAL
@@ -4450,7 +4454,8 @@ class LocateElectrodes(QtGui.QDialog):
             print('Can t generate files')
             return []
         
-        UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer,'HippocampalSubfield Freesurfer':useTemplateHippoSubFreesurfer,'InitialSegmentation':initSegmentation}
+        #UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer,'HippocampalSubfield Freesurfer':useTemplateHippoSubFreesurfer,'InitialSegmentation':initSegmentation}
+        UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer, 'InitialSegmentation':initSegmentation}
         
         fout = open(di.fullPath(),'w')
         fout.write(json.dumps({ \

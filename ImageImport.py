@@ -1590,8 +1590,8 @@ class ImageImport (QtGui.QDialog):
                 return
         
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
-        # res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        # res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
@@ -3210,12 +3210,18 @@ class ImageImport (QtGui.QDialog):
         self.transfoManager.setReferentialTo(diFS, T1pre.attributes()['referential'] )
 
         if AmygdalaRight:
-            for ii in range(len(notrightamygdalapx[0])):
-                volDestrieux.setValue(0,notrightamygdalapx[3][ii],notrightamygdalapx[2][ii],notrightamygdalapx[1][ii])
-
+#             for ii in range(len(notrightamygdalapx[0])):
+#                 volDestrieux.setValue(0,notrightamygdalapx[3][ii],notrightamygdalapx[2][ii],notrightamygdalapx[1][ii])
+            # Save amigdala mask in a temporary .nii file (set all the non-amygdala values to zero)
+            xyzAmyg = ([0] * notrightamygdalapx[3].size, notrightamygdalapx[1].tolist(), notrightamygdalapx[2].tolist(), notrightamygdalapx[3].tolist())
+            iAmyg = numpy.ravel_multi_index(xyzAmyg, volDestrieux.arraydata().shape)
+            volDestrieux.arraydata().put(iAmyg, 0)
             aims.write(volDestrieux, os.path.join(getTmpDir(),'rightamygdala.nii'))
+            # Read FreeSurfer again atlas because it was modified
             volDestrieux = aims.read(diFS.fullPath())
-            wdirightamygdala =  WriteDiskItem('rightAmygdala', 'GIFTI file' )
+            
+            # Create right amygdala mesh
+            wdirightamygdala = WriteDiskItem('rightAmygdala', 'GIFTI file' )
             dirightamygdala = wdirightamygdala.findValue(constraints)
             if dirightamygdala is None:
                 print "mesh export : could not find valid path"
@@ -3228,12 +3234,18 @@ class ImageImport (QtGui.QDialog):
                     self.transfoManager.setReferentialTo(dirightamygdala, T1pre.attributes()['referential'] )
 
         if AmygdalaLeft:
-            for ii in range(len(notleftamygdalapx[0])):
-                volDestrieux.setValue(0,notleftamygdalapx[3][ii],notleftamygdalapx[2][ii],notleftamygdalapx[1][ii])
-
-            aims.write(volDestrieux,os.path.join(getTmpDir(),'leftamygdala.nii'))
+#             for ii in range(len(notleftamygdalapx[0])):
+#                 volDestrieux.setValue(0,notleftamygdalapx[3][ii],notleftamygdalapx[2][ii],notleftamygdalapx[1][ii])
+            # Save amigdala mask in a temporary .nii file (set all the non-amygdala values to zero)
+            xyzAmyg = ([0] * notleftamygdalapx[3].size, notleftamygdalapx[1].tolist(), notleftamygdalapx[2].tolist(), notleftamygdalapx[3].tolist())
+            iAmyg = numpy.ravel_multi_index(xyzAmyg, volDestrieux.arraydata().shape)
+            volDestrieux.arraydata().put(iAmyg, 0)
+            aims.write(volDestrieux, os.path.join(getTmpDir(),'leftamygdala.nii'))
+            # Read FreeSurfer again atlas because it was modified
             volDestrieux = aims.read(diFS.fullPath())
-            wdileftamygdala =  WriteDiskItem('leftAmygdala', 'GIFTI file' )
+
+            # Create left amygdala mesh
+            wdileftamygdala = WriteDiskItem('leftAmygdala', 'GIFTI file' )
             dileftamygdala = wdileftamygdala.findValue(constraints)
             if dileftamygdala is None:
                 print "mesh export : could not find valid path"
@@ -3253,11 +3265,17 @@ class ImageImport (QtGui.QDialog):
             m = aims.Motion(T1pre.attributes()['SB_Transform'])
 
         if HippoRight:
-            for ii in range(len(notrighthippopx[0])):
-                volDestrieux.setValue(0,notrighthippopx[3][ii],notrighthippopx[2][ii],notrighthippopx[1][ii])
-
-            aims.write(volDestrieux,os.path.join(getTmpDir(),'righthippo.nii'))
+#             for ii in range(len(notrighthippopx[0])):
+#                 volDestrieux.setValue(0,notrighthippopx[3][ii],notrighthippopx[2][ii],notrighthippopx[1][ii])
+            # Save hippocampush mask in a temporary .nii file (set all the non-hippocampus values to zero)
+            xyzHippo = ([0] * notrighthippopx[3].size, notrighthippopx[1].tolist(), notrighthippopx[2].tolist(), notrighthippopx[3].tolist())
+            iHippo = numpy.ravel_multi_index(xyzHippo, volDestrieux.arraydata().shape)
+            volDestrieux.arraydata().put(iHippo, 0)
+            aims.write(volDestrieux, os.path.join(getTmpDir(),'righthippo.nii'))
+            # Read FreeSurfer again atlas because it was modified
             volDestrieux = aims.read(diFS.fullPath())
+                
+            # Create right hippocampus mesh
             wdirighthippo =  WriteDiskItem('rightHippo', 'GIFTI file' )
             dirightHippo = wdirighthippo.findValue(constraints)
             if dirightHippo is None:
@@ -3293,6 +3311,13 @@ class ImageImport (QtGui.QDialog):
             aims.SurfaceManip.meshMerge(testhippocut2,planmesh2)
             aims.write(testhippocut,os.path.join(getTmpDir(),'testhippocut.gii'))
             aims.write(testhippocut2,os.path.join(getTmpDir(),'testhippocut2.gii'))
+            
+            # Test BrainVISA:
+#             mesh = aims.read("/home/ftadel/test_cutmesh/test_mesh.gii")
+#             testcut = aims.AimsSurfaceTriangle()
+#             border = aims.AimsTimeSurface(2)
+#             aims.SurfaceManip.cutMesh(mesh, [0.5225450036568081, 0.6545940900566004, -0.5463087921828437, -68.96895971837064], testcut, border)
+#             print testcut.vertex().size()
 
             #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut.gii'), '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center)),'-p',os.path.join(getTmpDir(),'testplan.nii')])
             #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut2.gii'), '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center)),'-p',os.path.join(getTmpDir(),'testplan2.nii')])
@@ -3381,10 +3406,16 @@ class ImageImport (QtGui.QDialog):
 
 
         if HippoLeft:
-            for ii in range(len(notlefthippopx[0])):
-                volDestrieux.setValue(0,notlefthippopx[3][ii],notlefthippopx[2][ii],notlefthippopx[1][ii])
-
-            aims.write(volDestrieux,os.path.join(getTmpDir(),'lefthippo.nii'))
+#             for ii in range(len(notlefthippopx[0])):
+#                 volDestrieux.setValue(0,notlefthippopx[3][ii],notlefthippopx[2][ii],notlefthippopx[1][ii])
+            # Save hippocampush mask in a temporary .nii file (set all the non-hippocampus values to zero)
+            xyzHippo = ([0] * notlefthippopx[3].size, notlefthippopx[1].tolist(), notlefthippopx[2].tolist(), notlefthippopx[3].tolist())
+            iHippo = numpy.ravel_multi_index(xyzHippo, volDestrieux.arraydata().shape)
+            volDestrieux.arraydata().put(iHippo, 0)
+            aims.write(volDestrieux, os.path.join(getTmpDir(),'lefthippo.nii'))
+            # No need to read again the modified FreeSurfer atlas: it's not used anymore
+            
+            # Create right hippocampus mesh
             wdilefthippo =  WriteDiskItem('leftHippo', 'GIFTI file' )
             dileftHippo = wdilefthippo.findValue(constraints)
             if dileftHippo is None:
