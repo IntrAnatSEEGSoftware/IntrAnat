@@ -1590,8 +1590,8 @@ class ImageImport (QtGui.QDialog):
                 return
         
         # Run copy and conversion in a separate thread
-        # res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
-        res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        # res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
@@ -3390,7 +3390,7 @@ class ImageImport (QtGui.QDialog):
                 for zslices in range(hippo_vol_postero.arraydata().shape[1]):
                     hippo_vol_postero.arraydata()[0,zslices,:,:] = ndimage.morphology.binary_fill_holes(hippo_vol_postero.arraydata()[0,zslices,:,:]).astype(int)
 
-                hippo_vol_antero *=5301
+                hippo_vol_antero *= 5301
                 hippo_vol_postero *= 5302
                 hippo_vol_full = hippo_vol_antero + hippo_vol_postero
                 for z in xrange(hippo_vol_full.getSizeZ()):
@@ -3519,7 +3519,7 @@ class ImageImport (QtGui.QDialog):
                     for zslices in range(hippo_vol_postero.arraydata().shape[1]):
                         hippo_vol_postero.arraydata()[0,zslices,:,:] = ndimage.morphology.binary_fill_holes(hippo_vol_postero.arraydata()[0,zslices,:,:]).astype(int)
 
-                    hippo_vol_antero *=1701
+                    hippo_vol_antero *= 1701
                     hippo_vol_postero *= 1702
                     hippo_vol_full = hippo_vol_antero + hippo_vol_postero
                     for z in xrange(hippo_vol_full.getSizeZ()):
