@@ -1670,19 +1670,12 @@ class ImageImport (QtGui.QDialog):
             # Add reference in the database (creates .minf)
             neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
         
-#         # Get output folder
-#         wdi = WriteDiskItem('Acquisition', 'Directory')
-#         diFolder = wdi.findValue(write_filters)
-#         # Importing Destrieux atlas to BrainVISA database
-#         wdi = WriteDiskItem('Label volume', 'NIFTI-1 image', requiredAttributes={'subject':subject, '_ontology':diFolder.attributes()["_ontology"], '_database':diFolder.attributes()["_database"]})
-#         diFSDestrieux = wdi.findValue(diFolder.fullPath() + '/aparc_a2009s+aseg_' + subject + '.nii')
-        
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
         self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
- 
-        
+
+
 #     def importFSoutputOld(self,subject=None):
 # 
 #         if subject == None:

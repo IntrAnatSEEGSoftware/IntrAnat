@@ -2309,8 +2309,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            # res = self.exportAllWorker(selOptions)
+            # res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3843,7 +3843,7 @@ class LocateElectrodes(QtGui.QDialog):
             info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
         plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
         # Convert to FreeSurfer coordinates if necessary
-        plot_fs_sorted = plot_sorted
+        plot_fs_sorted = copy.deepcopy(plot_sorted)
         info_fs = None
         if not useTemplateMarsAtlas and ('FreesurferAtlaspre' in diMaskleft['acquisition']):
             # Get T1pre volume
@@ -3953,8 +3953,12 @@ class LocateElectrodes(QtGui.QDialog):
             
             # === PROCESS: MARS ATLAS ===
             if not useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_fs
-                nb_voxel_sphereMA = nb_voxel_sphere_fs
+                if initSegmentation == "FreeSurfer":
+                    plot_pos_pixMA = plot_pos_pix_fs
+                    nb_voxel_sphereMA = nb_voxel_sphere_fs
+                else:
+                    plot_pos_pixMA = plot_pos_pix_indi
+                    nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
                 nb_voxel_sphereMA = nb_voxel_sphere_MNI
@@ -3972,9 +3976,12 @@ class LocateElectrodes(QtGui.QDialog):
                 GW_label = 255
             
             # === PROCESS: FREESURFER ===
+            # Destrieux Atlas is reinterpolated in the t1pre space 
             if not useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_fs
-                nb_voxel_sphereFS = nb_voxel_sphere_fs
+#                 plot_pos_pixFS = plot_pos_pix_fs
+#                 nb_voxel_sphereFS = nb_voxel_sphere_fs
+                plot_pos_pixFS = plot_pos_pix_indi
+                nb_voxel_sphereFS = nb_voxel_sphere
             elif useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_MNI  #I have to apply the transfo Scanner-Based to Native #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
                 nb_voxel_sphereFS = nb_voxel_sphere_MNI
@@ -3983,6 +3990,7 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
             
             # === PROCESS: LAUSANNE2008 ===
+            # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
             if vol_lausanne:
                 voxel_to_keep_Laus = [None] * 5
                 for iVol in range(5):
@@ -4217,8 +4225,12 @@ class LocateElectrodes(QtGui.QDialog):
             #on regarde si une sphère de x mm de rayon touche une parcel
             #mars atlas:
             if not useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_fs
-                nb_voxel_sphereMA = nb_voxel_sphere_fs
+                if initSegmentation == "FreeSurfer":
+                    plot_pos_pixMA = plot_pos_pix_fs
+                    nb_voxel_sphereMA = nb_voxel_sphere_fs
+                else:
+                    plot_pos_pixMA = plot_pos_pix_indi
+                    nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
                 plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
                 nb_voxel_sphereMA = nb_voxel_sphere_MNI
@@ -4237,9 +4249,12 @@ class LocateElectrodes(QtGui.QDialog):
                 GW_label = 255
             
             # === PROCESS: FREESURFER ===
+            # Destrieux Atlas is reinterpolated in the t1pre space 
             if not useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_fs
-                nb_voxel_sphereFS = nb_voxel_sphere_fs
+#                 plot_pos_pixFS = plot_pos_pix_fs
+#                 nb_voxel_sphereFS = nb_voxel_sphere_fs
+                plot_pos_pixFS = plot_pos_pix_indi
+                nb_voxel_sphereFS = nb_voxel_sphere
             elif useTemplateFreeSurfer:
                 plot_pos_pixFS = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
                 nb_voxel_sphereFS = nb_voxel_sphere_MNI
@@ -4248,6 +4263,7 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
             
             # === PROCESS: LAUSANNE2008 ===
+            # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
             if vol_lausanne:
                 voxel_to_keep_Laus = [None] * 5
                 for iVol in range(5):
