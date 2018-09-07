@@ -131,20 +131,20 @@ class PythonExecutor(QtCore.QThread):
         self.out = self.func()
         #print "*****************OUTPUT"+repr(out)+"\n\n\n"
 
-def matlabIsPresent():
-    """
-        Check if the 'matlab' command is available in the path, by running a very small matlab command
-        Returns True or False
-    """
-    try:
-     	result = subprocess.Popen(matlabCall+['quit;',], stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
-    except OSError:
-     	print "matlab is not present : OSError"
-      	return False
-    except:
-     	print "matlab is not present or fails !"
-      	return False
-   	return True
+# def matlabIsPresent():
+#     """
+#         Check if the 'matlab' command is available in the path, by running a very small matlab command
+#         Returns True or False
+#     """
+#     try:
+#      	result = subprocess.Popen(matlabCall+['quit;',], stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
+#     except OSError:
+#      	print "matlab is not present : OSError"
+#       	return False
+#     except:
+#      	print "matlab is not present or fails !"
+#       	return False
+#    	return True
 
 def matlabRun(cmd):
     """

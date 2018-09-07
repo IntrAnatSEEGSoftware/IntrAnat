@@ -669,13 +669,13 @@ class ImageImport (QtGui.QDialog):
 
 
 
-        # Test if matlab is available
-        if 'matlabOk' not in self.prefs or self.prefs['matlabOk'] == False:
-            if matlabIsPresent():
-                self.prefs['matlabOk'] = True
-            else:
-                QtGui.QMessageBox.warning(self, u"Matlab", u"The command 'matlab' doesn't work !\nSPM coregistration and normalization won't work")
-                self.prefs['matlabOk'] = False
+#         # Test if matlab is available
+#         if 'matlabOk' not in self.prefs or self.prefs['matlabOk'] == False:
+#             if matlabIsPresent():
+#                 self.prefs['matlabOk'] = True
+#             else:
+#                 QtGui.QMessageBox.warning(self, u"Matlab", u"The command 'matlab' doesn't work !\nSPM coregistration and normalization won't work")
+#                 self.prefs['matlabOk'] = False
         # Scanner les dossiers et séquences déjà importées, en faire un dictionnaire :
         self.dicomOutContent = self.analyzeDicomOutput(self.dicomOutputPath)
         self.niftiOutContent = self.analyzeNiftiOutput(self.niftiOutputPath)
