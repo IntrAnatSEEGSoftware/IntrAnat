@@ -951,8 +951,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo3.blockSignals(True)
         self.windowCombo4.blockSignals(True)
         # Call loading function
-        ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        #self.loadPatientWorker(patient)
+        #ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
+        self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -1005,6 +1005,12 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'MRI post-op':['T1postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI post':['T1post', 'electrodes']})
+                if not pre_select_1:
+                    pre_select_1 = 'MRI post'
+                if not pre_select_2:
+                    pre_select_2 = 'MRI post'
+                if not pre_select_3:
+                    pre_select_3 = 'MRI post'
             elif (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'MRI pre T2':['T2pre', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('postOp' in t.attributes()['acquisition']):
@@ -2309,8 +2315,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            # res = self.exportAllWorker(selOptions)
+            # res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3692,17 +3698,17 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
                     initSegmentation = "FreeSurfer"
-                    item = 'FreesurferT1pre'
+                    item_segment = 'FreesurferT1pre'
                 else:
                     initSegmentation = "BrainVISA"
-                    item = 'T1pre'
+                    item_segment = 'T1pre'
         else:
             initSegmentation = "N/A"
-            item = 'T1pre'
+            item_segment = 'T1pre'
         # Get right hemisphere
         if not useTemplateMarsAtlas:
             Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diMaskright = Mask_right.findValue(self.diskItems[item])
+            diMaskright = Mask_right.findValue(self.diskItems[item_segment])
             if diMaskright is None:
                 print('right gyri conversion surface to volume failed')
                 useTemplateMarsAtlas = True
@@ -3720,7 +3726,7 @@ class LocateElectrodes(QtGui.QDialog):
         GWAtlas = True
         # Left hemisphere
         MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_left = MaskGW_left.findValue(self.diskItems[item])
+        diMaskGW_left = MaskGW_left.findValue(self.diskItems[item_segment])
         if diMaskGW_left is None:
             print('Error: Left grey/white mask not found')
             GWAtlas = False
@@ -3728,7 +3734,7 @@ class LocateElectrodes(QtGui.QDialog):
             volGW_left = aims.read(diMaskGW_left.fileName())
         # Right hemisphere
         MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskGW_right = MaskGW_right.findValue(self.diskItems[item])
+        diMaskGW_right = MaskGW_right.findValue(self.diskItems[item_segment])
         if diMaskGW_right is None:
             print('Error: Right grey/white mask not found')
             GWAtlas = False
@@ -3927,7 +3933,7 @@ class LocateElectrodes(QtGui.QDialog):
 
         
         # ===== VOXEL COORDINATES =====
-        info_image = self.diskItems[item].attributes()
+        info_image = self.diskItems['T1pre'].attributes()
         if not info_fs:
             info_fs = info_image
         #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
@@ -4487,7 +4493,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots_bipolar_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-500'][1]==Lab]) for Lab in Lausanne500_parcels_names.values()])
         
         wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
-        di = wdi.findValue(self.diskItems[item])
+        di = wdi.findValue(self.diskItems['T1pre'])
         if di is None:
             print('Can t generate files')
             return []
