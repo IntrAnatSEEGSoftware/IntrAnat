@@ -951,8 +951,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo3.blockSignals(True)
         self.windowCombo4.blockSignals(True)
         # Call loading function
-        #ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        self.loadPatientWorker(patient)
+        ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
+        #self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -2315,8 +2315,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            # res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            res = self.exportAllWorker(selOptions)
+            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            # res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
