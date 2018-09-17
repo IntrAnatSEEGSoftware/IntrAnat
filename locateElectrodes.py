@@ -3887,7 +3887,7 @@ class LocateElectrodes(QtGui.QDialog):
         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
         vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii.gz')
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
-        vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305.nii.gz')
+        vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.nii.gz')
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plot_dict_MNI_Native = {}
@@ -3902,7 +3902,7 @@ class LocateElectrodes(QtGui.QDialog):
         Hammers_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rHammersSEEG12_labels.txt')
         AAL_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12_labels.txt')
         AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
-        HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305.txt')
+        HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.txt')
         # Lausanne2008 parcel names ???
         Lausanne33_parcels_names = {i:"{}".format(i) for i in range(1,100)}
         Lausanne60_parcels_names = {i:"{}".format(i) for i in range(1,150)}
