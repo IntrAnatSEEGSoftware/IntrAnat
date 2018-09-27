@@ -2339,9 +2339,15 @@ class LocateElectrodes(QtGui.QDialog):
                 
         # Display final report after a loop of export of multiple subjects
         if pFailed or pSuccess:
-            QtGui.QMessageBox.information(self, u'Export done', u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed)))
-            print("\n\nSuccess: \n" + "\n".join(pSuccess) + "\n\nFailed:\n" + "\n".join(pFailed))
-
+            strSummary = u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed))
+            strDetails = "Success: \n" + "\n".join(pSuccess) + "\n\nFailed:\n" + "\n".join(pFailed)
+            # QtGui.QMessageBox.information(self, u'Export done', u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed)))
+            print("\n\n" + strDetails)
+            msgBox = QtGui.QMessageBox()
+            msgBox.setText(strSummary)
+            msgBox.setWindowTitle(u'Export done')
+            msgBox.setDetailedText(strDetails)
+            msgBox.exec_()
 
     # EXPORT ALL INFO (WORKER)
     def exportAllWorker(self, selOptions, thread=None):
