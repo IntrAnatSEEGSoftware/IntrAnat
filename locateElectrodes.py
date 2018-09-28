@@ -3620,17 +3620,31 @@ class LocateElectrodes(QtGui.QDialog):
 
     # ===== EXPORT PARCES: PART I =====
     def exportParcels(self, saveInDBmarsatlas = True, Callback = None):
-
+        from datetime import datetime
+        
         newFiles = []
         errMsg = []
         # Check marsatlas
         LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={ 'side': 'left' ,'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'parcellation_type':'marsAtlas' })
-        LeftGyri = LeftGyri.findValue(self.diskItems['T1pre'])
-        if LeftGyri is None:
+        LeftGyri = list(LeftGyri.findValues(self.diskItems['T1pre'], None, False))
+        if not LeftGyri:
             print('Error: No hemisphere parcellation texture found')
             errMsg += ["Export CSV: MarsAtlas not found"]
             TemplateMarsAtlas = True
         else:
+            # If there are multiple files, use the most recent one
+            if (len(LeftGyri) > 1):
+                # Get file creation dates
+                fileTimes = [os.path.getmtime(str(f)) for f in LeftGyri]
+                # Display warning
+                print("Warning: Multiple marsAtlas segmentation folders for the same subject, using the most recent one:")
+                for i in range(len(LeftGyri)):
+                    print("    " + str(LeftGyri[i]) + "  (" + datetime.utcfromtimestamp(fileTimes[i]).strftime('%Y-%m-%d %H:%M:%S') +  ")")
+                # Select newest file 
+                iMax = numpy.array(fileTimes).argmax()
+                LeftGyri = LeftGyri[1]
+            else:
+                LeftGyri = LeftGyri[0]
             TemplateMarsAtlas = False
 
         # Check freesurfer
@@ -3679,7 +3693,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
         # Continue export
         # newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
-        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI)
+        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, LeftGyri.attributes()['acquisition'])
         # Call additional function at the end
         if Callback is not None:
             Callback()
@@ -3688,7 +3702,7 @@ class LocateElectrodes(QtGui.QDialog):
 
     # ===== EXPORT PARCELS: PART II =====
     # def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False, plot_dict_MNI=None):
-    def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, plot_dict_MNI=None):
+    def exportParcels2(self, useTemplateMarsAtlas, useTemplateFreeSurfer, plot_dict_MNI, acq):
 
         print "export electrode start"
         timestamp = time.time()
@@ -3696,7 +3710,7 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== READ: MARS ATLAS =====
         # Get left hemisphere
         if not useTemplateMarsAtlas:
-            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
             diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
             if diMaskleft is None:
                 print('Error: left gyri conversion surface to volume failed')
@@ -3713,7 +3727,7 @@ class LocateElectrodes(QtGui.QDialog):
             item_segment = 'T1pre'
         # Get right hemisphere
         if not useTemplateMarsAtlas:
-            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
             diMaskright = Mask_right.findValue(self.diskItems[item_segment])
             if diMaskright is None:
                 print('right gyri conversion surface to volume failed')
@@ -3731,7 +3745,7 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== READ: GREY/WHITE =====
         GWAtlas = True
         # Left hemisphere
-        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
         diMaskGW_left = MaskGW_left.findValue(self.diskItems[item_segment])
         if diMaskGW_left is None:
             print('Error: Left grey/white mask not found')
@@ -3739,7 +3753,7 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             volGW_left = aims.read(diMaskGW_left.fileName())
         # Right hemisphere
-        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
         diMaskGW_right = MaskGW_right.findValue(self.diskItems[item_segment])
         if diMaskGW_right is None:
             print('Error: Right grey/white mask not found')
@@ -3765,7 +3779,7 @@ class LocateElectrodes(QtGui.QDialog):
                 vol_lausanne = None
             # FreeSurfer hippocampus atlas (generated by ImageImport)
             # LEFT
-            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
             difreesurfHippoAntPostleft = list(freesurfHippoAntPostleft.findValues({}, None, False ))
             if not difreesurfHippoAntPostleft:
                 # If file is not properly registered in DB, try to search volume by filename directly
@@ -3773,7 +3787,7 @@ class LocateElectrodes(QtGui.QDialog):
                 if os.path.isfile(lhippoFile):
                     difreesurfHippoAntPostleft = [lhippoFile]
             # RIGHT
-            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
+            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
             difreesurfHippoAntPostright = list(freesurfHippoAntPostright.findValues({}, None, False ))
             if not difreesurfHippoAntPostright:
                 # If file is not properly registered in DB, try to search volume by filename directly
@@ -3823,7 +3837,7 @@ class LocateElectrodes(QtGui.QDialog):
 #             vol_hipposubfieldFS = aims.read('MNI_Freesurfer/mri/bhHippoMNI.nii')
 
         # ===== READ: RESECTION =====
-        wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
+        wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
         di_resec = list(wdi_resec.findValues({}, None, False ))
         #careful, if we use templates, the resection has to be deformed in the mni template
         if len(di_resec)==0:
@@ -3835,7 +3849,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         # ===== READ: STATISTICS =====
         # Is there any statistic-Data
-        wdi_stat = ReadDiskItem('Statistic-Data','NIFTI-1 image',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
+        wdi_stat = ReadDiskItem('Statistic-Data','NIFTI-1 image',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
         di_stat = list(wdi_stat.findValues({}, None, False ))
         # Different subacquisition
         subacq_existing = [di_stat[i].attributes()['subacquisition'] for i in range(len(di_stat))]
