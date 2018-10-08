@@ -444,7 +444,7 @@ class LocateElectrodes(QtGui.QDialog):
         if loadAll == True:
             QtGui.QWidget.__init__(self)
             self.ui = uic.loadUi("locateElectrodes.ui", self)
-            self.setWindowTitle('Epilepsie - localisation des electrodes - NOT FOR MEDICAL USE')
+            self.setWindowTitle('Localisation des electrodes - NOT FOR MEDICAL USE')
             self.app = app
             # Widget 0 (buttons panel) will be at minimum size (stretch factor 0), the windows will fill up the rest
             #self.splitter_2.setStretchFactor(0,0)
@@ -3369,7 +3369,7 @@ class LocateElectrodes(QtGui.QDialog):
                 previous_contact = "".join([i for i in plotMNI_sorted[pindex-1][0] if not i.isdigit()])
                 current_contact = "".join([i for i in plotMNI_sorted[pindex][0] if not i.isdigit()])
                 if previous_contact == current_contact:
-                    info_plotMNI_bipolaire.append((plotMNI_sorted[pindex][0]+' - '+ plotMNI_sorted[pindex-1][0],(numpy.array(plotMNI_sorted[pindex][1])+numpy.array(plotMNI_sorted[pindex-1][1]))/2 ))
+                    info_plotMNI_bipolaire.append((plotMNI_sorted[pindex-1][0] + '-' + plotMNI_sorted[pindex][0],(numpy.array(plotMNI_sorted[pindex][1])+numpy.array(plotMNI_sorted[pindex-1][1]))/2 ))
             
             plotMNI_sorted=dict(plotMNI_sorted)
             info_plotMNI_bipolaire=dict(info_plotMNI_bipolaire)
@@ -3389,7 +3389,7 @@ class LocateElectrodes(QtGui.QDialog):
                 previous_contact = "".join([i for i in plotSB_sorted[pindex-1][0] if not i.isdigit()])
                 current_contact = "".join([i for i in plotSB_sorted[pindex][0] if not i.isdigit()])
                 if previous_contact == current_contact:
-                    info_plotSB_bipolaire.append((plotSB_sorted[pindex][0]+' - '+ plotSB_sorted[pindex-1][0],(numpy.array(plotSB_sorted[pindex][1])+numpy.array(plotSB_sorted[pindex-1][1]))/2 ))
+                    info_plotSB_bipolaire.append((plotSB_sorted[pindex-1][0] + '-' + plotSB_sorted[pindex][0],(numpy.array(plotSB_sorted[pindex][1])+numpy.array(plotSB_sorted[pindex-1][1]))/2 ))
                      
             plotSB_sorted=dict(plotSB_sorted)
             info_plotSB_bipolaire=dict(info_plotSB_bipolaire)
@@ -3419,7 +3419,7 @@ class LocateElectrodes(QtGui.QDialog):
                 dict_sorted_tmp = OrderedDict(sorted(info_label_elec['plots_label'].items()))
                 
                 for kk,vv in dict_sorted_tmp.iteritems():
-                    listwrite = [kk]
+                    listwrite = [kk.upper().replace("'",'p')]
                     listwrite.append([float(format(plotMNI_sorted[kk][i],'.3f')) for i in range(3)])
                     listwrite.append([float(format(plotSB_sorted[kk][i],'.3f')) for i in range(3)])
                     listwrite.append(vv['MarsAtlas'][1])
@@ -3451,7 +3451,7 @@ class LocateElectrodes(QtGui.QDialog):
                 dict_sorted_tmp = OrderedDict(sorted(info_label_elec['plots_label_bipolar'].items()))
                 
                 for kk,vv in dict_sorted_tmp.iteritems():
-                    listwrite = [kk]
+                    listwrite = [kk.upper().replace("'",'p')]
                     listwrite.append([float(format(info_plotMNI_bipolaire[kk][i],'.3f')) for i in range(3)])
                     listwrite.append([float(format(info_plotSB_bipolaire[kk][i],'.3f')) for i in range(3)])
                     listwrite.append(vv['MarsAtlas'][1])
@@ -3937,21 +3937,21 @@ class LocateElectrodes(QtGui.QDialog):
             previous_contact = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
             current_contact = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
             if previous_contact == current_contact:
-                 info_plot_bipolaire.append((plot_sorted[pindex][0]+' - '+ plot_sorted[pindex-1][0],(plot_sorted[pindex][1]+plot_sorted[pindex-1][1])/2 ))
+                 info_plot_bipolaire.append((plot_sorted[pindex-1][0] + '-' + plot_sorted[pindex][0],(plot_sorted[pindex][1]+plot_sorted[pindex-1][1])/2 ))
         # FreeSurfer coordinates
         info_plot_bipolaire_fs = []
         for pindex in range(1,len(plot_fs_sorted)):
             previous_contact = "".join([i for i in plot_fs_sorted[pindex-1][0] if not i.isdigit()])
             current_contact = "".join([i for i in plot_fs_sorted[pindex][0] if not i.isdigit()])
             if previous_contact == current_contact:
-                 info_plot_bipolaire_fs.append((plot_fs_sorted[pindex][0]+' - '+ plot_fs_sorted[pindex-1][0],(plot_fs_sorted[pindex][1]+plot_fs_sorted[pindex-1][1])/2 ))
+                 info_plot_bipolaire_fs.append((plot_fs_sorted[pindex-1][0] + '-' + plot_fs_sorted[pindex][0],(plot_fs_sorted[pindex][1]+plot_fs_sorted[pindex-1][1])/2 ))
         # MNI coordinates
         info_plot_bipolaire_MNI = {}
         for pindex in range(1,len(plot_sorted)):
             previous_contact = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
             current_contact = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
             if previous_contact == current_contact:
-                info_plot_bipolaire_MNI.update({plot_sorted[pindex][0]+' - '+ plot_sorted[pindex-1][0]:(numpy.array(plot_dict_MNI_Native[plot_sorted[pindex][0]])+numpy.array(plot_dict_MNI_Native[plot_sorted[pindex-1][0]]))/2})
+                info_plot_bipolaire_MNI.update({plot_sorted[pindex-1][0] + '-' + plot_sorted[pindex][0]:(numpy.array(plot_dict_MNI_Native[plot_sorted[pindex][0]])+numpy.array(plot_dict_MNI_Native[plot_sorted[pindex-1][0]]))/2})
 
         
         # ===== VOXEL COORDINATES =====
