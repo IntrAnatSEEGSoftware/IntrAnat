@@ -952,7 +952,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo4.blockSignals(True)
         # Call loading function
         ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        #self.loadPatientWorker(patient)
+        # self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -968,6 +968,8 @@ class LocateElectrodes(QtGui.QDialog):
         
   
     def loadPatientWorker(self, patient, thread=None):
+        from random import randint
+        
         self.t1pre2ScannerBasedTransform = None
         self.clearT1preMniTransform()
     
@@ -984,7 +986,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Load all volumes
         dictionnaire_list_images = dict()
         t1pre = None
-        objAtlas = None
+        objAtlas = []
         refT1pre = None
         for t in volumes:
             if "skull_stripped" in t.fullName():
@@ -1043,6 +1045,21 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'Resection':['Resection', 'electrodes']})
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'FreeSurfer Atlas (Destrieux)':['FreesurferAtlaspre', 'electrodes']})
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-33' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'Lausanne2008-33 Atlas':['Lausanne2008-33', 'electrodes']})
+                na = 'Lausanne2008-33'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-60' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'Lausanne2008-60 Atlas':['Lausanne2008-60', 'electrodes']})
+                na = 'Lausanne2008-60'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-125' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'Lausanne2008-125 Atlas':['Lausanne2008-125', 'electrodes']})
+                na = 'Lausanne2008-125'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-250' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'Lausanne2008-250 Atlas':['Lausanne2008-250', 'electrodes']})
+                na = 'Lausanne2008-250'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-500' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'Lausanne2008-500 Atlas':['Lausanne2008-500', 'electrodes']})
+                na = 'Lausanne2008-500'
 #             elif (t.attributes()['modality'] == 'hippofreesurfer_atlas'):
 #                 dictionnaire_list_images.update({'HippoFreeSurferAtlas pre':['HippoFreesurferAtlaspre', 'electrodes']})
             
@@ -1100,14 +1117,24 @@ class LocateElectrodes(QtGui.QDialog):
                     print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
 
             elif (na == 'FreesurferT1pre'):
-                strVol = 'MRI FreeSurfer'
+                if (na == 'FreesurferT1pre'):
+                    strVol = 'MRI FreeSurfer'
                 # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
                 self.deleteNormalizedTransformations(obj)
                 # Load all related transformations
                 self.loadVolTransformations(t)
                 
-            elif (na == 'FreesurferAtlaspre'):
-                objAtlas = obj
+            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na):
+                objAtlas.append(obj)
+                # Number of values to represent in this palette
+                N = obj.getInfos()['texture']['textureMax']
+                # Create custom palette for this anatomical atlas
+                customPalette = self.a.createPalette(na)
+                colors = [0,0,0]
+                for x in xrange(N):
+                    colors.extend([randint(0,255), randint(0,255), randint(0,255)])
+                customPalette.setColors(colors=colors)
+                obj.setPalette(customPalette)
 
             # ===== SURFACES =====
             # For T1 MRI: Load surfaces and MarsAtlas
@@ -1195,7 +1222,8 @@ class LocateElectrodes(QtGui.QDialog):
             print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
         # FreeSurfer atlas was resliced using T1pre: force T1pre referential
         if objAtlas and refT1pre:
-            objAtlas.assignReferential(refT1pre)
+            for obj in objAtlas:
+                obj.assignReferential(refT1pre)
         
         # Update list of available items in the combo boxes
         self.windowContent = dictionnaire_list_images;
@@ -4861,10 +4889,11 @@ class LocateElectrodes(QtGui.QDialog):
             items.append(items[iCortex[0]])
             del items[iCortex[0]]
         # Move "FreeSurfer Atlas" at the end
-        iFreeSurfer = [i for i in range(len(items)) if 'FreeSurfer Atlas' in items[i]]
-        if iFreeSurfer:
-            items.append(items[iFreeSurfer[0]])
-            del items[iFreeSurfer[0]]
+        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]))]
+        for i in iFreeSurfer:
+            items.append(items[i])
+        for i in reversed(iFreeSurfer):
+            del items[i]
         # Set new list of items
         self.windowCombo1.addItems(items)
         self.windowCombo2.addItems(items)
