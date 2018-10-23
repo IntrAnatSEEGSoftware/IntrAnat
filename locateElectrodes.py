@@ -264,6 +264,16 @@ end
 quit;"""
 
 
+#################### READ ATLAS LABELS #########################################
+# FreeSurfer labels (Destrieux)
+(freesurfer_parcel_names, freesurfer_colormap) = readFreesurferLabelFile('freesurfer_label.txt', 14175)
+(lausanne33_parcel_names, lausanne33_colormap) = readFreesurferLabelFile(None, 83)
+(lausanne60_parcel_names, lausanne60_colormap) = readFreesurferLabelFile(None, 129)
+(lausanne125_parcel_names, lausanne125_colormap) = readFreesurferLabelFile(None, 234)
+(lausanne250_parcel_names, lausanne250_colormap) = readFreesurferLabelFile(None, 463)
+(lausanne500_parcel_names, lausanne500_colormap) = readFreesurferLabelFile(None, 1015)
+
+
 # Functions to sort the contacts A1,A2...,A10 and not A1, A10, A2..
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -970,8 +980,6 @@ class LocateElectrodes(QtGui.QDialog):
         
   
     def loadPatientWorker(self, patient, thread=None):
-        from random import randint
-        
         self.t1pre2ScannerBasedTransform = None
         self.clearT1preMniTransform()
     
@@ -1128,15 +1136,30 @@ class LocateElectrodes(QtGui.QDialog):
                 
             elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na):
                 objAtlas.append(obj)
-                # Number of values to represent in this palette
-                N = obj.getInfos()['texture']['textureMax']
-                # Create custom palette for this anatomical atlas
+                # Create palette adapted to the volume
+                if (na == 'FreesurferAtlaspre'):
+                    colors = freesurfer_colormap
+                elif (na == 'Lausanne2008-33'):
+                    colors = lausanne33_colormap
+                elif (na == 'Lausanne2008-60'):
+                    colors = lausanne60_colormap
+                elif (na == 'Lausanne2008-125'):
+                    colors = lausanne125_colormap
+                elif (na == 'Lausanne2008-250'):
+                    colors = lausanne250_colormap
+                elif (na == 'Lausanne2008-500'):
+                    colors = lausanne500_colormap
+                    
+#                 # Number of values to represent in this palette
+#                 N = obj.getInfos()['texture']['textureMax']
+#                 for x in xrange(N):
+#                     colors.extend([randint(0,255), randint(0,255), randint(0,255)])
+                    
+                # Create custom palette
                 customPalette = self.a.createPalette(na)
-                colors = [0,0,0]
-                for x in xrange(N):
-                    colors.extend([randint(0,255), randint(0,255), randint(0,255)])
-                customPalette.setColors(colors=colors)
-                obj.setPalette(customPalette)
+                customPalette.setColors(colors=colors, color_mode='RGB')
+                #len(colors)/3-1
+                obj.setPalette(customPalette, minVal=0, maxVal=1)
 
             # ===== SURFACES =====
             # For T1 MRI: Load surfaces and MarsAtlas
@@ -3628,10 +3651,8 @@ class LocateElectrodes(QtGui.QDialog):
             percent_resec_FS = numpy.divide(label_resec_FS[0],total_label_FS[0],dtype=float)*100
             #we keep only value between 1 and 100 to not display the thousands freesurfer parcels...
             interesting_percent_resec_FS = numpy.where((percent_resec_FS >1) & (percent_resec_FS < 100))
-            
-            parcels_names_FS = readFreesurferLabelFile('freesurfer_label.txt')
-            
-            list1 = [parcels_names_FS[unicode(x)][0] for x in interesting_percent_resec_FS[0]]
+
+            list1 = [freesurfer_parcel_names[unicode(x)][0] for x in interesting_percent_resec_FS[0]]
             list2 = [(float(x),percent_resec_FS[x]) for x in interesting_percent_resec_FS[0]]
             
             resection_freesurfer_info = dict(zip(list1,list2))
@@ -3976,7 +3997,6 @@ class LocateElectrodes(QtGui.QDialog):
             plot_dict_MNI_Native.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
         # Read parcel names
         parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
-        freesurfer_parcel_names = readFreesurferLabelFile('freesurfer_label.txt')
         Hammers_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rHammersSEEG12_labels.txt')
         AAL_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12_labels.txt')
         AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
