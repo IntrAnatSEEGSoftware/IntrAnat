@@ -266,12 +266,13 @@ quit;"""
 
 #################### READ ATLAS LABELS #########################################
 # FreeSurfer labels (Destrieux)
+lausanne_parcel_names = [None] * 5
 (freesurfer_parcel_names, freesurfer_colormap) = readFreesurferLabelFile('freesurfer_label.txt', 14175)
-(lausanne33_parcel_names, lausanne33_colormap) = readFreesurferLabelFile(None, 83)
-(lausanne60_parcel_names, lausanne60_colormap) = readFreesurferLabelFile(None, 129)
-(lausanne125_parcel_names, lausanne125_colormap) = readFreesurferLabelFile(None, 234)
-(lausanne250_parcel_names, lausanne250_colormap) = readFreesurferLabelFile(None, 463)
-(lausanne500_parcel_names, lausanne500_colormap) = readFreesurferLabelFile(None, 1015)
+(lausanne_parcel_names[0], lausanne33_colormap) = readFreesurferLabelFile('lausanne33_labels.txt', 83)
+(lausanne_parcel_names[1], lausanne60_colormap) = readFreesurferLabelFile('lausanne60_labels.txt', 129)
+(lausanne_parcel_names[2], lausanne125_colormap) = readFreesurferLabelFile('lausanne125_labels.txt', 234)
+(lausanne_parcel_names[3], lausanne250_colormap) = readFreesurferLabelFile('lausanne250_labels.txt', 463)
+(lausanne_parcel_names[4], lausanne500_colormap) = readFreesurferLabelFile('lausanne500_labels.txt', 1015)
 
 
 # Functions to sort the contacts A1,A2...,A10 and not A1, A10, A2..
@@ -4226,7 +4227,7 @@ class LocateElectrodes(QtGui.QDialog):
                     else:
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
                         label_lausanne[iVol] = most_common
-                        label_lausanne_name[iVol] = "%d" % most_common
+                        label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
 
 #             if not voxel_to_keep_HippoFS:
 #                 label_hippoFS_name = 'not in a hippocamp subfield'
