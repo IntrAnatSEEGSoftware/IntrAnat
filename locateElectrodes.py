@@ -1158,8 +1158,7 @@ class LocateElectrodes(QtGui.QDialog):
                 # Create custom palette
                 customPalette = self.a.createPalette(na)
                 customPalette.setColors(colors=colors, color_mode='RGB')
-                #len(colors)/3-1
-                obj.setPalette(customPalette, minVal=0, maxVal=1)
+                obj.setPalette(customPalette, minVal=0, maxVal=len(colors)/3-1, absoluteMode=True)
 
             # ===== SURFACES =====
             # For T1 MRI: Load surfaces and MarsAtlas
