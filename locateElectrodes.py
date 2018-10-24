@@ -302,18 +302,18 @@ def moveElectrode(target, entry, referential, newRef, a, meshes):
     if linalg.norm(z) == 0:
         return
     z = -z / linalg.norm(z)
-    #print "z = "+repr(z)
+    ## print "z = "+repr(z)
     y = cross (i,z)
     y = -y/linalg.norm(y)
-    #print "y = "+repr(y)
+    ## print "y = "+repr(y)
     x = cross(y,z)
-    #print "x = "+repr(x)
+    ## print "x = "+repr(x)
     #m = [x[0][0], x[0][1], x[0][2], y[0][0],y[0][1], y[0][2], z[0][0],  z[0][1], z[0][2]]
     m = [x[0][0], y[0][0], z[0][0], x[0][1],y[0][1], z[0][1], x[0][2],  y[0][2], z[0][2]]
     try:
         transf = a.createTransformation(transl+m, origin = newRef, destination = referential)
     except:
-        print("problem transformation")
+        # print("problem transformation")
         return
     a.assignReferential(newRef, meshes)
     return (newRef, transf)
@@ -644,7 +644,7 @@ class LocateElectrodes(QtGui.QDialog):
                     self.fileNoDBpath = prefs_imageimport['FileNoDBPath']
                     filein.close()
             except:
-                print 'NO SPM path found, will be unable to export MNI position'
+                # print 'NO SPM path found, will be unable to export MNI position'
                 pass
 
 
@@ -694,7 +694,7 @@ class LocateElectrodes(QtGui.QDialog):
     
     def keyPressEvent( self, event ) :
         if (event.key()==QtCore.Qt.Key_Return):
-            print self.app.focusWidget()
+            # print self.app.focusWidget()
             if hasattr(self, 'app') and (self.app.focusWidget() == self.nameEdit):
                 self.editElectrodeName()
             event.accept()
@@ -1005,6 +1005,7 @@ class LocateElectrodes(QtGui.QDialog):
         t1pre = None
         objAtlas = []
         refT1pre = None
+        self.vol_destrieux = []
         for t in volumes:
             if "skull_stripped" in t.fullName():
                 continue
@@ -1062,6 +1063,7 @@ class LocateElectrodes(QtGui.QDialog):
                 dictionnaire_list_images.update({'Resection':['Resection', 'electrodes']})
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'FreeSurfer Atlas (Destrieux)':['FreesurferAtlaspre', 'electrodes']})
+                self.vol_destrieux = aims.read(str(t))
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-33' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'Lausanne2008-33 Atlas':['Lausanne2008-33', 'electrodes']})
                 na = 'Lausanne2008-33'
@@ -1166,12 +1168,6 @@ class LocateElectrodes(QtGui.QDialog):
                     colors = lausanne250_colormap
                 elif (na == 'Lausanne2008-500'):
                     colors = lausanne500_colormap
-                    
-#                 # Number of values to represent in this palette
-#                 N = obj.getInfos()['texture']['textureMax']
-#                 for x in xrange(N):
-#                     colors.extend([randint(0,255), randint(0,255), randint(0,255)])
-                    
                 # Create custom palette
                 customPalette = self.a.createPalette(na)
                 customPalette.setColors(colors=colors, color_mode='RGB')
@@ -1335,34 +1331,45 @@ class LocateElectrodes(QtGui.QDialog):
 
     # Get the click events
     def clickHandler(self, eventName, params):
-        # Not a real mouse click
-        if not params:
-            return
-        # Save last mouse click, to compensate for 
-        self.lastClickedPos = params['position']
-        self.lastClickedRef = params['window'].getReferential()
+        # If a real mouse click: save position
+        if params:
+            self.lastClickedPos = params['position']
+            self.lastClickedRef = params['window'].getReferential()
 
         coords = [0.0,0.0,0.0]
+
         if 'T1pre' in self.dispObj:
             # pT1Pre = self.a.linkCursorLastClickedPosition(self.dispObj['T1pre'].getReferential()).items()
             pT1Pre = self.positionPreRef()
-            
-            if self.coordsDisplayRef == 'Natif':
-                coords = pT1Pre
-            elif self.coordsDisplayRef == 'Scanner-based':
-                infos = self.t1pre2ScannerBased().getInfos()
-                rot = infos['rotation_matrix']
-                trans = infos['translation']
-                m = aims.Motion(rot[:3]+[trans[0]]+rot[3:6]+[trans[1]]+rot[6:]+[trans[2]]+[0,0,0,1])
-                coords = m.transform(pT1Pre)
+            if not pT1Pre:
+                return
+
+            # Labels
+            if (self.coordsDisplayRef == "FreeSurfer/Destrieux"):
+                info_image = self.diskItems['T1pre'].attributes()
+                plot_pos_pix_indi = [round(pT1Pre[i]/info_image['voxel_size'][i]) for i in range(3)]
+                plot_pos_pixFS = plot_pos_pix_indi
+                fsIndex = self.vol_destrieux.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
+                label_freesurfer_name = freesurfer_parcel_names[str(fsIndex)][0]
+                self.positionLabel.setText(label_freesurfer_name + " (" + str(fsIndex) + ")")
+            # Coordinates
             else:
-                try:
-                    coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
-                except:
+                if self.coordsDisplayRef == 'Natif':
+                    coords = pT1Pre
+                elif self.coordsDisplayRef == 'Scanner-based':
+                    infos = self.t1pre2ScannerBased().getInfos()
+                    rot = infos['rotation_matrix']
+                    trans = infos['translation']
+                    m = aims.Motion(rot[:3]+[trans[0]]+rot[3:6]+[trans[1]]+rot[6:]+[trans[2]]+[0,0,0,1])
+                    coords = m.transform(pT1Pre)
+                else:
+                    try:
+                        coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
+                    except:
+                        coords = [0.0,0.0,0.0]
+                if coords is None:
                     coords = [0.0,0.0,0.0]
-        if coords is None:
-            coords = [0.0,0.0,0.0]
-        self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
+                self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
 
 
     def preReferential(self):
@@ -1370,8 +1377,7 @@ class LocateElectrodes(QtGui.QDialog):
             return self.dispObj['T1pre'].getReferential()
         else:
             return None
-
-
+  
     def positionPreRef(self):
         # MAY 2018: Not using linkCursorLastClickedPosition anymore because of a bug in BrainVISA 4.6
         # that causes linkCursorLastClickedPosition() to return coordinates in the referential currently
@@ -1389,7 +1395,10 @@ class LocateElectrodes(QtGui.QDialog):
             trm = self.a.getTransformation(refSrc, refDest)
             if trm:
                 pos = trm.motion().transform([pos[0], pos[1], pos[2]])
-        return [pos[0], pos[1], pos[2]]
+        if pos:
+            return [pos[0], pos[1], pos[2]]
+        else:
+            return None
 
 
     def t1pre2ScannerBased(self):
@@ -1459,11 +1468,13 @@ class LocateElectrodes(QtGui.QDialog):
     def refreshAvailableDisplayReferentials(self):
         curr = str(self.referentialCombo.currentText())
         self.referentialCombo.clear()
+        # Add items from the referential converter
         refs = self.refConv.availableReferentials().keys() + ['Natif',]
-        print "Available referentials from refConv : "+repr(refs)
-        self.referentialCombo.addItems(sorted(refs))
-        #if curr in refs:
-          #self.set
+        # Add available atlases
+        if ('FreesurferAtlaspre' in self.dispObj.keys()):
+            refs += ["FreeSurfer/Destrieux"]        
+        self.referentialCombo.addItems(refs)
+        print self.dispObj.keys()
 
     def updateCoordsDisplay(self, text):
         self.coordsDisplayRef = str(text)
@@ -1761,6 +1772,7 @@ class LocateElectrodes(QtGui.QDialog):
         del self.electrodes[idx]
         self.updateElectrodeMeshes()
         self.updateAllWindows(True)
+        self.isModified = True
 
     def updateElectrodeModel(self, model):
         # Get current electrode
@@ -2350,6 +2362,12 @@ class LocateElectrodes(QtGui.QDialog):
     
     # EXPORT ALL INFO (INTERACTIVE)
     def exportAll(self):
+        # Check if electrodes were modified
+        if self.isModified:
+            reply = QtGui.QMessageBox.question(self, 'Message', "Save modifications before exporting?",
+                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            if (reply == QtGui.QMessageBox.Yes):
+                self.saveElectrodes()
         # If no subject is selected: stop
         selPatients = self.patientList.selectedItems()
         if not selPatients:
@@ -5058,12 +5076,12 @@ class LocateElectrodes(QtGui.QDialog):
         Text_win1 = self.windowCombo1.currentText()
         Text_win2 = self.windowCombo2.currentText()
         
-        for obj in self.dispObj.keys():
+        for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win1)][0]:
                 #print "Adding %s"%obj
                 obj1 = obj
         
-        for obj in self.dispObj.keys():
+        for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win2)][0]:
                 #print "Adding %s"%obj
                 obj2 = obj
