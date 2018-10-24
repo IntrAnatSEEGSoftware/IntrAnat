@@ -353,6 +353,9 @@ class ImageImport (QtGui.QDialog):
         layout3.addWidget( self.axWindow4.getInternalRep() )
         layout.addLayout(layout2)
         layout.addLayout(layout3)
+        
+        # Hide control window
+        self.a.getControlWindow().setVisible(False)
 
         self.dispObj = []
 

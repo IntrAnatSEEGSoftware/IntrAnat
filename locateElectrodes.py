@@ -556,8 +556,8 @@ class LocateElectrodes(QtGui.QDialog):
             self.wins[1].getInternalRep().muteSagittal()
             self.wins[2].getInternalRep().muteCoronal()
             self.wins[3].getInternalRep().mute3D()
-            # Set 3D orientation
-            
+            # Hide control window
+            self.a.getControlWindow().setVisible(False)
             # By default: use only two views
             self.setWindowNumber(2)
 
@@ -979,7 +979,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateAllWindows(True)
         
   
-    def loadPatientWorker(self, patient, thread=None):
+    def loadPatientWorker(self, patient, thread=None, isGui=True):
         self.t1pre2ScannerBasedTransform = None
         self.clearT1preMniTransform()
     
@@ -1126,6 +1126,16 @@ class LocateElectrodes(QtGui.QDialog):
                 except Exception, e:
                     print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
 
+                # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
+                try:
+                    self.refConv.loadACPC(t)
+                except Exception, e:
+                    print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
+                try:
+                    self.refConv.loadTalairach(t)
+                except Exception, e:
+                    print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
+            
             elif (na == 'FreesurferT1pre'):
                 if (na == 'FreesurferT1pre'):
                     strVol = 'MRI FreeSurfer'
@@ -1234,32 +1244,25 @@ class LocateElectrodes(QtGui.QDialog):
                 if amygHippoMesh:
                     dictionnaire_list_images.update({strVol + ' + hippocampus + amygdala':[na, 'electrodes'] + amygHippoMesh})
 
-        # ===== LOAD NORMALIZED TRANSFORMATIONS =====
-        # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
-        try:
-            self.refConv.loadACPC(t)
-        except Exception, e:
-            print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
-        try:
-            self.refConv.loadTalairach(t)
-        except Exception, e:
-            print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
+        # ===== FREESURFER TRANSFOMRATION =====
         # FreeSurfer atlas was resliced using T1pre: force T1pre referential
         if objAtlas and refT1pre:
             for obj in objAtlas:
                 obj.assignReferential(refT1pre)
         
-        # Update list of available items in the combo boxes
-        self.windowContent = dictionnaire_list_images;
-        self.updateComboboxes(pre_select_1, pre_select_2, pre_select_3, pre_select_4)
-        # Display referential informations
-        self.setWindowsReferential()
-        if thread is not None:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
-        self.loadElectrodes(patient, self.currentProtocol)
-        self.refreshAvailableDisplayReferentials()
-        # Center view on AC
-        self.centerCursor()
+        # Update interface
+        if isGui:
+            # Update list of available items in the combo boxes
+            self.windowContent = dictionnaire_list_images;
+            self.updateComboboxes(pre_select_1, pre_select_2, pre_select_3, pre_select_4)
+            # Display referential informations
+            self.setWindowsReferential()
+            if thread is not None:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
+            self.loadElectrodes(patient, self.currentProtocol)
+            self.refreshAvailableDisplayReferentials()
+            # Center view on AC
+            self.centerCursor()
             
             
     # Chargement d'un objet (MRI, mesh...) dans Anatomist et mise à jour de l'affichage
@@ -3676,8 +3679,8 @@ class LocateElectrodes(QtGui.QDialog):
         return [di.fullPath()]
 
 
-    # ===== EXPORT PARCES: PART I =====
-    def exportParcels(self, saveInDBmarsatlas = True, Callback = None):
+    # ===== EXPORT PARCELS: PART I =====
+    def exportParcels(self, Callback = None):
         from datetime import datetime
         
         newFiles = []
