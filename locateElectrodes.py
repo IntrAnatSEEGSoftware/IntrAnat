@@ -449,7 +449,7 @@ def createItemDirs(item):
 
 class LocateElectrodes(QtGui.QDialog):
 
-    def __init__(self, app=None, loadAll = True):        
+    def __init__(self, app=None, loadAll=True, isGui=True):        
         # UI init
         if loadAll == True:
             QtGui.QWidget.__init__(self)
@@ -498,6 +498,9 @@ class LocateElectrodes(QtGui.QDialog):
         self.lastClickedPos = None
         self.lastClickedRef = None
         #self.MicromedListener = ML()
+        self.wins = []
+        self.widgetsLoaded = []
+        self.widgetsUnloaded = []
     
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
 #         self.windowContent = { 'MRI pre':['T1pre','electrodes',],\
@@ -524,16 +527,16 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowContent = {}
         self.updateComboboxes()
         
-        # Anatomist windows
+        # Start anatomist
         if (loadAll == True) and self.app:
-            # Start anatomist 
             self.a = anatomist.Anatomist('-b') #Batch mode (hide Anatomist window)
+        # Create Anatomist windows
+        if (loadAll == True) and self.app and isGui:
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
             self.a.onCursorNotifier.add(self.clickHandler)
             
             # Create 4 windows
-            self.wins = []
             for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
                 # Create anatomist window
                 w = self.a.createWindow('Sagittal')
@@ -561,8 +564,7 @@ class LocateElectrodes(QtGui.QDialog):
             # By default: use only two views
             self.setWindowNumber(2)
 
-        # Set callbacks
-        if (loadAll == True) and self.app:
+            # ===== SET CALLBACKS =====
             # Patient selection
             self.connect(self.loadPatientButton, QtCore.SIGNAL('clicked()'), self.loadPatient)
             self.connect(self.changePatientButton, QtCore.SIGNAL('clicked()'), self.changePatient)
@@ -623,8 +625,13 @@ class LocateElectrodes(QtGui.QDialog):
                 w.setEnabled(True)
             for w in self.widgetsUnloaded:
                 w.setEnabled(False)
-
-            # Preferences
+                
+            # Display warning: Not for medical use
+            self.warningMEDIC()
+            
+            
+        # ===== LOAD PREFERENCES =====
+        if (loadAll == True) and self.app:
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
             self.fileNoDBpath = None
             self.spmpath = None
@@ -638,8 +645,7 @@ class LocateElectrodes(QtGui.QDialog):
             except:
                 print 'NO SPM path found, will be unable to export MNI position'
                 pass
-            # Display warning: Not for medical use
-            self.warningMEDIC()
+
 
         if self.app:
             # Get BrainVISA context
@@ -1259,7 +1265,10 @@ class LocateElectrodes(QtGui.QDialog):
             self.setWindowsReferential()
             if thread is not None:
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
-            self.loadElectrodes(patient, self.currentProtocol)
+        # Load electrodes
+        self.loadElectrodes(patient, self.currentProtocol, isGui)
+        # Update display
+        if isGui:
             self.refreshAvailableDisplayReferentials()
             # Center view on AC
             self.centerCursor()
@@ -1612,7 +1621,7 @@ class LocateElectrodes(QtGui.QDialog):
 
 
     # Add an electrode from a template
-    def addElectrode(self, name=None, model=None, target=None, entry=None, refId=None, isUpdate=True):
+    def addElectrode(self, name=None, model=None, target=None, entry=None, refId=None, isUpdate=True, isGui=True):
         if name is None:
             name = str(self.nameEdit.text())
             self.isModified = True
@@ -1638,16 +1647,20 @@ class LocateElectrodes(QtGui.QDialog):
         for el in self.electrodes:
             if name == el['name']:
                 name = self.findFreeElectrodeName()
+#         if isGui:
         (newRef, transf, elecModel) = createElectrode(target, entry, self.preReferential(), self.a,\
                                                       model = self.elecModelListByName[str(model)].fullPath(), dispMode = self.dispMode, dispParams = self.dispParams, isTransparent = isTransparent)
+        self.electrodeList.addItem(name)
+        self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
+#         else:
+#             newRef = None
+#             transf = None
+#             elecModel = None
         self.electrodes.append({'name': name, 'ref':newRef, 'transf':transf, 'elecModel':elecModel,\
                                 'target':target, 'entry':entry, 'model':model})
-        self.electrodeList.addItem(name)
-        #index = self.elecCombo.findText("Electrode "+str(self.elecname))
-        self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
 #         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.electrodes) - 1)
         # Redraw electrodes
-        if isUpdate:
+        if isUpdate and isGui:
             self.updateElectrodeMeshes()
             self.updateAllWindows(True)
         
@@ -2145,7 +2158,7 @@ class LocateElectrodes(QtGui.QDialog):
         return (refId, els)
 
 
-    def loadElectrodes(self, patientName=None, patientCenter=None):
+    def loadElectrodes(self, patientName=None, patientCenter=None, isGui=True):
         """Load electrode implantation (if already entered) from BrainVisa or from a file"""
         path = None
         
@@ -2195,12 +2208,13 @@ class LocateElectrodes(QtGui.QDialog):
             print "CAREFUL: electrodes load are defined in an other referential that the one of the T1 pre, problem possible !"
         #indices = [3,7,11, 0,1,2, 4,5,6, 8,9,10]
         for e in els:
-            self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False)
+            self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False, isGui)
         # Update display
-        self.updateElectrodeMeshes()
-        # Update display if the function was called from a button click
-        if not patientName:
-            self.updateAllWindows(True)
+        if isGui:
+            self.updateElectrodeMeshes()
+            # Update display if the function was called from a button click
+            if not patientName:
+                self.updateAllWindows(True)
 
 
     def saveElectrodes(self):
