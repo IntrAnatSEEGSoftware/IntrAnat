@@ -1666,10 +1666,24 @@ class ImageImport (QtGui.QDialog):
             diLaus = wdi.findValue({'center' : write_filters['center'], 'acquisition' : acqLaus, 'subject' : subject})
             # Create the folder if doesn't exist
             self.createItemDirs(diLaus)
-            # Copy file to database
-            cmdCopy = 'gunzip -c "{}" > "{}"'.format(allFiles[key]['file'], str(diLaus.fullPath()))
-            print("Copy: " + cmdCopy)
-            ret = os.system(cmdCopy)
+            
+# PREVIOUS VERSION: 
+# Lausanne2008 atlases were always resliced on the original T1 (freesurfer/orig/001.mgz), and were copied as is in the 
+# IntrAnat/BrainVISA database. However this was not working in all the cases, because the 001.mgz was not necessarily
+# in the same referential as the T1pre.
+#             # Copy file to database
+#             cmdCopy = 'gunzip -c "{}" > "{}"'.format(allFiles[key]['file'], str(diLaus.fullPath()))
+#             print("Copy: " + cmdCopy)
+#             ret = os.system(cmdCopy)
+
+# NEW VERSION: 25-Oct-2018
+# Lausanne2008 atlases are not resliced on the original T1 anymore, and stay in FreeSurfer format (256x256x256)
+# They are resliced on the T1pre at the moment of their importation in the IntrAnat/BrainVISA database,
+# just like the FreeSurfer/Destrieux atlas (previous section of this function)
+            # Reslice volume to match T1pre
+            launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles[key]['file']),'-o',str(diLaus.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+            # Convert to AIMS
+            ret = subprocess.call(['AimsFileConvert', '-i', str(diLaus.fullPath()), '-o', str(diLaus.fullPath()), '-t', 'S16'])
             # Add reference in the database (creates .minf)
             neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
         
@@ -1839,10 +1853,14 @@ class ImageImport (QtGui.QDialog):
             diLaus = wdi.findValue({'center' : str(self.ui.niftiProtocolCombo.currentText()), 'acquisition' : acqLaus, 'subject' : subject})
             # Create the folder if doesn't exist
             self.createItemDirs(diLaus)
-            # Copy file to database
-            cmdCopy = 'gunzip -c "{}" > "{}"'.format(allFiles[key], str(diLaus.fullPath()))
-            print("Copy: " + cmdCopy)
-            ret = os.system(cmdCopy)
+#             # Copy file to database
+#             cmdCopy = 'gunzip -c "{}" > "{}"'.format(allFiles[key], str(diLaus.fullPath()))
+#             print("Copy: " + cmdCopy)
+#             ret = os.system(cmdCopy)
+            # Reslice volume to match T1pre
+            launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles[key]),'-o',str(diLaus.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+            # Convert to AIMS
+            ret = subprocess.call(['AimsFileConvert', '-i', str(diLaus.fullPath()), '-o', str(diLaus.fullPath()), '-t', 'S16'])
             # Add reference in the database (creates .minf)
             neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
 
