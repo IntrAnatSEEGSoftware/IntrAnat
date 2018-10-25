@@ -3550,7 +3550,11 @@ class LocateElectrodes(QtGui.QDialog):
                     # Upper case for all the letters except from "p" that stand for ' (prime)
                     kk = list(kk)
                     for i in range(len(kk)):
-                        if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+                        # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+                        # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
+                        # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+                        # "p" in the .csv files
+                        if kk[i].isalpha():
                             kk[i] = kk[i].upper()
                         elif (kk[i] == "'"):
                             kk[i] = 'p'
