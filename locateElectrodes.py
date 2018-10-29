@@ -499,9 +499,6 @@ class LocateElectrodes(QtGui.QDialog):
         self.lastClickedPos = None
         self.lastClickedRef = None
         #self.MicromedListener = ML()
-        self.wins = []
-        self.widgetsLoaded = []
-        self.widgetsUnloaded = []
     
         # list of objects to display in window for each scenario (MNI, pre, post, etc)
 #         self.windowContent = { 'MRI pre':['T1pre','electrodes',],\
@@ -538,6 +535,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.a.onCursorNotifier.add(self.clickHandler)
             
             # Create 4 windows
+            self.wins = []
             for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
                 # Create anatomist window
                 w = self.a.createWindow('Sagittal')
@@ -629,7 +627,12 @@ class LocateElectrodes(QtGui.QDialog):
                 
             # Display warning: Not for medical use
             self.warningMEDIC()
-            
+        # Initialize empty GUI if not set yet (for command line calls)
+        if not hasattr(self, 'wins'):
+             self.wins = []
+             self.widgetsLoaded = []
+             self.widgetsUnloaded = []
+             
             
         # ===== LOAD PREFERENCES =====
         if (loadAll == True) and self.app:
@@ -954,7 +957,7 @@ class LocateElectrodes(QtGui.QDialog):
             
         self.dispObj = {}
         self.objtokeep = {}
-        self.__init__(loadAll=False)
+        self.__init__(loadAll=False, isGui=True)
   
   
     def loadPatient(self, patient=None):
@@ -4809,6 +4812,7 @@ class LocateElectrodes(QtGui.QDialog):
         di = rdi.findValues({},None,False)
         ldi = list(rdi.findValues({},None,False))
         # If there is already a elecimplant file: load the existing file
+        previous_data = dict()
         if (len(ldi) > 0):
             if (os.path.exists(str(ldi[0]))):
                 filein = open(str(ldi[0]), 'rb')
