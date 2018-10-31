@@ -2403,8 +2403,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            #res = self.exportAllWorker(selOptions)
+            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3513,14 +3513,18 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 for kk,vv in dict_sorted_tmp.iteritems():
                     # Upper case for all the letters except from "p" that stand for ' (prime)
-                    kk = list(kk)
-                    for i in range(len(kk)):
-                        if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
-                            kk[i] = kk[i].upper()
-                        elif (kk[i] == "'"):
-                            kk[i] = 'p'
-                    kk = "".join(kk)
-                    listwrite = [kk]
+                    contact_label = list(kk)
+                    for i in range(len(contact_label)):
+                        # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+                        # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
+                        # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+                        # "p" in the .csv files
+                        if contact_label[i].isalpha():
+                            contact_label[i] = contact_label[i].upper()
+                        elif (contact_label[i] == "'"):
+                            contact_label[i] = 'p'
+                    contact_label = "".join(contact_label)
+                    listwrite = [contact_label]
                     listwrite.append([float(format(plotMNI_sorted[kk][i],'.3f')) for i in range(3)])
                     listwrite.append([float(format(plotSB_sorted[kk][i],'.3f')) for i in range(3)])
                     listwrite.append(vv['MarsAtlas'][1])
@@ -3548,18 +3552,18 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 for kk,vv in dict_sorted_tmp.iteritems():
                     # Upper case for all the letters except from "p" that stand for ' (prime)
-                    kk = list(kk)
-                    for i in range(len(kk)):
+                    contact_label = list(kk)
+                    for i in range(len(contact_label)):
                         # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
                         # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
                         # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
                         # "p" in the .csv files
-                        if kk[i].isalpha():
-                            kk[i] = kk[i].upper()
-                        elif (kk[i] == "'"):
-                            kk[i] = 'p'
-                    kk = "".join(kk)
-                    listwrite = [kk]
+                        if contact_label[i].isalpha():
+                            contact_label[i] = contact_label[i].upper()
+                        elif (contact_label[i] == "'"):
+                            contact_label[i] = 'p'
+                    contact_label = "".join(contact_label)
+                    listwrite = [contact_label]
                     listwrite.append([float(format(info_plotMNI_bipolaire[kk][i],'.3f')) for i in range(3)])
                     listwrite.append([float(format(info_plotSB_bipolaire[kk][i],'.3f')) for i in range(3)])
                     listwrite.append(vv['MarsAtlas'][1])
