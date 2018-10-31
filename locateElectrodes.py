@@ -1662,17 +1662,14 @@ class LocateElectrodes(QtGui.QDialog):
         for el in self.electrodes:
             if name == el['name']:
                 name = self.findFreeElectrodeName()
-#         if isGui:
         (newRef, transf, elecModel) = createElectrode(target, entry, self.preReferential(), self.a,\
                                                       model = self.elecModelListByName[str(model)].fullPath(), dispMode = self.dispMode, dispParams = self.dispParams, isTransparent = isTransparent)
-        self.electrodeList.addItem(name)
-        self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
-#         else:
-#             newRef = None
-#             transf = None
-#             elecModel = None
+        # Reference electrodes in application
         self.electrodes.append({'name': name, 'ref':newRef, 'transf':transf, 'elecModel':elecModel,\
                                 'target':target, 'entry':entry, 'model':model})
+        # Add electrode name in GUI
+        self.electrodeList.addItem(name)
+        self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
 #         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.electrodes) - 1)
         # Redraw electrodes
         if isUpdate and isGui:
