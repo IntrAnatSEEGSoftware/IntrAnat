@@ -919,7 +919,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Remove unused referentials
         referentials = self.a.getReferentials()
         for element in referentials:
-            if element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist'):
+            if element.getInfos() and (element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist')):
                 self.a.deleteElements(element)
                
         # for element in self.electrodes:
