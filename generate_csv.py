@@ -93,7 +93,7 @@ if __name__ == "__main__":
         
     # Start index
     if (len(sys.argv) == 3):
-        start_index = sys.argv[2]
+        start_index = int(sys.argv[2])
     else:
         start_index = 1
         
