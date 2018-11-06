@@ -64,7 +64,7 @@ def main(computeMni, start_index, logFilename):
             res = w.exportAllWorker(selOptions)
             # Log error message
             if res and res[1]:    # errMsg
-                log.write("CSV generated with errors:\n      " + "\n      ".join(res[1]) + "\n")
+                log.write("ERROR: " + " / ".join(res[1]) + "\n")
                 continue
         except:
             log.write("ERROR: Could not export patient.\n")
