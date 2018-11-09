@@ -3751,7 +3751,7 @@ class LocateElectrodes(QtGui.QDialog):
 
         # Check freesurfer
         rdi_freesurfer = self.getFreeSurferAtlas()
-        if len(rdi_freesurfer) == 0:
+        if not rdi_freesurfer or len(rdi_freesurfer) == 0:
             print('Error: No freesurfer atlas found')
             errMsg += ["Export CSV: FreeSurfer atlas not found"]
             TemplateFreeSurfer = True
