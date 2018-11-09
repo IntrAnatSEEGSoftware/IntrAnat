@@ -1594,7 +1594,7 @@ class ImageImport (QtGui.QDialog):
         
         # Run copy and conversion in a separate thread
         res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
-        # res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        #res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
