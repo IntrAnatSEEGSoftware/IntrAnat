@@ -4541,7 +4541,7 @@ class LocateElectrodes(QtGui.QDialog):
                     else:
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
                         label_lausanne[iVol] = most_common
-                        label_lausanne_name[iVol] = "%d" % most_common
+                        label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
             
 #             if not voxel_to_keep_HippoFS:
 #                 label_hippoFS_name = 'not in a hippocamp subfield'
