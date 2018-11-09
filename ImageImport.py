@@ -2240,15 +2240,17 @@ class ImageImport (QtGui.QDialog):
                 print "do the coregistration"
                 self.storeImageReferentialsAndTransforms(image)
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
-            if acq.startswith('T1'):
+            # if acq.startswith('T1'):
+            # FT 9-Nov-2018: Logic change: normalize only the T1pre volumes, the other ones are useless
+            if acq.startswith('T1pre'):
                 self.setStatus(u"SPM normalization %s..."%acq)
                 if progressThread:
                     progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 self.spmNormalize(image.fileName(), proto, patient, acq)
                 self.taskfinished(u"SPM normalization done")
                 # If there is a T1pre, remember the image
-                if acq.find('T1pre') == 0:
-                    t1preImage = image
+                #if acq.find('T1pre') == 0:
+                t1preImage = image
         # No T1pre : nothing else to do
         if t1preImage is None:
             return
