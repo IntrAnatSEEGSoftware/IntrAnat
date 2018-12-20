@@ -3791,11 +3791,19 @@ class LocateElectrodes(QtGui.QDialog):
         # Synchronous process
         ######################
         # Generate 3D version of the MarsAtlas surface-based atlas
-        if LeftGyri is not None:
-            self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+        if LeftGyri:
+            try:
+                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+                acq = LeftGyri.attributes()['acquisition']
+                errMsg += "Could not interpolate MarsAtlas in 3D: " + repr(e)
+            except Exception, e:
+                acq = self.diskItems['T1pre']['acquisition']
+        else:
+            acq = self.diskItems['T1pre']['acquisition']
+        print "===== ACQ: " + acq
         # Continue export
         # newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
-        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, LeftGyri.attributes()['acquisition'])
+        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, acq)
         # Call additional function at the end
         if Callback is not None:
             Callback()
@@ -3817,6 +3825,8 @@ class LocateElectrodes(QtGui.QDialog):
             if diMaskleft is None:
                 print('Error: left gyri conversion surface to volume failed')
                 useTemplateMarsAtlas = True
+                initSegmentation = "N/A"
+                item_segment = 'T1pre'
             else:
                 if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
                     initSegmentation = "FreeSurfer"
