@@ -29,6 +29,12 @@
    </item>
    <item>
     <widget class="QSplitter" name="splitter">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -37,7 +43,7 @@
        <bool>true</bool>
       </property>
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -230,7 +236,7 @@
                   <enum>Qt::Horizontal</enum>
                  </property>
                  <property name="sizeType">
-                  <enum>QSizePolicy::MinimumExpanding</enum>
+                  <enum>QSizePolicy::Expanding</enum>
                  </property>
                  <property name="sizeHint" stdset="0">
                   <size>
@@ -500,14 +506,14 @@
           <item>
            <widget class="QPushButton" name="ImportFSoutputspushButton">
             <property name="text">
-             <string>Import Freesurfer outputs</string>
+             <string>Import Freesurfer</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="buttonImportLausanne">
             <property name="text">
-             <string>Import Lausanne2008 parcellation</string>
+             <string>Import Lausanne2008</string>
             </property>
            </widget>
           </item>
@@ -1589,7 +1595,7 @@
           <item row="0" column="1">
            <widget class="QLabel" name="implCoroLabel">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -1629,7 +1635,7 @@
           <item row="1" column="1" colspan="2">
            <widget class="QLabel" name="implSagLabel">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -1698,7 +1704,7 @@
           <item row="2" column="1">
            <widget class="QLabel" name="implPptLabel">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -1711,7 +1717,7 @@
           <item row="3" column="1">
            <widget class="QLabel" name="implPdfLabel">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -2307,10 +2313,16 @@
      </widget>
      <widget class="QWidget" name="windowContainer1" native="true">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+       <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>600</width>
+        <height>0</height>
+       </size>
       </property>
      </widget>
     </widget>

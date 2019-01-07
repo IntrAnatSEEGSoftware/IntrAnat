@@ -236,6 +236,7 @@ def buildUI(parent, infoTable=defaultInfoTable):
      previous_lists_not_path = {}
 
   lay = QtGui.QVBoxLayout(parent)
+  lay.setSpacing(0)
   output = {}
   for i in range(int(len(infoTable)/2)):
     key = infoTable[2*i]

@@ -220,7 +220,7 @@ def buildUI(parent, infoTabletext=EpilepsyInfoTable):
 
   else:
     lay = QtGui.QVBoxLayout(parent)
-
+  lay.setSpacing(0)
 
   #si c est un choice2 c'est editable du coup faut aller chercher sur le json la derniere version de la liste
   wdi_global = ReadDiskItem('PatientInfoTemplate','Patient Template format')
