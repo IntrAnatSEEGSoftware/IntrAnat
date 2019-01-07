@@ -26,7 +26,7 @@ for var in myEnv.keys():
 
 # Base call for matlab
 # matlabCall = ['matlab', '-nosplash', '-nodisplay', '-r']     #essayer sans le -nojvm
-matlabCall = ['matlab', '-r']
+matlabCall = ['matlab', '-desktop', '-r']
 
 # Check whether the program is executing on a Windows/WSL or native Linux system
 with open('/proc/version', 'r') as procfile:

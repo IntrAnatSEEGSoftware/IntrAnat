@@ -431,8 +431,8 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
-        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
-        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
+        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
+        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.ui.FreeSurferReconAllpushButton.setEnabled(False)
@@ -3009,8 +3009,11 @@ class ImageImport (QtGui.QDialog):
         # Remove the existing .trm file first
         if os.path.exists(transformT1.fullPath()):
             os.remove(transformT1.fullPath())
-        # Move the trm file to the database
-        shutil.move(trmpath, transformT1.fullPath())
+        # Move the trm file to the database (not with shutil because it crashes when using mounted CIFS shares)
+        runCmd(['mv', trmpath, transformT1.fullPath()])
+        #shutil.move(trmpath, transformT1.fullPath())
+
+        # Create new folder
         try:
             neuroHierarchy.databases.createDiskItemFromFileName(os.path.dirname( transformT1.fullPath() ))
         except:
