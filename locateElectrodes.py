@@ -974,7 +974,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo4.blockSignals(True)
         # Call loading function
         ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        # self.loadPatientWorker(patient)
+        #self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -1048,8 +1048,10 @@ class LocateElectrodes(QtGui.QDialog):
                     pre_select_2 = 'CT post'
                 if not pre_select_3:
                     pre_select_3 = 'CT post'
+            elif (t.attributes()['modality'] == 'ct') and ('pre' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'CT pre':['CTpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('postOp' in t.attributes()['acquisition']):
-                dictionnaire_list_images.update({'CT post-op':['CTpostOp', 'electrodes']})   
+                dictionnaire_list_images.update({'CT post-op':['CTpostOp', 'electrodes']})
             elif (t.attributes()['modality'] == 'pet') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'PET pre':['PETpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'flair') and ('pre' in t.attributes()['acquisition']):
