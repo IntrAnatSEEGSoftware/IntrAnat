@@ -599,6 +599,10 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.electrodeRefCheck, QtCore.SIGNAL('stateChanged(int)'), self.updateElectrodeView)
             # self.connect(self.electrodeRefRotationSlider, QtCore.SIGNAL('valueChanged(int)'), self.updateElectrodeViewRotation)
             self.electrodeRefRotationSlider.hide()
+            # Show anatomist
+            self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
+            self.showAnatomist.setIconSize(QtGui.QSize(24, 24))
+            self.connect(self.showAnatomist, QtCore.SIGNAL('clicked()'), self.toggleAnatomistWindow)
             # Anatomist windows
             self.connect(self.windowCombo1, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(0, s, True))
             self.connect(self.windowCombo2, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s: self.updateWindow(1 ,s, True))
@@ -711,6 +715,9 @@ class LocateElectrodes(QtGui.QDialog):
         shortwarning = TimerMessageBox(5,self)
         shortwarning.exec_()
 
+
+    def toggleAnatomistWindow(self):
+        self.a.getControlWindow().setVisible(self.showAnatomist.isChecked())
 
     def loadFromBrainVisa(self):
         # Find available patients in BV database
