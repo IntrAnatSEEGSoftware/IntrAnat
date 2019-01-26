@@ -562,7 +562,10 @@ class ImageImport (QtGui.QDialog):
 
         # Chargement du fichier et stockage dans self.prefs
         # Basic prefs
-        self.prefs = {'dicomOutputPath':os.path.join(os.path.expanduser('~'), 'dicomOut'),'niftiOutputPath':os.path.join(os.path.expanduser('~'), 'niftiOut'), 'sites':['Gre',]}
+        self.prefs = {'dicomOutputPath':os.path.join(os.path.expanduser('~'), 'dicomOut'),
+                      'niftiOutputPath':os.path.join(os.path.expanduser('~'), 'niftiOut'), 
+                      'sites':['Gre',],
+                      'coregisterMethod':'spm'}
         try:
             if (os.path.exists(prefpath)):
                 filein = open(prefpath, 'rb')

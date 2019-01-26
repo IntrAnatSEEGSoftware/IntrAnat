@@ -31,7 +31,7 @@
  
  
 # Standard Python imports
-import sys, os, pickle, numpy, re, string, time, subprocess, json
+import sys, os, pickle, numpy, re, string, time, subprocess, json, io
 from numpy import *
 from scipy import ndimage
 from collections import OrderedDict
@@ -980,8 +980,8 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo3.blockSignals(True)
         self.windowCombo4.blockSignals(True)
         # Call loading function
-        ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        #self.loadPatientWorker(patient)
+        errMsg = ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
+        # errMsg = self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -994,9 +994,18 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo4.blockSignals(False)
         # Display all
         self.updateAllWindows(True)
+        # Display error message
+        if errMsg:
+            errMsg += ["", "The various images may not be aligned correctly.", 
+                       "Close LocateElectrodes, start ImageImport, delete the extra images (the ones added last), then start again LocateEletrodes and try again. ", 
+                       "If the images and electrodes are still not aligned correctly, you may need to delete the patient and start over."]
+            QtGui.QMessageBox.warning(self, u'Database error', "\n".join(errMsg))
+    
         
   
     def loadPatientWorker(self, patient, thread=None, isGui=True):
+        errMsg = []
+
         self.t1pre2ScannerBasedTransform = None
         self.clearT1preMniTransform()
     
@@ -1027,13 +1036,21 @@ class LocateElectrodes(QtGui.QDialog):
             na = None
             # Add elements in the display list
             if (t.attributes()['modality'] == 't1mri') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
+                if ('MRI FreeSurfer' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple FreesurferAtlaspre images found"]
                 dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferT1pre', 'electrodes']})
                 na = 'FreesurferT1pre'
             elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']):
+                if ('MRI pre' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T1pre images found"]
                 dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})         
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
+                if ('MRI post-op' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T1postOp images found"]
                 dictionnaire_list_images.update({'MRI post-op':['T1postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
+                if ('MRI post' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T1post images found"]
                 dictionnaire_list_images.update({'MRI post':['T1post', 'electrodes']})
                 if not pre_select_1:
                     pre_select_1 = 'MRI post'
@@ -1042,12 +1059,20 @@ class LocateElectrodes(QtGui.QDialog):
                 if not pre_select_3:
                     pre_select_3 = 'MRI post'
             elif (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
+                if ('MRI pre T2' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T2pre images found"]
                 dictionnaire_list_images.update({'MRI pre T2':['T2pre', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('postOp' in t.attributes()['acquisition']):
+                if ('MRI post-op T2' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T2postOp images found"]
                 dictionnaire_list_images.update({'MRI post-op T2':['T2postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('post' in t.attributes()['acquisition']):
+                if ('MRI post T2' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T2post images found"]
                 dictionnaire_list_images.update({'MRI post T2':['T2post', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
+                if ('CT post' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple CTpost images found"]
                 dictionnaire_list_images.update({'CT post':['CTpost', 'electrodes']})
                 if not pre_select_1:
                     pre_select_1 = 'CT post'
@@ -1056,14 +1081,24 @@ class LocateElectrodes(QtGui.QDialog):
                 if not pre_select_3:
                     pre_select_3 = 'CT post'
             elif (t.attributes()['modality'] == 'ct') and ('pre' in t.attributes()['acquisition']):
+                if ('CT pre' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple CTpre images found"]
                 dictionnaire_list_images.update({'CT pre':['CTpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('postOp' in t.attributes()['acquisition']):
+                if ('CT post-op' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple CTpostOp images found"]
                 dictionnaire_list_images.update({'CT post-op':['CTpostOp', 'electrodes']})
             elif (t.attributes()['modality'] == 'pet') and ('pre' in t.attributes()['acquisition']):
+                if ('PET pre' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple PETpre images found"]
                 dictionnaire_list_images.update({'PET pre':['PETpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'flair') and ('pre' in t.attributes()['acquisition']):
+                if ('FLAIR pre' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple FLAIRpre images found"]
                 dictionnaire_list_images.update({'FLAIR pre':['FLAIRpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'fgatir') and ('pre' in t.attributes()['acquisition']):
+                if ('FGATIR pre' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple FGATIRpre images found"]
                 dictionnaire_list_images.update({'FGATIR pre':['FGATIRpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'fmri_epile') and ('pre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'fMRI pre' + ' - ' + t.attributes()['subacquisition']:['fMRIpre', 'electrodes']})  # mettre le nom de la subacquisition
@@ -1113,7 +1148,18 @@ class LocateElectrodes(QtGui.QDialog):
                     else:
                         print "CANNOT find a nameAcq for ", repr(t)
                         na = 'unknown'
-                    
+            
+            # Try setting referential if not defined in the .minf
+            if (na == 'T1pre') and (not 'referential' in t.attributes().keys()):
+                print "*** DATABASE FIX: Adding the referential "
+                # Look for referential file for this volume
+                rdi = ReadDiskItem('Referential of Raw T1 MRI', 'Referential', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
+                volReferential = list(rdi.findValues({}, None, False))
+                # If there is a referential available, add its UUID to the volume object attibutes
+                if (len(volReferential) == 1):
+                    t.setMinf('referential', volReferential[0].uuid())
+                    neuroHierarchy.databases.insertDiskItem(t, update=True)
+
             # Load volume in anatomist
             obj = self.loadAndDisplayObject(t, na)
             
@@ -1281,7 +1327,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.refreshAvailableDisplayReferentials()
             # Center view on AC
             self.centerCursor()
-            
+        return errMsg
             
     # Chargement d'un objet (MRI, mesh...) dans Anatomist et mise à jour de l'affichage
     def loadAndDisplayObject(self, diskitem, name = None, color=None, palette=None, texture_item = None):
@@ -1296,7 +1342,7 @@ class LocateElectrodes(QtGui.QDialog):
             del self.dispObj[name]
             del self.diskItems[name]
         
-        print "loading "+repr(diskitem)+ ' as '+name
+        # print "loading "+repr(diskitem)+ ' as '+name
         
         obj = self.a.loadObject(diskitem)
 
