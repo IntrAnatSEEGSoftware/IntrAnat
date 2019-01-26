@@ -1984,14 +1984,18 @@ class LocateElectrodes(QtGui.QDialog):
                 name = 'Plot1'
             xyz = getPlotsCenters(el['elecModel'])[name]
             # setLinkedCursor uses window referential : must apply transform before setting the position
-            if self.currentWindowRef == self.preReferential():
+#            if self.currentWindowRef == self.preReferential():
+            if self.wins[0].getReferential() == self.preReferential():
                 xyz = el['transf'].transform(xyz)
-                self.wins[0].moveLinkedCursor(xyz)
                 #self.a.execute('LinkedCursor', window=self.wins[0], position=xyz)
-            elif  self.currentWindowRef == el['ref']:
-                self.wins[0].moveLinkedCursor(xyz)
+            elif  self.wins[0].getReferential() == el['ref']:
+                # Nothing to change
+                pass
             else:
-                print "Warning : Current window referential is not T1pre referential ! Cannot set the linkedCursor on the selected electrode contact..."
+                transf = self.a.getTransformation(el['ref'], self.wins[0].getReferential())
+                xyz = transf.transform(xyz)
+                # print "Warning : Current window referential is not T1pre referential ! Cannot set the linkedCursor on the selected electrode contact..."
+            self.wins[0].moveLinkedCursor(xyz)
         except:
             print "Error moving the cursor to the contact"
 
