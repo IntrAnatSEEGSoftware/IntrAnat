@@ -516,7 +516,10 @@ class ImageImport (QtGui.QDialog):
         self.ui.tabWidget.setTabEnabled(7, False)
         self.ui.tabWidget.setTabEnabled(8, False)
         self.ui.tabWidget.setTabEnabled(9, False)
-
+        # Show anatomist
+        self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
+        self.showAnatomist.setIconSize(QtGui.QSize(24, 24))
+        self.connect(self.showAnatomist, QtCore.SIGNAL('clicked()'), self.toggleAnatomistWindow)
 
 
     def __del__ (self):
@@ -692,6 +695,10 @@ class ImageImport (QtGui.QDialog):
         shortwarning.exec_()
 
 
+    def toggleAnatomistWindow(self):
+        self.a.getControlWindow().setVisible(self.showAnatomist.isChecked())
+        
+        
     def savePreferences(self):
 
         prefpath = os.path.join(os.path.expanduser('~'), '.imageimport')
