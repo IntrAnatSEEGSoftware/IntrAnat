@@ -621,8 +621,7 @@ class LocateElectrodes(QtGui.QDialog):
                                     self.typeComboBox, self.targetButton, self.entryButton, self.electrodeList, self.contactList, \
                                     self.electrodeSaveButton, self.electrodeLoadButton, \
                                     self.windowCombo1, self.windowCombo2, self.windowCombo3, self.windowCombo4, \
-                                    self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4, \
-                                    self.ImportTheoriticalImplantation, self.approximateButton]
+                                    self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]
             # Update enabled/disabled controls
             for w in self.widgetsLoaded:
                 w.setEnabled(True)
