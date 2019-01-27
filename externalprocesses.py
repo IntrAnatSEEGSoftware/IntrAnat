@@ -9,7 +9,7 @@
 
 # TODO : redo using QRunnable instead of QThread with QThreadPool.globalInstancer().start(myRunnable)
 
-import subprocess, traceback, os, types, tempfile, time, random, string,sys
+import subprocess, traceback, os, types, tempfile, time, random, string, sys, os
 from soma.qt_gui.qt_backend import QtGui, QtCore
 from os.path import expanduser
 from brainvisa.data import neuroHierarchy
@@ -24,14 +24,22 @@ for var in myEnv.keys():
         myEnv[realvar] = myEnv[var]
         del myEnv[var]
 
+		
+# Windows computer
+if os.name == 'nt':
+	isWindows = True
+	isWindowsWSL = False
+# Linux: Check whether the program is executing on a Windows/WSL or native Linux system
+else:
+	isWindows = False
+	with open('/proc/version', 'r') as procfile:
+		isWindowsWSL = (procfile.read().find("Microsoft") != -1)
+
 # Base call for matlab
-# matlabCall = ['matlab', '-nosplash', '-nodisplay', '-r']     #essayer sans le -nojvm
+# matlabCall = ['matlab', '-nosplash', '-nodisplay', '-r']
 matlabCall = ['matlab', '-nodesktop', '-r']
 
-# Check whether the program is executing on a Windows/WSL or native Linux system
-with open('/proc/version', 'r') as procfile:
-	isWindowsWSL = (procfile.read().find("Microsoft") != -1)
-
+	
 def getTmpDir():
     """ Get temporary folder """
     # In Windows/WSL: Use $HOME/tmp instead of /tmp
