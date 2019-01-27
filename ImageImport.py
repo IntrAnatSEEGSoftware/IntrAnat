@@ -571,14 +571,14 @@ class ImageImport (QtGui.QDialog):
                       'coregisterMethod':'spm'}
         try:
             if (os.path.exists(prefpath)):
-                filein = open(prefpath, 'rb')
+                filein = open(prefpath, 'rU')
                 #self.prefs = pickle.load(filein)
                 #fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info}))
                 try:
                     self.prefs = json.loads(filein.read())
                 except:
                     filein.close()
-                    filein = open(prefpath, 'rb')
+                    filein = open(prefpath, 'rU')
                     self.prefs = pickle.load(filein)
     
                 filein.close()

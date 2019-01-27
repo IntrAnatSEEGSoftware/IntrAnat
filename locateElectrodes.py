@@ -645,7 +645,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.spmpath = None
             try:
                 if (os.path.exists(prefpath_imageimport)):
-                    filein = open(prefpath_imageimport, 'rb')
+                    filein = open(prefpath_imageimport, 'rU')
                     prefs_imageimport = pickle.load(filein)
                     self.spmpath = prefs_imageimport['spm']
                     self.fileNoDBpath = prefs_imageimport['FileNoDBPath']
@@ -2262,7 +2262,7 @@ class LocateElectrodes(QtGui.QDialog):
                 dic = json.loads(filein.read())
             except:
                 filein.close()
-                filein = open(path, 'rb')
+                filein = open(path, 'rU')
                 dic = pickle.load(filein)
             
             filein.close()
@@ -4821,7 +4821,7 @@ class LocateElectrodes(QtGui.QDialog):
             dic_impl = json.loads(filein.read())
         except:
             filein.close()
-            filein = open(str(impl[0]), 'rb')
+            filein = open(str(impl[0]), 'rU')
             dic_impl = pickle.load(filein)
             filein.close()
         # Return existing coordinates
@@ -4892,7 +4892,7 @@ class LocateElectrodes(QtGui.QDialog):
                     previous_data = json.loads(filein.read())
                 except:
                     filein.close()
-                    filein = open(str(ldi[0]), 'rb')
+                    filein = open(str(ldi[0]), 'rU')
                     previous_data = pickle.load(filein)
                 filein.close()
     
