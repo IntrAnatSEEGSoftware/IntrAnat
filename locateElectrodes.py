@@ -1528,10 +1528,12 @@ class LocateElectrodes(QtGui.QDialog):
         self.referentialCombo.clear()
         # Add items from the referential converter
         refs = self.refConv.availableReferentials().keys() + ['Natif',]
+        self.referentialCombo.addItems(refs)
         # Add available atlases
         if ('FreesurferAtlaspre' in self.dispObj.keys()):
-            refs += ["FreeSurfer/Destrieux"]        
-        self.referentialCombo.addItems(refs)
+            self.referentialCombo.addItems(["FreeSurfer/Destrieux"])
+            self.referentialCombo.setCurrentIndex( self.referentialCombo.count() - 1 )
+        
         print self.dispObj.keys()
 
     def updateCoordsDisplay(self, text):
