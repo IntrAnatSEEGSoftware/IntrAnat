@@ -5119,7 +5119,7 @@ class LocateElectrodes(QtGui.QDialog):
 #                     self.electrodeRefRotationSlider.setValue(el['refRotation'])
                 if 'ref' in el:
                     self.setWindowsReferential(el['ref'])
-                    #self.electrodeGo(electrode = el)
+                    self.electrodeGo(electrode = el)
                     
                     #self.wins[0].camera(view_quaternion=[-0.5, 0.5, 0.5, -0.5], zoom=1.5) 
                     # slice_quaternion=[0.3, 0.3, 0, 0.9]
@@ -5129,6 +5129,10 @@ class LocateElectrodes(QtGui.QDialog):
             # Change back to T1pre native ref
             if isRestoreNative:
                 self.setWindowsReferential()
+            # Jump to position of the electrode
+            if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
+                el = self.currentElectrode()
+                self.electrodeGo(electrode = el)
 
 #     def updateElectrodeViewRotation(self, degrees):
 #         """Sets the angle of an electrode referential, degrees is the angle in degrees"""
@@ -5140,12 +5144,13 @@ class LocateElectrodes(QtGui.QDialog):
 
 
     def clippingUpdate(self):
-        if self.Clipping_checkbox.isChecked():
-            print "clipping activated"
-            self.a.execute('WindowConfig',windows = [self.wins[0]],clipping=2,clip_distance=5.)
-        else:
-            print "clipping not activated"
-            self.a.execute('WindowConfig',windows = [self.wins[0]],clipping=0)
+        for i in range(3):
+            if self.Clipping_checkbox.isChecked():
+                print "clipping activated"
+                self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=2,clip_distance=5.)
+            else:
+                print "clipping not activated"
+                self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=0)
 
 
   
