@@ -5001,6 +5001,9 @@ class LocateElectrodes(QtGui.QDialog):
             self.windowCombo4.setVisible(True)
             self.windowContainer4.setVisible(True)
             self.verticalLayout_wright.parent().setStretchFactor(self.verticalLayout_wright, 1)
+        # Update window orientation (to force redraw)
+        for i in range(nWin):
+            self.updateWindowOrient(self.wins[i])
             
             
     # Update all anatomist windows
@@ -5030,6 +5033,10 @@ class LocateElectrodes(QtGui.QDialog):
                 w.removeObjects(self.dispObj[obj])#CURRENT
         # Redraw figure
         if isUpdateOrient:
+            self.updateWindowOrient(w)
+                
+    # Update window orient
+    def updateWindowOrient(self, w):
             viewType = w.getInternalRep().viewType()
             if (viewType == 0):
                 w.getInternalRep().muteAxial()
