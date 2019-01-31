@@ -37,6 +37,8 @@ def main(inFile, outFolder):
         for i in range(iLastLetter+1):
             if (i == 0) or (origName[i] != 'p'):
                 origName[i] = origName[i].upper()
+            elif (i > 0) and (origName[i] == 'p'):
+                origName[i] = "'"
         # Format CSV contact name
         cleanName = ''.join(origName[:iLastLetter+1]) + "%02d" % int(''.join(origName[iLastLetter+1:]))
         # Add contact to the list
