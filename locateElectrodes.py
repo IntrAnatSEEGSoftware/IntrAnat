@@ -2543,7 +2543,7 @@ class LocateElectrodes(QtGui.QDialog):
                 [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
                 newFiles += mniFiles
             else:
-                errMsg += ["Cannot compute the SPM MNI transformation."]
+                errMsg += ["Cannot compute MNI coordinates for the contacts."]
             
         # ===== Save TXT/PTS files ======
         if isSavePts:
