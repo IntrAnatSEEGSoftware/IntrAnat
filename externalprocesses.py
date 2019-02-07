@@ -171,8 +171,8 @@ def matlabRun(cmd):
         print "\n===================================\n" + \
               "Matlab execution returned an error:\n" + errMsg + \
               "\n===================================\n"
-    # Return stdout
-    return errMsg
+    # Return stderr
+    return errMsg.splitlines()
 
 def matlabRunNB(cmd, callback = None):
     """ Returns a QThread object that can launch the matlab command by calling its start() function.
