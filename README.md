@@ -3,11 +3,14 @@
 IntrAnat is for research purpose only.
 It is provided "as is," Inserm and its collaborators do not assume any liability or responsibility for its use.
 
-you can find more information about IntrAnat here:
+Software presentation: 
 https://f-tract.eu/software/intranat
 
-or on the wiki page
-https://github.com/IntrAnatSEEGSoftware/IntrAnat/wiki
+Latest developments: 
+https://github.com/ftadel/IntrAnat/tree/brainvisa_4.6
 
-explanation to install IntrAnat are here:
-https://github.com/IntrAnatSEEGSoftware/IntrAnat/wiki#how-to-install
+Installation instructions: 
+https://github.com/ftadel/IntrAnat/wiki/Installation
+
+User documentation: 
+https://github.com/IntrAnatSEEGSoftware/IntrAnat/blob/brainvisa_4.6/doc/user_documentation.pdf
