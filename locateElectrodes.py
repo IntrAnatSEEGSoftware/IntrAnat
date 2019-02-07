@@ -2534,12 +2534,15 @@ class LocateElectrodes(QtGui.QDialog):
         isVideo = selOptions[7]
 
         # ===== MNI COORDINATES =====
-        if isComputeMni and (self.getT1preMniTransform() is not None):
-            if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
-            [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
-            newFiles += mniFiles
+        if isComputeMni:
+            if (self.getT1preMniTransform() is  None):
+                if thread:
+                    thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
+                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
+                [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
+                newFiles += mniFiles
+            else:
+                errMsg += ["Cannot compute the SPM MNI transformation."]
             
         # ===== Save TXT/PTS files ======
         if isSavePts:
@@ -2575,6 +2578,8 @@ class LocateElectrodes(QtGui.QDialog):
             # Get MNI coordinates if computation was not enforced previously
             if not isComputeMni:
                 dict_plotsMNI = self.getAllPlotsCentersMNIRef(False)
+                if dict_plotsMNI is None:
+                    errMsg += ["Cannot compute MNI coordinates for the contacts."]
             if dict_plotsMNI is not None:
                 # Get output files from the database
                 wdiptsmni = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
