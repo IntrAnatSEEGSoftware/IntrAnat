@@ -431,8 +431,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
-        #self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
-        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), lambda :ProgressDialog.call(self.registerNormalizeSubject, False, self, "Processing...", "Coregister and normalize"))
+        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
         self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
         self.ui.FreeSurferReconAllpushButton.setEnabled(False)
@@ -2236,10 +2235,21 @@ class ImageImport (QtGui.QDialog):
 
     def registerNormalizeSubject(self, progressThread=None):
         """ Registers all images of the subject with SPM, then store the transforms in BrainVisa database, and launch T1pre morphologist analysis (brain segmentation) """
+
         proto = str(self.ui.regProtocolCombo.currentText())
         subj = str(self.ui.regSubjectCombo.currentText())
         images = self.findAllImagesForSubject(proto, subj)
         
+        # Call process in a different thread
+        errMsg = ProgressDialog.call(lambda thr:self.registerNormalizeSubjectWorker(proto, subj, images, thr), True, self, "Processing...", "Coregister and normalize")
+        #errMsg = self.registerNormalizeSubjectWorker(proto, subj, images)
+        
+        # Display error messages
+        if errMsg:
+            QtGui.QMessageBox.critical(self, u'Regitration error', u"Errors occured during the normalization or registration: \n\n" + u"\n".join(errMsg))
+
+    
+    def registerNormalizeSubjectWorker(self, proto, subj, images, progressThread=None):
         # NORMALIZE: Find all images, normalize the T1s, find the T1pre if there is one, read image headers, store their referentials and transformations in the DB
         t1preImage = None
         for image in images:
@@ -2256,7 +2266,9 @@ class ImageImport (QtGui.QDialog):
                 self.setStatus(u"SPM normalization %s..."%acq)
                 if progressThread:
                     progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
-                self.spmNormalize(image.fileName(), proto, patient, acq)
+                errMsg = self.spmNormalize(image.fileName(), proto, patient, acq)
+                if errMsg:
+                    return errMsg
                 self.taskfinished(u"SPM normalization done")
                 # If there is a T1pre, remember the image
                 #if acq.find('T1pre') == 0:
@@ -2312,7 +2324,9 @@ class ImageImport (QtGui.QDialog):
                     call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(t1preImage)+",1'}", "{'"+str(image.fileName())+",1'}")
                     spl = os.path.split(image.fileName())
                     registeredPath = os.path.join(spl[0], 'r'+spl[1])
-                    matlabRun(call)
+                    errMsg = matlabRun(call)
+                    if errMsg:
+                        return errMsg
                     # Update resampled volume
                     self.setResampledToT1pre(image, registeredPath)
                     
@@ -2338,7 +2352,9 @@ class ImageImport (QtGui.QDialog):
                         call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
                     else:
                         call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(t1preImage.attributes()['brainCenter']), str(t1preImage.attributes()['SB_Transform']), "'"+tmpOutput+"'")
-                    matlabRun(call)
+                    errMsg = matlabRun(call)
+                    if errMsg:
+                        return errMsg
                     # Register transformation in the database
                     self.insertTransformationToT1pre(tmpOutput, image)
                     if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):
@@ -2605,7 +2621,11 @@ class ImageImport (QtGui.QDialog):
         self.ui.regLhButton.setStyleSheet("")
         self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
         # Start computation in a separate thread
-        ProgressDialog.call(lambda thr:self.validateAcPcWorker(thr), True, self, "Processing...", "BrainVISA segmentation")
+        errMsg = ProgressDialog.call(lambda thr:self.validateAcPcWorker(thr), True, self, "Processing...", "BrainVISA segmentation")
+        # Display error messages
+        if errMsg:
+            QtGui.QMessageBox.critical(self, u'Segmentation error', u"Errors occured during the segmentation: \n\n" + u"\n".join(errMsg))
+
         
 #         # No gado
 #         if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
@@ -2684,9 +2704,12 @@ class ImageImport (QtGui.QDialog):
             c4Name = '/'.join(c4Name)
             splittedName[-1]=str("WithoutGado.nii")
             nogadoPre = str('/'.join(splittedName))
+            # Run Matlab
             call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
                    "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+nogadoPre+"'")
-            matlabRun(call)
+            errMsg = matlabRun(call)
+            if errMsg:
+                return errMsg
             print self.currentSubject + ": Segmentation gado done."
             
             # Replace segmented nobias image with segmented image
@@ -2940,7 +2963,9 @@ class ImageImport (QtGui.QDialog):
             print 'SPM8 used'
             call = spm8_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", self.spm_template_t1())
         # Call SPM normalization
-        matlabRun(call)
+        errMsg = matlabRun(call)
+        if errMsg:
+            return errMsg
         # Register new files
         self.insertSPMdeformationFile(protocol, patient, acq)
         self.StatisticDataMNItoScannerBased(protocol, patient, acq)

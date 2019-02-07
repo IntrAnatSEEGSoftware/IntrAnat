@@ -163,11 +163,16 @@ def matlabRun(cmd):
     # Save matlab script
     matlabCall = saveMatlabCall(cmd)
     # Run code
-    result = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, env = myEnv).communicate()[0].splitlines()
+    [result, errMsg] = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env = myEnv).communicate()
     # Delete temp file
     os.remove(matlabCall['fullpath'])
+    # Print error message
+    if errMsg:
+        print "\n===================================\n" + \
+              "Matlab execution returned an error:\n" + errMsg + \
+              "\n===================================\n"
     # Return stdout
-    return result
+    return errMsg
 
 def matlabRunNB(cmd, callback = None):
     """ Returns a QThread object that can launch the matlab command by calling its start() function.

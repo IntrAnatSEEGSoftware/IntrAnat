@@ -866,8 +866,11 @@ class LocateElectrodes(QtGui.QDialog):
             #on fait l'inversion de la deformation
             #pour le moment ce bout de code ne marche qu'avec spm12
             if spm_version == '(SPM12)':
-                 print 'SPM12 used'
-                 matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+                print 'SPM12 used'
+                errMsg = matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+                if errMsg:
+                    print errMsg
+                    return None
             if spm_version == '(SPM8)':
                  raise Exception("SPM8 used: NOT SUPPORTED")
                  # matlabRun(spm_inverse_y_field8%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
@@ -893,12 +896,18 @@ class LocateElectrodes(QtGui.QDialog):
         ofname = os.path.basename(diField.fullPath()).lstrip('y_').rsplit('.',1)[0]
     
         if spm_version == '(SPM12)':
-             print 'SPM12 used'
-             matlabRun(spm_SnToField12%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
+            print 'SPM12 used'
+            errMsg = matlabRun(spm_SnToField12%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
+            if errMsg:
+                print errMsg
+                return None
         if spm_version == '(SPM8)':
-             print 'SPM8 used'
-             matlabRun(spm_SnToField8%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
-    
+            print 'SPM8 used'
+            errMsg = matlabRun(spm_SnToField8%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
+            if errMsg:
+                print errMsg
+                return None
+            
         if os.path.exists(diField.fullPath()):
             self.t1preMniFieldPath = diField.fullPath()
             return self.t1preMniFieldPath
@@ -3235,7 +3244,10 @@ class LocateElectrodes(QtGui.QDialog):
         tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
-        matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
+        errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
+        if errMsg:
+            print errMsg
+            return []
         out = numpy.loadtxt(tmpOutput, delimiter=",")
         os.remove(tmpOutput)
         for element in out:
@@ -4122,7 +4134,7 @@ class LocateElectrodes(QtGui.QDialog):
         AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
         HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.txt')
         AICHA_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/AICHA_resliced_labels.txt')
-        # Lausanne2008 parcel names ???
+        # Lausanne2008 parcel names
         Lausanne33_parcels_names = {i:"{}".format(i) for i in range(1,100)}
         Lausanne60_parcels_names = {i:"{}".format(i) for i in range(1,150)}
         Lausanne125_parcels_names = {i:"{}".format(i) for i in range(1,300)}
@@ -4313,12 +4325,14 @@ class LocateElectrodes(QtGui.QDialog):
                     voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
                     try:
                         most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
+                        label_freesurfer = most_common
+                        if label_freesurfer == 3403:
+                            raise Exception("?????")
+                        label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
                     except:
-                        raise Exception("???")
-                    label_freesurfer = most_common
-                    if label_freesurfer == 3403:
-                        raise Exception("?????")
-                    label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                        print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
+                        label_freesurfer_name = 'ERROR hipp/amyg surfaces not aligned with MRI'
+                        label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
                 else:
                     label_freesurfer = most_common
                     label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
@@ -4618,9 +4632,14 @@ class LocateElectrodes(QtGui.QDialog):
                 if (most_common == 53 or most_common == 17) and vol_hippoanteropost != False:
                     voxel_within_sphere_FS = [vol_hippoanteropost.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
                     voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
-                    most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
-                    label_freesurfer = most_common
-                    label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                    try:
+                        most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
+                        label_freesurfer = most_common
+                        label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                    except:
+                        print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
+                        label_freesurfer_name = 'ERROR hipp/amyg surfaces not aligned with MRI'
+                        label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
                 else:
                     label_freesurfer = most_common
                     label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
@@ -4901,7 +4920,10 @@ class LocateElectrodes(QtGui.QDialog):
         arr = numpy.asarray(coords)
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         # Run SPM normalization
-        matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
+        errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
+        if errMsg:
+            print errMsg
+            return [None,[]]
         # Read MNI coordinates from output .csv file
         out = numpy.loadtxt(tmpOutput, delimiter=",")
         os.remove(tmpOutput)
