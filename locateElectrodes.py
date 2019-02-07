@@ -5209,6 +5209,10 @@ class LocateElectrodes(QtGui.QDialog):
                 el = self.currentElectrode()
                 self.electrodeGo(electrode = el)
 
+        # Update window orientation (to force redraw)
+        for i in range(4):
+            self.updateWindowOrient(self.wins[i])
+            
 #     def updateElectrodeViewRotation(self, degrees):
 #         """Sets the angle of an electrode referential, degrees is the angle in degrees"""
 #         if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
