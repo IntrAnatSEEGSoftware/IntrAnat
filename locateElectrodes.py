@@ -2534,8 +2534,9 @@ class LocateElectrodes(QtGui.QDialog):
         isVideo = selOptions[7]
 
         # ===== MNI COORDINATES =====
+        dict_plotsMNI = None
         if isComputeMni:
-            if (self.getT1preMniTransform() is  None):
+            if (self.getT1preMniTransform() is None):
                 if thread:
                     thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
                     thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
