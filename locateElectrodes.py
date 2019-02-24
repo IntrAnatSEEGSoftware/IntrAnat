@@ -132,43 +132,43 @@ quit;"""
 
 
 # # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
-spm_normalizePoints = """try
-    fprintf('Reading inverse MNI transformation... ');
-    addpath(genpath(%s));
-    P='%s';
-    P1=spm_vol([P ',1,1']);
-    P2=spm_vol([P ',1,2']);
-    P3=spm_vol([P ',1,3']);
-    fprintf(' X '); drawnow('update');
-    [V1,XYZ]=spm_read_vols(P1);
-    fprintf(' Y '); drawnow('update');
-    V2=spm_read_vols(P2);
-    fprintf(' Z\\n'); drawnow('update');
-    V3=spm_read_vols(P3);
- 
-    %% Apply tranformation to electrodes
-    PosElectrode = dlmread('%s');
-    wPosElectrode=PosElectrode;
-    fprintf('Processing %%d contacts... ', size(PosElectrode,1));
-    for i1=1:size(PosElectrode,1)
-        fprintf('%%d ', i1); drawnow('update');
-        if (mod(i1, 20) == 0), fprintf('\\n'); end
-        %% Compute distance
-        D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
-        [tmp,order]=sort(D);
-        tmp=tmp(1:18);      %%  cubic neighborhoodregisterNormalizeSubject
-        order=order(1:18);
-        W=1./tmp;           %%  weight inverse to distance
-        if sum(isinf(W))>0
-            W=[1 zeros(1,length(W)-1)];
-        end
-        wPosElectrode(i1,:)=[sum(V1(order).*W)./sum(W) sum(V2(order).*W)./sum(W) sum(V3(order).*W)./sum(W)];
-    end
-    dlmwrite('%s',wPosElectrode,'precision',18);
-catch
-    disp 'AN ERROR OCCURED'; 
-end
-quit;"""
+# spm_normalizePoints = """try
+#     fprintf('Reading inverse MNI transformation... ');
+#     addpath(genpath(%s));
+#     P='%s';
+#     P1=spm_vol([P ',1,1']);
+#     P2=spm_vol([P ',1,2']);
+#     P3=spm_vol([P ',1,3']);
+#     fprintf(' X '); drawnow('update');
+#     [V1,XYZ]=spm_read_vols(P1);
+#     fprintf(' Y '); drawnow('update');
+#     V2=spm_read_vols(P2);
+#     fprintf(' Z\\n'); drawnow('update');
+#     V3=spm_read_vols(P3);
+#  
+#     %% Apply tranformation to electrodes
+#     PosElectrode = dlmread('%s');
+#     wPosElectrode=PosElectrode;
+#     fprintf('Processing %%d contacts... ', size(PosElectrode,1));
+#     for i1=1:size(PosElectrode,1)
+#         fprintf('%%d ', i1); drawnow('update');
+#         if (mod(i1, 20) == 0), fprintf('\\n'); end
+#         %% Compute distance
+#         D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
+#         [tmp,order]=sort(D);
+#         tmp=tmp(1:18);      %%  cubic neighborhoodregisterNormalizeSubject
+#         order=order(1:18);
+#         W=1./tmp;           %%  weight inverse to distance
+#         if sum(isinf(W))>0
+#             W=[1 zeros(1,length(W)-1)];
+#         end
+#         wPosElectrode(i1,:)=[sum(V1(order).*W)./sum(W) sum(V2(order).*W)./sum(W) sum(V3(order).*W)./sum(W)];
+#     end
+#     dlmwrite('%s',wPosElectrode,'precision',18);
+# catch
+#     disp 'AN ERROR OCCURED'; 
+# end
+# quit;"""
 
 
 # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
