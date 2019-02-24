@@ -131,7 +131,7 @@ end
 quit;"""
 
 
-# Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
+# # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
 spm_normalizePoints = """try
     fprintf('Reading inverse MNI transformation... ');
     addpath(genpath(%s));
@@ -145,7 +145,7 @@ spm_normalizePoints = """try
     V2=spm_read_vols(P2);
     fprintf(' Z\\n'); drawnow('update');
     V3=spm_read_vols(P3);
-
+ 
     %% Apply tranformation to electrodes
     PosElectrode = dlmread('%s');
     wPosElectrode=PosElectrode;
@@ -164,6 +164,40 @@ spm_normalizePoints = """try
         end
         wPosElectrode(i1,:)=[sum(V1(order).*W)./sum(W) sum(V2(order).*W)./sum(W) sum(V3(order).*W)./sum(W)];
     end
+    dlmwrite('%s',wPosElectrode,'precision',18);
+catch
+    disp 'AN ERROR OCCURED'; 
+end
+quit;"""
+
+
+# Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
+# FT 24-Feb-2019: NEW OPTIMIZED VERSION WITHOUT LOOPS
+spm_normalizePoints = """try
+    fprintf('Reading inverse MNI transformation... ');
+    addpath(genpath(%s));
+    P='%s';
+    P1=spm_vol([P ',1,1']);
+    P2=spm_vol([P ',1,2']);
+    P3=spm_vol([P ',1,3']);
+    fprintf(' X '); drawnow('update');
+    V1=spm_read_vols(P1);
+    fprintf(' Y '); drawnow('update');
+    V2=spm_read_vols(P2);
+    fprintf(' Z\\n'); drawnow('update');
+    V3=spm_read_vols(P3);
+
+    %% Apply transformation to electrodes
+    PosElectrode = dlmread('%s')';
+    %% Get the corresponding coordinates in the transformation volume
+    Tinv = inv(P1(1).mat);
+    ijk = Tinv * [PosElectrode; ones(1,size(PosElectrode,2))];
+    %% Interpolate values for contacts
+    wPosElectrode = [...
+        interp3(V1, ijk(2,:), ijk(1,:), ijk(3,:), 'linear')', ...
+        interp3(V2, ijk(2,:), ijk(1,:), ijk(3,:), 'linear')', ...
+        interp3(V3, ijk(2,:), ijk(1,:), ijk(3,:), 'linear')'];
+    %% Write output file
     dlmwrite('%s',wPosElectrode,'precision',18);
 catch
     disp 'AN ERROR OCCURED'; 
@@ -3251,6 +3285,7 @@ class LocateElectrodes(QtGui.QDialog):
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
+        # errMsg = self.normalizePoints(field, points)
         if errMsg:
             print errMsg
             return []
@@ -3275,6 +3310,20 @@ class LocateElectrodes(QtGui.QDialog):
         
         print "parcel metrics done"
         return [di.fullPath()]
+    
+    
+    def normalizePoints(self, mniInvFile, points):
+        # Initialize returned value
+        mniPoints = []
+        # Load inverse MNI transformation
+        mniInv = aims.read(mniInvFile)
+        # Get voxel-world transformation
+        T = mniInv.header()["transformations"][0].arraydata().reshape(4,4)
+        # Invert this transformation
+        Tinv = linalg.inv(T)
+        # Process point by point
+        # .... Order of dimensions is not the same 
+    
     
   
 #     def generateTemplateBipoleStimulationFile(self):
@@ -4927,6 +4976,7 @@ class LocateElectrodes(QtGui.QDialog):
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         # Run SPM normalization
         errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
+        #errMsg = self.normalizePoints(field, coords)
         if errMsg:
             print errMsg
             return [None,[]]
