@@ -1777,7 +1777,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate and isGui:
             self.updateElectrodeMeshes()
-            self.updateAllWindows(True)
+            #self.updateAllWindows(True)
+            self.updateAllWindows(False)
         
 
     def addBipole(self, name=None, positionbip=[0,0,0], refId = None,entry_bipole = None):
@@ -1874,7 +1875,7 @@ class LocateElectrodes(QtGui.QDialog):
         del item
         del self.electrodes[idx]
         self.updateElectrodeMeshes()
-        self.updateAllWindows(True)
+        self.updateAllWindows(False)
         self.isModified = True
 
     def updateElectrodeModel(self, model):
@@ -2001,7 +2002,9 @@ class LocateElectrodes(QtGui.QDialog):
         #Update contact list
         self.contactList.clear()
         self.contactList.addItems(sorted(self.currentContacts.keys(), key=natural_keys))
-        self.updateElectrodeView()
+        # Update electrode referential (if selected)
+        if (self.electrodeRefCheck.checkState() == QtCore.Qt.Checked):
+            self.updateElectrodeView()
 
     def electrodeGo(self, idx = None, electrode = None):
         if idx is not None:
@@ -5354,7 +5357,7 @@ class LocateElectrodes(QtGui.QDialog):
         T1pre = None
         T1postop = None
         
-        id_pre = [x for x in range(len(diT1)) if 'T1T1T1pre' in str(diT1[x])]
+        id_pre = [x for x in range(len(diT1)) if 'T1pre' in str(diT1[x])]
         T1pre = diT1[id_pre[0]]
         
         if method == 'T1':          
@@ -5397,7 +5400,7 @@ class LocateElectrodes(QtGui.QDialog):
                 if t.attributes()['modality'] == 't1mri' and 'postOp' in t.attributes()['acquisition']:
                     trmpostop_to_SB = t
                     #transfo_postop_to_SB = aims.read(trmpostop_to_SB.fullPath()).toMatrix()
-                if t.attributes()['modality'] == 't1mri' and 'T1T1pre' in t.attributes()['acquisition']:
+                if t.attributes()['modality'] == 't1mri' and 'T1pre' in t.attributes()['acquisition']:
                     trmpre_to_SB = t
                     #transfo_pre_to_SB = aims.read(trmpre_to_SB.fullPath()).toMatrix()
 
