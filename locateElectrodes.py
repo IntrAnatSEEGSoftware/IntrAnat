@@ -2513,8 +2513,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            res = self.exportAllWorker(selOptions)
+            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            #res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3932,8 +3932,8 @@ class LocateElectrodes(QtGui.QDialog):
             try:
                 self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
                 acq = LeftGyri.attributes()['acquisition']
-                errMsg += "Could not interpolate MarsAtlas in 3D: " + repr(e)
             except Exception, e:
+                errMsg += "Could not interpolate MarsAtlas in 3D: " + repr(e)
                 acq = self.diskItems['T1pre']['acquisition']
         else:
             acq = self.diskItems['T1pre']['acquisition']
@@ -4259,6 +4259,13 @@ class LocateElectrodes(QtGui.QDialog):
             plot_pos_pix_fs = [round(plot_fs_sorted[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(plot_dict_MNI_Native[plot_sorted[pindex][0]][i]) for i in range(3)]
             
+            if isnan(plot_pos_pix_indi[0]) or isnan(plot_pos_pix_fs[0]):
+                print("ERROR: Invalid coordinates for contact: " + plot_sorted[pindex][0])
+                continue
+            if isnan(plot_pos_pix_MNI[0]):
+                print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
+                continue
+                
             # === PROCESS: MARS ATLAS ===
             if not useTemplateMarsAtlas:
                 if initSegmentation == "FreeSurfer":
@@ -4268,12 +4275,8 @@ class LocateElectrodes(QtGui.QDialog):
                     plot_pos_pixMA = plot_pos_pix_indi
                     nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
-                if isnan(plot_pos_pix_MNI[0]):
-                    print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
-                    continue
-                else:
-                    plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
-                    nb_voxel_sphereMA = nb_voxel_sphere_MNI
+                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
+                nb_voxel_sphereMA = nb_voxel_sphere_MNI
             
             #on regarde si une sphère de x mm de rayon touche une parcel
             if plot_pos_pixMA:
@@ -4566,6 +4569,14 @@ class LocateElectrodes(QtGui.QDialog):
             plot_pos_pix_indi = [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_fs = [round(info_plot_bipolaire_fs[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_MNI = [round(info_plot_bipolaire_MNI[info_plot_bipolaire[pindex][0]][i]) for i in range(3)]
+            
+            if isnan(plot_pos_pix_indi[0]) or isnan(plot_pos_pix_fs[0]):
+                print("ERROR: Invalid coordinates for contact: " + plot_sorted[pindex][0])
+                continue
+            if isnan(plot_pos_pix_MNI[0]):
+                print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
+                continue
+            
             #on regarde si une sphère de x mm de rayon touche une parcel
             #mars atlas:
             if not useTemplateMarsAtlas:
@@ -4576,12 +4587,8 @@ class LocateElectrodes(QtGui.QDialog):
                     plot_pos_pixMA = plot_pos_pix_indi
                     nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
-                if isnan(plot_pos_pix_MNI[0]):
-                    print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
-                    continue
-                else:
-                    plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
-                    nb_voxel_sphereMA = nb_voxel_sphere_MNI
+                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
+                nb_voxel_sphereMA = nb_voxel_sphere_MNI
             
             voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
             voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
