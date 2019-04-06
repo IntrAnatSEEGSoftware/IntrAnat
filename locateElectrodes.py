@@ -2513,8 +2513,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            #res = self.exportAllWorker(selOptions)
+            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3743,11 +3743,12 @@ class LocateElectrodes(QtGui.QDialog):
                             writer.writerow(listwrite)
 
         # Reference csv file in the database
-        if useDatabase:
-            neuroHierarchy.databases.insertDiskItem(di, update=True)
-        # Return new file names
-        print "export csv done"
-        newFiles += [fileCsv]
+        if fileEleclabel and fileCsv:
+            if useDatabase:
+                neuroHierarchy.databases.insertDiskItem(di, update=True)
+            # Return new file names
+            print "export csv done"
+            newFiles += [fileCsv]
         return [newFiles, errMsg]
     
 
@@ -4251,6 +4252,7 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== PROCESS ALL CONTACTS ===== 
         print("start contact estimation")
         plots_label = {}
+        plot_name = []
         for pindex in range(len(plot_sorted)):
 
             plot_pos_pix_indi = [round(plot_sorted[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
@@ -4266,14 +4268,21 @@ class LocateElectrodes(QtGui.QDialog):
                     plot_pos_pixMA = plot_pos_pix_indi
                     nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
-                nb_voxel_sphereMA = nb_voxel_sphere_MNI
+                if isnan(plot_pos_pix_MNI[0]):
+                    print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
+                    continue
+                else:
+                    plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
+                    nb_voxel_sphereMA = nb_voxel_sphere_MNI
             
             #on regarde si une sphère de x mm de rayon touche une parcel
-            voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0], nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
-            
+            if plot_pos_pixMA:
+                voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0], nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+                voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+                voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
+            else:
+                voxel_to_keep = []
+                
             if GWAtlas:
                 if acq:
                     voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
@@ -4524,8 +4533,9 @@ class LocateElectrodes(QtGui.QDialog):
             if len(subacq_existing)>0:
                 for i_substat in range(len(subacq_stat)):
                     plots_label[plot_sorted[pindex][0]].update({di_stat[i_substat].attributes()['subacquisition']:float(format( voxel_substat[i_substat],'.3f'))})
+            # Add to list of exported plot names
+            plot_name += [plot_sorted[pindex][0]]
 
-        plot_name = [x[0] for x in plot_sorted]
         plots_by_label = dict([(Lab,[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
         plots_by_label_FS = dict([(Lab,[p for p in plot_name if plots_label[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
         plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
@@ -4551,6 +4561,7 @@ class LocateElectrodes(QtGui.QDialog):
         nb_voxel_sphere_MNI = [sphere_size_bipole, sphere_size_bipole, sphere_size_bipole] #[int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
         
         plots_label_bipolar = {}
+        plot_name_bip = []
         for pindex in range(len(info_plot_bipolaire)):
             plot_pos_pix_indi = [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
             plot_pos_pix_fs = [round(info_plot_bipolaire_fs[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
@@ -4565,8 +4576,12 @@ class LocateElectrodes(QtGui.QDialog):
                     plot_pos_pixMA = plot_pos_pix_indi
                     nb_voxel_sphereMA = nb_voxel_sphere
             elif useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
-                nb_voxel_sphereMA = nb_voxel_sphere_MNI
+                if isnan(plot_pos_pix_MNI[0]):
+                    print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
+                    continue
+                else:
+                    plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
+                    nb_voxel_sphereMA = nb_voxel_sphere_MNI
             
             voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
             voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
@@ -4832,8 +4847,9 @@ class LocateElectrodes(QtGui.QDialog):
             if len(subacq_existing)>0:
                 for i_substat in range(len(subacq_stat)):
                     plots_label_bipolar[info_plot_bipolaire[pindex][0]].update({di_stat[i_substat].attributes()['subacquisition']:float(format( voxel_substat[i_substat],'.3f'))})
-
-        plot_name_bip = [x[0] for x in info_plot_bipolaire]
+            # Add to list of exported plot names
+            plot_name_bip += [info_plot_bipolaire[pindex][0]]
+            
         #plots_by_label = {Lab:[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab] for Lab in parcels_names.values()}
         plots_bipolar_by_label = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
         #do the same for freesurfer, broadmann, hammers, all and alldilate
