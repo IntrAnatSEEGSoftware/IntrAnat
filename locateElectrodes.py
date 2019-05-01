@@ -3815,9 +3815,8 @@ class LocateElectrodes(QtGui.QDialog):
         
         #intersection avec mars atlas label
         if diMaskleft is not None and diMaskright is not None:
-            import numpy as np
             Vol_mask_tot = vol_left.arraydata()+vol_right.arraydata()
-            Vol_resec_rsz = np.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
+            Vol_resec_rsz = numpy.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
             
             inter_resec_mars_atlas = numpy.multiply(Vol_resec_rsz, Vol_mask_tot)
             label_resec_mars_atlas = numpy.histogram(inter_resec_mars_atlas,bins = 255, range = (0,255))
