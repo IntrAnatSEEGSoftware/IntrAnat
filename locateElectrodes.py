@@ -3645,7 +3645,7 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 # Add list of column names
                 # colNames = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
-                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection']
+                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate']
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
                 diff_list = list(list_to_write.difference(set(colNames)))
                 full_list = colNames
@@ -3687,7 +3687,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['Lausanne2008-125'][1])
                     listwrite.append(vv['Lausanne2008-250'][1])
                     listwrite.append(vv['Lausanne2008-500'][1])
-                    listwrite.append(vv['Resection'][1])
+                    listwrite.append(vv['Resection rate'][1])
                     writer.writerow(listwrite)
                 writer.writerow([])
                 writer.writerow([])
@@ -3727,7 +3727,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['Lausanne2008-125'][1])
                     listwrite.append(vv['Lausanne2008-250'][1])
                     listwrite.append(vv['Lausanne2008-500'][1])
-                    listwrite.append(vv['Resection'][1])
+                    listwrite.append(vv['Resection rate'][1])
                     writer.writerow(listwrite)
                 writer.writerow([])
                 writer.writerow([])
@@ -3815,9 +3815,11 @@ class LocateElectrodes(QtGui.QDialog):
         
         #intersection avec mars atlas label
         if diMaskleft is not None and diMaskright is not None:
+            import numpy as np
             Vol_mask_tot = vol_left.arraydata()+vol_right.arraydata()
+            Vol_resec_rsz = np.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
             
-            inter_resec_mars_atlas = numpy.multiply(Vol_resec.arraydata(),Vol_mask_tot)
+            inter_resec_mars_atlas = numpy.multiply(Vol_resec_rsz, Vol_mask_tot)
             label_resec_mars_atlas = numpy.histogram(inter_resec_mars_atlas,bins = 255, range = (0,255))
             total_label_mars_atlas = numpy.histogram(Vol_mask_tot,bins = 255)
             percent_resec_mars_atlas = numpy.divide(label_resec_mars_atlas[0],total_label_mars_atlas[0],dtype=float)*100
@@ -3825,12 +3827,12 @@ class LocateElectrodes(QtGui.QDialog):
             
             parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
             
-            list1 = [parcels_names[label_resec_mars_atlas[1][x]] for x in non_zero_inter.tolist()[0]]
-            list2 = [(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]]
-            resection_mars_atlas_info = dict(zip(list1,list2)) #{parcels_names[label_resec_mars_atlas[1][x]]:(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]}
+            #list1 = [parcels_names[label_resec_mars_atlas[1][x]] for x in non_zero_inter.tolist()[0]]
+            #list2 = [(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]]
+            #resection_mars_atlas_info = dict(zip(list1,list2)) #{parcels_names[label_resec_mars_atlas[1][x]]:(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]}
         
-        else:
-            resection_mars_atlas_info = {"MarsAtlas not calculated":[0,0]}
+        #else:
+            #resection_mars_atlas_info = {"MarsAtlas not calculated":[0,0]}
         
         if len(diFreesurferMask)>0:
             vol_FS = aims.read(diFreesurferMask[0].fileName())
@@ -3841,13 +3843,13 @@ class LocateElectrodes(QtGui.QDialog):
             #we keep only value between 1 and 100 to not display the thousands freesurfer parcels...
             interesting_percent_resec_FS = numpy.where((percent_resec_FS >1) & (percent_resec_FS < 100))
 
-            list1 = [freesurfer_parcel_names[unicode(x)][0] for x in interesting_percent_resec_FS[0]]
-            list2 = [(float(x),percent_resec_FS[x]) for x in interesting_percent_resec_FS[0]]
+            #list1 = [freesurfer_parcel_names[unicode(x)][0] for x in interesting_percent_resec_FS[0]]
+            #list2 = [(float(x),percent_resec_FS[x]) for x in interesting_percent_resec_FS[0]]
             
-            resection_freesurfer_info = dict(zip(list1,list2))
+            #resection_freesurfer_info = dict(zip(list1,list2))
 
-        else:
-            resection_freesurfer_info = {"Freesurfer not calculated": [0,0]}
+        #else:
+            #resection_freesurfer_info = {"Freesurfer not calculated": [0,0]}
         
         #write into database
         wdi = WriteDiskItem('Resection Description','Resection json')
@@ -3857,7 +3859,8 @@ class LocateElectrodes(QtGui.QDialog):
             return []
         
         fout = open(di.fullPath(),'w')
-        fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info,'Volume resection (mm3): ':Vol_resection_mm,'Freesurfer':resection_freesurfer_info})) #ici il faut ajouter l'ajout de la key volume mais je sais pas pourquoi des fois ca fait planter l'export en csv
+        #fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info,'Volume resection (mm3): ':Vol_resection_mm,'Freesurfer':resection_freesurfer_info})) #ici il faut ajouter l'ajout de la key volume mais je sais pas pourquoi des fois ca fait planter l'export en csv
+        fout.write(json.dumps({'Volume resection (mm3): ': Vol_resection_mm}))
         fout.close()
         
         neuroHierarchy.databases.insertDiskItem(di, update=True )
@@ -4101,7 +4104,9 @@ class LocateElectrodes(QtGui.QDialog):
 
         # ===== READ: RESECTION =====
         if acq:
-            wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
+            
+            #wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
+            wdi_resec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'center':self.brainvisaPatientAttributes['center'], 'subject':self.brainvisaPatientAttributes['subject'] })
             di_resec = list(wdi_resec.findValues({}, None, False ))
             #careful, if we use templates, the resection has to be deformed in the mni template
             if len(di_resec)==0:
@@ -4513,13 +4518,15 @@ class LocateElectrodes(QtGui.QDialog):
                            
             if DoResection:
                 most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
-                Resec_label = max(voxel_resec) #most_common_res
+                Resec_label = max(voxel_resec) 
+                per_mc = (float(num_most_common_res)/float(size(voxel_resec)))*100 #percentage of most_common value inside the sphere created for that contact
+                if Resec_label ==0:
+                    per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
             else:
                 Resec_label = 255
             
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
-            Resec_label_name = {0:'not in resection',1:'in resection',255:'resection not calculated'}[Resec_label]
-            
+            Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
 #             plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
             plots_label[plot_sorted[pindex][0]]={ \
                 'MarsAtlas'        : (label, label_name), \
@@ -4538,7 +4545,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Lausanne2008-125' : (label_lausanne[2], label_lausanne_name[2]), \
                 'Lausanne2008-250' : (label_lausanne[3], label_lausanne_name[3]), \
                 'Lausanne2008-500' : (label_lausanne[4], label_lausanne_name[4]), \
-                'Resection'        : (Resec_label, Resec_label_name), \
+                'Resection rate'   : (Resec_label, Resec_label_value), \
                 }
             
             # add subacq_stat dictionnaries
@@ -4830,12 +4837,15 @@ class LocateElectrodes(QtGui.QDialog):
             
             if DoResection:
                 most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
-                Resec_label = max(voxel_resec) #most_common_res
+                Resec_label = max(voxel_resec) 
+                per_mc = (float(num_most_common_res)/float(size(voxel_resec)))*100 #percentage of most_common value inside the sphere created for that contact
+                if Resec_label == 0:
+                    per_mc = 100 - per_mc
             else:
                 Resec_label = 255
             
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
-            Resec_label_name = {0:'not in resection',1:'in resection',255:'resection not calculated'}[Resec_label]
+            Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
             
 #             plots_label_bipolar[info_plot_bipolaire[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name),'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
             plots_label_bipolar[info_plot_bipolaire[pindex][0]]={\
@@ -4855,7 +4865,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Lausanne2008-125' : (label_lausanne[2], label_lausanne_name[2]), \
                 'Lausanne2008-250' : (label_lausanne[3], label_lausanne_name[3]), \
                 'Lausanne2008-500' : (label_lausanne[4], label_lausanne_name[4]), \
-                'Resection'        : (Resec_label, Resec_label_name), \
+                'Resection rate'   : (Resec_label, Resec_label_value), \
                 }
             
             #plots_label_bipolar.append((info_plot_bipolaire[pindex][0],label,label_name,GW_label))
@@ -5401,20 +5411,22 @@ class LocateElectrodes(QtGui.QDialog):
             CTpostop = diCTs[id_ctpostop[0]]
         
         if method == 'T1':
-            try:
-                self.refConv.loadACPC(T1pre)
-            except Exception, e:
-                print "Cannot load AC-PC referential from T1 pre MRI : "+repr(e)
-                return
-            Ac = self.refConv.Ac
-            Pc = self.refConv.Pc
-            Ih = self.refConv.Ih
-            Ac.append(1)
-            Pc.append(1)
-            Ih.append(1)
-            Ac_vector = numpy.array([Ac])
-            Pc_vector = numpy.array([Pc])
-            Ih_vector = numpy.array([Ih])
+            #The following commented lines are not necessary for resection
+            
+            #try:
+            #    self.refConv.loadACPC(T1pre)
+            #except Exception, e:
+            #    print "Cannot load AC-PC referential from T1 pre MRI : "+repr(e)
+            #    return
+            #Ac = self.refConv.Ac
+            #Pc = self.refConv.Pc
+            #Ih = self.refConv.Ih
+            #Ac.append(1)
+            #Pc.append(1)
+            #Ih.append(1)
+            #Ac_vector = numpy.array([Ac])
+            #Pc_vector = numpy.array([Pc])
+            #Ih_vector = numpy.array([Ih])
             
             wdiTransform = ReadDiskItem('Transform Raw T1 MRI to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol }) #pourquoi la suite marche pas ?, requiredAttributes = {'modalityTarget':T1pre.attributes()['modality'], 'acquisitionTarget':T1pre.attributes()['acquisition']}
             diTransform = list(wdiTransform.findValues({}, None, False ))
@@ -5486,29 +5498,31 @@ class LocateElectrodes(QtGui.QDialog):
         if method == 'T1':
             transfo_pre_to_postop = aims.read(trmpre_to_postop_path).toMatrix()
             
-            Ac_vector_postop = transfo_pre_to_postop.dot(Ac_vector.T)
-            Pc_vector_postop = transfo_pre_to_postop.dot(Pc_vector.T)
-            Ih_vector_postop = transfo_pre_to_postop.dot(Ih_vector.T)
-            vect1 = numpy.array(Ac_vector_postop[0:3])-numpy.array(Pc_vector_postop[0:3])
-            vect2 = numpy.array(Ih_vector_postop[0:3])-numpy.array(Pc_vector_postop[0:3])
+            #Ac_vector_postop = transfo_pre_to_postop.dot(Ac_vector.T)
+            #Pc_vector_postop = transfo_pre_to_postop.dot(Pc_vector.T)
+            #Ih_vector_postop = transfo_pre_to_postop.dot(Ih_vector.T)
+            #vect1 = numpy.array(Ac_vector_postop[0:3])-numpy.array(Pc_vector_postop[0:3])
+            #vect2 = numpy.array(Ih_vector_postop[0:3])-numpy.array(Pc_vector_postop[0:3])
             
-            result_cross = cross(vect1.T.tolist(),vect2.T.tolist())/numpy.linalg.norm(cross(vect1.T.tolist(),vect2.T.tolist()))*40
-            Lh_postop = numpy.array(Ac[0:3]) + result_cross
+            #result_cross = cross(vect1.T.tolist(),vect2.T.tolist())/numpy.linalg.norm(cross(vect1.T.tolist(),vect2.T.tolist()))*40
+            #Lh_postop = numpy.array(Ac[0:3]) + result_cross
             
-            morphologist = processes.getProcessInstance('morphologist')
-            morphologist.executionNode().PrepareSubject.setSelected(True)
-            morphologist.executionNode().BiasCorrection.setSelected(True)
-            morphologist.executionNode().HistoAnalysis.setSelected(True)
-            morphologist.executionNode().BrainSegmentation.setSelected(True)
-            morphologist.executionNode().Renorm.setSelected(False)
-            morphologist.executionNode().SplitBrain.setSelected(False)
-            morphologist.executionNode().TalairachTransformation.setSelected(False)
-            morphologist.executionNode().HeadMesh.setSelected(False)
-            morphologist.executionNode().HemispheresProcessing.setSelected(False)
-            morphologist.executionNode().SulcalMorphometry.setSelected(False)
-            self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord,methodo=method:self.resectionStart(trm,resec_coord,methodo) , morphologist, t1mri = T1postop, perform_normalization = False, anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
-                                   posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
-
+            #NOT NECESSARY FOR 'ResectionStart' AND TAKES TIME
+            #morphologist = getProcessInstance('morphologist')
+            #morphologist.executionNode().PrepareSubject.setSelected(True)
+            #morphologist.executionNode().BiasCorrection.setSelected(True)
+            #morphologist.executionNode().HistoAnalysis.setSelected(True)
+            #morphologist.executionNode().BrainSegmentation.setSelected(True)
+            #morphologist.executionNode().Renorm.setSelected(False)
+            #morphologist.executionNode().SplitBrain.setSelected(False)
+            #morphologist.executionNode().TalairachTransformation.setSelected(False)
+            #morphologist.executionNode().HeadMesh.setSelected(False)
+            #morphologist.executionNode().HemispheresProcessing.setSelected(False)
+            #morphologist.executionNode().SulcalMorphometry.setSelected(False)
+            #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord,methodo=method:self.resectionStart(trm,resec_coord,methodo) , morphologist, t1mri = T1postop, perform_normalization = False)
+                                #anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
+                                #posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
+            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
         if method == 'CT':
             self.resectionStart(trmpostop_to_pre_path,ResecCenterCoord,method = 'CT')
 
@@ -5534,12 +5548,52 @@ class LocateElectrodes(QtGui.QDialog):
             fullpost_split[-1] = 'brainpostop_on_pre.nii'
             fullpost = '/'.join(fullpost_split)
             
-            ret = subprocess.call(['AimsResample', '-i', str(diBrain[id_postop[0]].fullPath()), '-m', trm_postop_to_pre, '-o', fullpost, '-t', 'n', '-r',diBrain[id_pre[0]].fullPath()])
-            ret = subprocess.call(['AimsLinearComb', '-i',str(diBrain[id_pre[0]].fullPath()),'-j',fullpost, '-c', '-1', '-o', di_resec.fullPath()])
-            ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'ge','-t','250' , '-o', di_resec.fullPath()])
-            ret = subprocess.call(['AimsMorphoMath', '-m','ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
-            ret = subprocess.call(['AimsConnectComp', '-i',di_resec.fullPath(),'-o',di_resec.fullPath(),'-c','6',])
-
+            if id_pre:
+            
+                ret = subprocess.call(['AimsResample', '-i', str(diBrain[id_postop[0]].fullPath()), '-m', trm_postop_to_pre, '-o', fullpost, '-t', 'n', '-r', diBrain[id_pre[0]].fullPath()])
+                ret = subprocess.call(['AimsLinearComb', '-i',str(diBrain[id_pre[0]].fullPath()),'-j',fullpost, '-c', '-1', '-o', di_resec.fullPath()])
+                ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'ge','-t','250' , '-o', di_resec.fullPath()])
+                ret = subprocess.call(['AimsMorphoMath', '-m','ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
+                ret = subprocess.call(['AimsConnectComp', '-i',di_resec.fullPath(),'-o',di_resec.fullPath(),'-c','6',])
+            
+            #Case in which the brain mask of T1pre does not exist   
+            if not id_pre:
+                
+                T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',
+                          requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+                diT1 = list(T1.findValues({}, None, False))
+                 
+                id_pre = [x for x in range(len(diT1)) if 'T1pre' in str(diT1[x])]  #find position of diT1 where T1pre is
+                
+                fullname_pre2 = diT1[id_pre[0]].fullPath()
+                fullpre2_split = fullname_pre2.split('/')
+                fullpre2_split[-1] = 'premask.nii'
+                fullpre2 = '/'.join(fullpre2_split)
+                
+                fullname_pre2 = diT1[id_pre[0]].fullPath()
+                fullpre2_split = fullname_pre2.split('/')
+                fullpre2_split[-1] = 'pre_brain_mask.nii'
+                fullpre2fin = '/'.join(fullpre2_split)
+                
+                #To obtain T1 premask (fullprefin2):
+                ret = subprocess.call(['AimsThreshold', '-i', diT1[id_pre[0]].fullPath(), '-o', fullpre2, '-m', 'be', '-t', '500', '-u', '1500', '-b', 'true'])
+                ret = subprocess.call(['AimsMorphoMath', '-m', 'ope', '-i', fullpre2, '-o', fullpre2, '-r', '2'])           #To remove as much skull as possible
+                
+                ret = subprocess.call(['AimsResample', '-i', diBrain[id_postop[0]].fullPath(), '-m', trm_postop_to_pre, '-o', 
+                                       fullpost, '-t', 'n', '-r', fullpre2]) 
+                ret = subprocess.call(['AimsMask', '-i', fullpre2, '-m', fullpost, '-o', fullpre2fin])                      #To obtain brain
+                ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', fullpre2fin, '-o', fullpre2fin, '-r', '7'])     #To fill the brain with ones
+                ret = subprocess.call(['AimsMask', '-i', fullpre2fin, '-m', fullpre2, '-o', fullpre2fin])                   #To draw internal structures of the brain
+                ret = subprocess.call(['AimsMorphoMath', '-m', 'ope', '-i', fullpre2fin, '-o', fullpre2fin, '-r', '3'])     #To remove rests of skull
+                
+                #To calculate resection mask:
+                ret = subprocess.call(['AimsLinearComb', '-i', fullpre2fin, '-j', fullpost, '-c', '-1', 
+                                       '-o', di_resec.fullPath()])
+                ret = subprocess.call(['AimsThreshold', '-i', di_resec.fullPath(), '-m', 'ge', '-t', '250' , '-o', di_resec.fullPath()])
+                ret = subprocess.call(['AimsMorphoMath', '-m', 'ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
+                ret = subprocess.call(['AimsConnectComp', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-c', '6', ])
+                
+                
         if method == 'CT':
             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
             diBrain = list(brainMask.findValues({}, None, False ))
@@ -5584,7 +5638,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         #value_connectcomp = vol_connectcomp.value(resec_coord[0],resec_coord[1],resec_coord[2])
         ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'eq','-t',str(most_common) , '-o', di_resec.fullPath()])
-        
+        ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1.5'])
         #resave as the resection Image and do the .minf
         #ret = subprocess.call(['AimsFileConvert', '-i', str(di_resec.fullPath()), '-o', str(di_resec.fullPath()), '-t', 'S16'])
         if ret < 0:
@@ -5615,7 +5669,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateComboboxes(Text_win1, 'Resection')
         # Update anatomist windows
         self.updateAllWindows()
-
+        
     def ROIResectiontoNiftiResection(self):
         wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
         di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
