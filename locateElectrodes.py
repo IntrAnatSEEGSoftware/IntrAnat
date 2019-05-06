@@ -4523,6 +4523,7 @@ class LocateElectrodes(QtGui.QDialog):
                     per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
             else:
                 Resec_label = 255
+                per_mc = 0
             
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
@@ -4842,6 +4843,7 @@ class LocateElectrodes(QtGui.QDialog):
                     per_mc = 100 - per_mc
             else:
                 Resec_label = 255
+                per_mc = 0
             
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
