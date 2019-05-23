@@ -5507,22 +5507,24 @@ class LocateElectrodes(QtGui.QDialog):
             #result_cross = cross(vect1.T.tolist(),vect2.T.tolist())/numpy.linalg.norm(cross(vect1.T.tolist(),vect2.T.tolist()))*40
             #Lh_postop = numpy.array(Ac[0:3]) + result_cross
             
+            
             #NOT NECESSARY FOR 'ResectionStart' AND TAKES TIME
-            #morphologist = getProcessInstance('morphologist')
-            #morphologist.executionNode().PrepareSubject.setSelected(True)
-            #morphologist.executionNode().BiasCorrection.setSelected(True)
-            #morphologist.executionNode().HistoAnalysis.setSelected(True)
-            #morphologist.executionNode().BrainSegmentation.setSelected(True)
-            #morphologist.executionNode().Renorm.setSelected(False)
-            #morphologist.executionNode().SplitBrain.setSelected(False)
-            #morphologist.executionNode().TalairachTransformation.setSelected(False)
-            #morphologist.executionNode().HeadMesh.setSelected(False)
-            #morphologist.executionNode().HemispheresProcessing.setSelected(False)
-            #morphologist.executionNode().SulcalMorphometry.setSelected(False)
-            #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord,methodo=method:self.resectionStart(trm,resec_coord,methodo) , morphologist, t1mri = T1postop, perform_normalization = False)
+            morphologist = getProcessInstance('morphologist')
+            morphologist.executionNode().PrepareSubject.setSelected(True)
+            morphologist.executionNode().BiasCorrection.setSelected(True)
+            morphologist.executionNode().HistoAnalysis.setSelected(True)
+            morphologist.executionNode().BrainSegmentation.setSelected(True)
+            morphologist.executionNode().Renorm.setSelected(False)
+            morphologist.executionNode().SplitBrain.setSelected(False)
+            morphologist.executionNode().TalairachTransformation.setSelected(False)
+            morphologist.executionNode().HeadMesh.setSelected(False)
+            morphologist.executionNode().HemispheresProcessing.setSelected(False)
+            morphologist.executionNode().SulcalMorphometry.setSelected(False)
+            self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord, methodo=method:self.resectionStart(trm,resec_coord,methodo), 
+                                                        morphologist, t1mri = T1postop, perform_normalization = False)
                                 #anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
                                 #posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
-            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
+            #self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
         if method == 'CT':
             self.resectionStart(trmpostop_to_pre_path,ResecCenterCoord,method = 'CT')
 
@@ -5565,10 +5567,11 @@ class LocateElectrodes(QtGui.QDialog):
                  
                 id_pre = [x for x in range(len(diT1)) if 'T1pre' in str(diT1[x])]  #find position of diT1 where T1pre is
                 
-                fullname_pre2 = diT1[id_pre[0]].fullPath()
-                fullpre2_split = fullname_pre2.split('/')
-                fullpre2_split[-1] = 'premask.nii'
-                fullpre2 = '/'.join(fullpre2_split)
+                fullname_pre = diT1[id_pre[0]].fullPath()
+                fullpre_split = fullname_pre.split('/')
+                fullpre_split[-1] = ''
+                fullprer = '/'.join(fullpre_split)
+                fullpre = os.path.join(fullprer, 'premask.nii')
                 
                 fullname_pre2 = diT1[id_pre[0]].fullPath()
                 fullpre2_split = fullname_pre2.split('/')
@@ -5638,7 +5641,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         #value_connectcomp = vol_connectcomp.value(resec_coord[0],resec_coord[1],resec_coord[2])
         ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'eq','-t',str(most_common) , '-o', di_resec.fullPath()])
-        ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1.5'])
+        ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
         #resave as the resection Image and do the .minf
         #ret = subprocess.call(['AimsFileConvert', '-i', str(di_resec.fullPath()), '-o', str(di_resec.fullPath()), '-t', 'S16'])
         if ret < 0:
