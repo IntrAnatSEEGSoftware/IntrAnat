@@ -969,7 +969,7 @@ class ImageImport (QtGui.QDialog):
         """ Returns all images for a subject from the brainvisa database.
             @return an array of ReadDiskItem
         """
-        rdi = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
+        rdi = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj), 'normalized':'no' } )
         images = list( rdi._findValues( {}, None, False ) )
         images = [x for x in images if "skull_stripped" not in x.fullName()]
         rdi = ReadDiskItem( 'T2 MRI', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
@@ -1363,7 +1363,7 @@ class ImageImport (QtGui.QDialog):
                 # tmp_nii_path = "/ tmp / tmp_mgz_nii.nii"
                 tmp_nii_path = getTmpFilePath('nii')
                 #on reslice par rapport au t1 pre
-                di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.currentSubject } )
+                di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.currentSubject, 'normalized':'no' } )
                 allT1 = list(di.findValues({},None,False))
                 idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
                 if len(idxT1pre)==0:
@@ -3108,7 +3108,7 @@ class ImageImport (QtGui.QDialog):
 
         if len(StatToConvert)>0:
 
-            diT1 = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient } )
+            diT1 = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient, 'normalized':'no' } )
             allT1 = list(diT1.findValues({},None,False))
             idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
             self.mriAcPc = allT1[idxT1pre[0]]
@@ -3253,7 +3253,7 @@ class ImageImport (QtGui.QDialog):
         if len(righthippopx[0]) < 50:
             HippoRight = False
 
-        di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient } )
+        di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient, 'normalized':'no' } )
         allT1 = list(di.findValues({},None,False))
         idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
         T1pre = allT1[idxT1pre[0]]
