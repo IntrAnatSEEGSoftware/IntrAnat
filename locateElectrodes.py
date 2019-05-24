@@ -4544,7 +4544,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 Resec_label = 255
                 per_mc = 0
-                
+
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
 #             plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
@@ -4864,7 +4864,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 Resec_label = 255
                 per_mc = 0
-                
+
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
             
