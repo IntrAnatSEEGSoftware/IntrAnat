@@ -5549,21 +5549,16 @@ class LocateElectrodes(QtGui.QDialog):
             morphologist.executionNode().HemispheresProcessing.setSelected(False)
             morphologist.executionNode().SulcalMorphometry.setSelected(False)
             
-            done = 'yes'
-            if not id_pre: 
-                done = 'no pre'             
+            
+            if not id_pre:             
                 self.brainvisaContext.runProcess(morphologist, t1mri = T1pre, perform_normalization = True, anterior_commissure = '',\
                         posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
                 
             if not id_postop:
-                if done == 'no pre': 
-                    done = 'none'
-                else: 
-                    done = 'no postOp'
                 self.brainvisaContext.runProcess(morphologist, t1mri = T1postop, perform_normalization = True, anterior_commissure = '',\
                     posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
                 
-            self.resectionStart(trmpostop_to_pre_path, done, ResecCenterCoord, method = 'T1')
+            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
             
             #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord, methodo=method:self.resectionStart(trm,resec_coord,methodo), 
             #                                            morphologist, t1mri = T1postop, perform_normalization = False)
@@ -5571,10 +5566,10 @@ class LocateElectrodes(QtGui.QDialog):
                                 #posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
             #self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
         if method == 'CT':
-            self.resectionStart(trmpostop_to_pre_path, done, ResecCenterCoord,method = 'CT')
+            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord,method = 'CT')
 
   
-    def resectionStart(self,trm_postop_to_pre, d, resec_coord,method = 'T1'):
+    def resectionStart(self,trm_postop_to_pre, resec_coord,method = 'T1'):
         wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
         di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
         
