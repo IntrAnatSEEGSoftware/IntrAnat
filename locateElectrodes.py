@@ -3835,9 +3835,8 @@ class LocateElectrodes(QtGui.QDialog):
         
         #intersection avec mars atlas label
         if diMaskleft is not None and diMaskright is not None:
-            import numpy as np
             Vol_mask_tot = vol_left.arraydata()+vol_right.arraydata()
-            Vol_resec_rsz = np.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
+            Vol_resec_rsz = numpy.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
             
             inter_resec_mars_atlas = numpy.multiply(Vol_resec_rsz, Vol_mask_tot)
             label_resec_mars_atlas = numpy.histogram(inter_resec_mars_atlas,bins = 255, range = (0,255))
@@ -4544,7 +4543,8 @@ class LocateElectrodes(QtGui.QDialog):
                     per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
             else:
                 Resec_label = 255
-            
+                per_mc = 0
+                
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
 #             plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
@@ -4863,7 +4863,8 @@ class LocateElectrodes(QtGui.QDialog):
                     per_mc = 100 - per_mc
             else:
                 Resec_label = 255
-            
+                per_mc = 0
+                
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
             
