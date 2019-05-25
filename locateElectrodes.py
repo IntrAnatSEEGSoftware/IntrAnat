@@ -1095,14 +1095,24 @@ class LocateElectrodes(QtGui.QDialog):
                     errMsg += ["Multiple FreesurferAtlaspre images found"]
                 dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferT1pre', 'electrodes']})
                 na = 'FreesurferT1pre'
-            elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']):
+            elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'no'):
                 if ('MRI pre' in dictionnaire_list_images.keys()):
                     errMsg += ["Multiple T1pre images found"]
-                dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})         
-            elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})
+            elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'yes') :
+                if ('Normalized MRI pre' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T1pre-Norm images found"]
+                dictionnaire_list_images.update({'Normalized MRI pre':['preNorm', 'electrodes']})
+                na = 'preNorm'         
+            elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'no'):
                 if ('MRI post-op' in dictionnaire_list_images.keys()):
                     errMsg += ["Multiple T1postOp images found"]
                 dictionnaire_list_images.update({'MRI post-op':['T1postOp', 'electrodes']})
+            elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'yes') :
+                if ('Normalized MRI post-op' in dictionnaire_list_images.keys()):
+                    errMsg += ["Multiple T1postOp-Norm images found"]
+                dictionnaire_list_images.update({'Normalized MRI post-op':['postOpNorm', 'electrodes']})
+                na = 'postOpNorm'   
             elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
                 if ('MRI post' in dictionnaire_list_images.keys()):
                     errMsg += ["Multiple T1post images found"]
@@ -1214,7 +1224,17 @@ class LocateElectrodes(QtGui.QDialog):
                 if (len(volReferential) == 1):
                     t.setMinf('referential', volReferential[0].uuid())
                     neuroHierarchy.databases.insertDiskItem(t, update=True)
-
+            
+            if ((na == 'preNorm') or (na == 'postOpNorm')) and (not 'referential' in t.attributes().keys()):
+                print "*** DATABASE FIX: Adding the referential "
+                # Look for referential file for this volume
+                rdi = ReadDiskItem('Referential of Raw T1 MRI', 'Referential', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
+                volReferential = list(rdi.findValues({}, None, False))
+                # If there is a referential available, add its UUID to the volume object attibutes
+                if (len(volReferential) == 1):
+                    t.setMinf('referential', volReferential[0].uuid())
+                    neuroHierarchy.databases.insertDiskItem(t, update=True)
+                    
             # Load volume in anatomist
             obj = self.loadAndDisplayObject(t, na)
             
@@ -4524,7 +4544,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 Resec_label = 255
                 per_mc = 0
-            
+
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
 #             plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
@@ -4844,7 +4864,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 Resec_label = 255
                 per_mc = 0
-            
+
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
             
@@ -5365,7 +5385,7 @@ class LocateElectrodes(QtGui.QDialog):
     def generateResection(self):
 
         #look for T1 pre and T1 postop
-        T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'normalized':'no' })
         diT1 = list(T1.findValues({}, None, False ))
         for t in diT1:
             if 'T1pre' in t.attributes()['acquisition']:
@@ -5485,8 +5505,8 @@ class LocateElectrodes(QtGui.QDialog):
         
         print 'select the center of the resection'
         center_seg = QtGui.QMessageBox(self)
-        center_seg.setText("Enter the center (approximatly) of the resection")
-        center_seg.setWindowTitle("resection center")
+        center_seg.setText("Enter the center (approximately) of the resection")
+        center_seg.setWindowTitle("Resection center")
         center_seg.setWindowModality(QtCore.Qt.NonModal)
         center_seg.show()
         center_seg.exec_()
@@ -5508,27 +5528,48 @@ class LocateElectrodes(QtGui.QDialog):
             #result_cross = cross(vect1.T.tolist(),vect2.T.tolist())/numpy.linalg.norm(cross(vect1.T.tolist(),vect2.T.tolist()))*40
             #Lh_postop = numpy.array(Ac[0:3]) + result_cross
             
+            brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+            diBrain = list(brainMask.findValues({}, None, False ))
+            
+            id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
+            id_postop = [x for x in range(len(diBrain)) if 'postOp' in str(diBrain[x])]
+            
             #NOT NECESSARY FOR 'ResectionStart' AND TAKES TIME
-            #morphologist = getProcessInstance('morphologist')
+            morphologist = getProcessInstance('morphologist')
             #morphologist.executionNode().PrepareSubject.setSelected(True)
-            #morphologist.executionNode().BiasCorrection.setSelected(True)
-            #morphologist.executionNode().HistoAnalysis.setSelected(True)
-            #morphologist.executionNode().BrainSegmentation.setSelected(True)
-            #morphologist.executionNode().Renorm.setSelected(False)
-            #morphologist.executionNode().SplitBrain.setSelected(False)
-            #morphologist.executionNode().TalairachTransformation.setSelected(False)
-            #morphologist.executionNode().HeadMesh.setSelected(False)
-            #morphologist.executionNode().HemispheresProcessing.setSelected(False)
-            #morphologist.executionNode().SulcalMorphometry.setSelected(False)
-            #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord,methodo=method:self.resectionStart(trm,resec_coord,methodo) , morphologist, t1mri = T1postop, perform_normalization = False)
+            morphologist.executionNode().BiasCorrection.setSelected(True)
+            morphologist.executionNode().PrepareSubject.StandardACPC.setSelected(False)
+            morphologist.executionNode().PrepareSubject.Normalization.setSelected(True)
+            morphologist.executionNode().HistoAnalysis.setSelected(True)
+            morphologist.executionNode().BrainSegmentation.setSelected(True)
+            morphologist.executionNode().Renorm.setSelected(False)
+            morphologist.executionNode().SplitBrain.setSelected(False)
+            morphologist.executionNode().TalairachTransformation.setSelected(False)
+            morphologist.executionNode().HeadMesh.setSelected(False)
+            morphologist.executionNode().HemispheresProcessing.setSelected(False)
+            morphologist.executionNode().SulcalMorphometry.setSelected(False)
+            
+            
+            if not id_pre:             
+                self.brainvisaContext.runProcess(morphologist, t1mri = T1pre, perform_normalization = True, anterior_commissure = '',\
+                        posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
+                
+            if not id_postop:
+                self.brainvisaContext.runProcess(morphologist, t1mri = T1postop, perform_normalization = True, anterior_commissure = '',\
+                    posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
+                
+            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
+            
+            #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord, methodo=method:self.resectionStart(trm,resec_coord,methodo), 
+            #                                            morphologist, t1mri = T1postop, perform_normalization = False)
                                 #anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
                                 #posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
-            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
+            #self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
         if method == 'CT':
-            self.resectionStart(trmpostop_to_pre_path,ResecCenterCoord,method = 'CT')
+            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord,method = 'CT')
 
   
-    def resectionStart(self,trm_postop_to_pre,resec_coord,method = 'T1'):
+    def resectionStart(self,trm_postop_to_pre, resec_coord,method = 'T1'):
         wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
         di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
         
@@ -5549,51 +5590,14 @@ class LocateElectrodes(QtGui.QDialog):
             fullpost_split[-1] = 'brainpostop_on_pre.nii'
             fullpost = '/'.join(fullpost_split)
             
-            if id_pre:
-            
-                ret = subprocess.call(['AimsResample', '-i', str(diBrain[id_postop[0]].fullPath()), '-m', trm_postop_to_pre, '-o', fullpost, '-t', 'n', '-r', diBrain[id_pre[0]].fullPath()])
-                ret = subprocess.call(['AimsLinearComb', '-i',str(diBrain[id_pre[0]].fullPath()),'-j',fullpost, '-c', '-1', '-o', di_resec.fullPath()])
-                ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'ge','-t','250' , '-o', di_resec.fullPath()])
-                ret = subprocess.call(['AimsMorphoMath', '-m','ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
-                ret = subprocess.call(['AimsConnectComp', '-i',di_resec.fullPath(),'-o',di_resec.fullPath(),'-c','6',])
-            
-            #Case in which the brain mask of T1pre does not exist   
-            if not id_pre:
-                
-                T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',
-                          requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-                diT1 = list(T1.findValues({}, None, False))
-                 
-                id_pre = [x for x in range(len(diT1)) if 'T1pre' in str(diT1[x])]  #find position of diT1 where T1pre is
-                
-                fullname_pre2 = diT1[id_pre[0]].fullPath()
-                fullpre2_split = fullname_pre2.split('/')
-                fullpre2_split[-1] = 'premask.nii'
-                fullpre2 = '/'.join(fullpre2_split)
-                
-                fullname_pre2 = diT1[id_pre[0]].fullPath()
-                fullpre2_split = fullname_pre2.split('/')
-                fullpre2_split[-1] = 'pre_brain_mask.nii'
-                fullpre2fin = '/'.join(fullpre2_split)
-                
-                #To obtain T1 premask (fullprefin2):
-                ret = subprocess.call(['AimsThreshold', '-i', diT1[id_pre[0]].fullPath(), '-o', fullpre2, '-m', 'be', '-t', '500', '-u', '1500', '-b', 'true'])
-                ret = subprocess.call(['AimsMorphoMath', '-m', 'ope', '-i', fullpre2, '-o', fullpre2, '-r', '2'])           #To remove as much skull as possible
-                
-                ret = subprocess.call(['AimsResample', '-i', diBrain[id_postop[0]].fullPath(), '-m', trm_postop_to_pre, '-o', 
-                                       fullpost, '-t', 'n', '-r', fullpre2]) 
-                ret = subprocess.call(['AimsMask', '-i', fullpre2, '-m', fullpost, '-o', fullpre2fin])                      #To obtain brain
-                ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', fullpre2fin, '-o', fullpre2fin, '-r', '7'])     #To fill the brain with ones
-                ret = subprocess.call(['AimsMask', '-i', fullpre2fin, '-m', fullpre2, '-o', fullpre2fin])                   #To draw internal structures of the brain
-                ret = subprocess.call(['AimsMorphoMath', '-m', 'ope', '-i', fullpre2fin, '-o', fullpre2fin, '-r', '3'])     #To remove rests of skull
-                
-                #To calculate resection mask:
-                ret = subprocess.call(['AimsLinearComb', '-i', fullpre2fin, '-j', fullpost, '-c', '-1', 
-                                       '-o', di_resec.fullPath()])
-                ret = subprocess.call(['AimsThreshold', '-i', di_resec.fullPath(), '-m', 'ge', '-t', '250' , '-o', di_resec.fullPath()])
-                ret = subprocess.call(['AimsMorphoMath', '-m', 'ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
-                ret = subprocess.call(['AimsConnectComp', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-c', '6', ])
-                
+            ret = subprocess.call(['AimsResample', '-i', diBrain[id_postop[0]].fullPath(), '-m', trm_postop_to_pre, '-o', fullpost, '-t', 'n', '-r', diBrain[id_pre[0]].fullPath()])
+            ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', fullpost, '-o', fullpost, '-r', '1.2'])
+            ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', diBrain[id_pre[0]].fullPath(), '-o', diBrain[id_pre[0]].fullPath(), '-r', '0.75'])
+            ret = subprocess.call(['AimsMask', '-i',  fullpost, '-m', diBrain[id_pre[0]].fullPath(), '-o', fullpost])
+            ret = subprocess.call(['AimsLinearComb', '-i', diBrain[id_pre[0]].fullPath(), '-j', fullpost, '-c', '-1', '-o', di_resec.fullPath()])
+            ret = subprocess.call(['AimsThreshold', '-i', di_resec.fullPath(), '-m', 'ge', '-t', '250' , '-o', di_resec.fullPath()])
+            ret = subprocess.call(['AimsMorphoMath', '-m', 'ero', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1']) #to remove small structures out of interest
+            ret = subprocess.call(['AimsConnectComp', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-c', '6'])
                 
         if method == 'CT':
             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
@@ -5639,7 +5643,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         #value_connectcomp = vol_connectcomp.value(resec_coord[0],resec_coord[1],resec_coord[2])
         ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'eq','-t',str(most_common) , '-o', di_resec.fullPath()])
-        ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1.5'])
+        ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1.75'])
         #resave as the resection Image and do the .minf
         #ret = subprocess.call(['AimsFileConvert', '-i', str(di_resec.fullPath()), '-o', str(di_resec.fullPath()), '-t', 'S16'])
         if ret < 0:
