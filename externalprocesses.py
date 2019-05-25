@@ -31,9 +31,10 @@ if os.name == 'nt':
 	isWindowsWSL = False
 # Linux: Check whether the program is executing on a Windows/WSL or native Linux system
 else:
-	isWindows = False
-	with open('/proc/version', 'r') as procfile:
-		isWindowsWSL = (procfile.read().find("Microsoft") != -1)
+    isWindows = False
+    with open('/proc/version', 'r') as procfile:
+		# isWindowsWSL = (procfile.read().find("Microsoft") != -1)
+        isWindowsWSL = False
 
 # Base call for matlab
 # matlabCall = ['matlab', '-nosplash', '-nodisplay', '-r']
