@@ -2429,6 +2429,25 @@ class ImageImport (QtGui.QDialog):
                 os.remove(h.fullPath() + '.minf')
 
 
+    def deleteLockFiles(self, subjPath):
+        # Search .lock files in the output folder
+        lockFiles = []
+        for root, dirs, files in os.walk(subjPath):
+            for file in files:
+                if file.endswith(".lock"):
+                    lockFiles += [os.path.join(root, file)]
+        # Offer to delete lock files
+        if lockFiles:
+            rep = QtGui.QMessageBox.warning(self, u'Confirmation', \
+                    u"<b>WARNING:</b><br/>This subject can\'t be processed because it contains .lock files.<br/><br/>" + \
+                    u"Option #1: Someone else is processing the same subject right now. In this case you have to wait until the other computation is done.<br/><br/>" + \
+                    u"Option #2: The previous execution crashed or was closed before the end and BrainVISA could not delete these .lock files properly, they must be deleted manually.<br/><br/>" + \
+                    u"Delete all the lock files now?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            if (rep == QtGui.QMessageBox.Yes):
+                for file in lockFiles:
+                    os.remove(file)
+
+
     def runPipelineBV(self):
 
         proto = str(self.ui.regProtocolCombo.currentText())
@@ -2458,6 +2477,11 @@ class ImageImport (QtGui.QDialog):
                 self.deleteExistingMeshes(hemis[iFS[0]], 'FreesurferAtlaspre')
             else:
                 return
+
+        # Delete .lock files
+        subjPath = os.path.normpath(os.path.join(t1preImage.fullName(), os.pardir, os.pardir, os.pardir))
+        self.deleteLockFiles(subjPath)
+
         # Run Morphologist + HipHop
         self.mriAcPc = t1preImage
         self.runMorphologistBV(t1preImage)
@@ -2501,6 +2525,10 @@ class ImageImport (QtGui.QDialog):
                 self.deleteExistingMeshes(hemis[idxT1pre[0]], 'T1pre')
             else:
                 return
+
+        # Delete .lock files
+        subjPath = os.path.normpath(os.path.join(diT1pre.fullName(), os.pardir, os.pardir, os.pardir))
+        self.deleteLockFiles(subjPath)
 
         # Run Morphologist+Hiphop on FreeSurfer mesh (in a different thread)
         ProgressDialog.call(lambda thr:self.runPipelineFSWorker(diOrig, diOut, thr), True, self, "Running Morphologist on FreeSurfer output...", "FreeSufer")
