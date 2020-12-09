@@ -4492,24 +4492,38 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-                label_Broadmann = most_common
+#                label_Broadmann = most_common
+                label_Broadmann = int(round(most_common))
+#		print(label_Broadmann)
+		print(plot_pos_pix_MNI[0])
                 #label_Broadmann_name = unicode(label_Broadmann)
+#                if plot_pos_pix_MNI[0]>90:
+#                    label_Broadmann_name = unicode(label_Broadmann+100)
+#                else:
+#                    label_Broadmann_name = unicode(label_Broadmann)
                 if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = unicode(label_Broadmann+100)
+                    label_Broadmann_name = str(label_Broadmann)
                 else:
-                    label_Broadmann_name = unicode(label_Broadmann)
-                   
+                    label_Broadmann_name = str(label_Broadmann+100)
+#		print(label_Broadmann_name)
+                  
             if not voxel_to_keepBroadmannDilate:
                 label_BroadmannDilate_name = "not in a Broadmann parcel" 
                 label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = most_common
+                label_BroadmannDilate = int(round(most_common))
+		print(label_BroadmannDilate)
                 #label_Broadmann_name = unicode(label_Broadmann)
-                if plot_pos_pix_MNI[0]>90:
-                    label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
+#                if plot_pos_pix_MNI[0]>90:
+#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
+#                else:
+#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate-48)       
+                if label_BroadmannDilate>48:
+                    label_BroadmannDilate_name = str(label_BroadmannDilate-48+100)
                 else:
-                    label_BroadmannDilate_name = unicode(label_BroadmannDilate-48)       
+                    label_BroadmannDilate_name = str(label_BroadmannDilate)
+#		print(label_BroadmannDilate_name)
                 
             if not voxel_to_keepHammers:
                 label_Hammers_name = "not in a Hammers parcel" 
@@ -4812,24 +4826,32 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-                label_Broadmann = most_common
+                label_Broadmann = int(round(most_common))
                 #label_Broadmann_name = unicode(label_Broadmann)
+#                if plot_pos_pix_MNI[0]>90:
+#                    label_Broadmann_name = unicode(label_Broadmann+100)
+#                else:
+#                    label_Broadmann_name = unicode(label_Broadmann)
                 if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = unicode(label_Broadmann+100)
+                    label_Broadmann_name = str(label_Broadmann)
                 else:
-                    label_Broadmann_name = unicode(label_Broadmann)
-                
+                    label_Broadmann_name = str(label_Broadmann+100)
+
             if not voxel_to_keepBroadmannDilate:
                 label_BroadmannDilate_name = "not in a Broadmann parcel" 
                 label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = most_common
+                label_BroadmannDilate = int(round(most_common))
                 #label_Broadmann_name = unicode(label_Broadmann)
-                if plot_pos_pix_MNI[0]>90:
-                    label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
+#                if plot_pos_pix_MNI[0]>90:
+#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
+#                else:
+#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate-48) 
+                if label_BroadmannDilate>48:
+                    label_BroadmannDilate_name = str(label_BroadmannDilate-48+100)
                 else:
-                    label_BroadmannDilate_name = unicode(label_BroadmannDilate-48) 
+                    label_BroadmannDilate_name = str(label_BroadmannDilate)
             
             if not voxel_to_keepHammers:
                 label_Hammers_name = "not in a Hammers parcel" 
