@@ -2542,8 +2542,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            #res = self.exportAllWorker(selOptions)
+            # res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -3665,7 +3665,7 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 # Add list of column names
                 # colNames = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
-                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate']
+                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate', 'JulichBrain']
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
                 diff_list = list(list_to_write.difference(set(colNames)))
                 full_list = colNames
@@ -3708,6 +3708,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['Lausanne2008-250'][1])
                     listwrite.append(vv['Lausanne2008-500'][1])
                     listwrite.append(vv['Resection rate'][1])
+                    listwrite.append(vv['JulichBrain'][1])
                     writer.writerow(listwrite)
                 writer.writerow([])
                 writer.writerow([])
@@ -3748,6 +3749,7 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['Lausanne2008-250'][1])
                     listwrite.append(vv['Lausanne2008-500'][1])
                     listwrite.append(vv['Resection rate'][1])
+                    listwrite.append(vv['JulichBrain'][1])
                     writer.writerow(listwrite)
                 writer.writerow([])
                 writer.writerow([])
@@ -4211,6 +4213,7 @@ class LocateElectrodes(QtGui.QDialog):
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
         vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.nii.gz')
         vol_AICHA = aims.read('MNI_Atlases/AICHA_resliced.nii.gz')
+        vol_JulichBrain = aims.read('MNI_Atlases/JuBrain_Map_icbm_v30_lr_resliced.nii.gz')
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plot_dict_MNI_Native = {}
@@ -4226,6 +4229,7 @@ class LocateElectrodes(QtGui.QDialog):
         AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
         HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.txt')
         AICHA_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/AICHA_resliced_labels.txt')
+        JulichBrain_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/JuBrain_Map_icbm_v30_lr_resliced_labels.txt')
         # Lausanne2008 parcel names
         Lausanne33_parcels_names = {i:"{}".format(i) for i in range(1,100)}
         Lausanne60_parcels_names = {i:"{}".format(i) for i in range(1,150)}
@@ -4391,6 +4395,9 @@ class LocateElectrodes(QtGui.QDialog):
             # AICHA
             voxel_within_sphere_AICHA = [round(vol_AICHA.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepAICHA = [x for x in voxel_within_sphere_AICHA if x != 0 and not math.isnan(x)]
+            # JulichBrain
+            voxel_within_sphere_JulichBrain = [round(vol_JulichBrain.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+            voxel_to_keepJulichBrain = [x for x in voxel_within_sphere_JulichBrain if x != 0 and not math.isnan(x)]
 
             if DoResection:
                 voxel_resec = [vol_resec.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
@@ -4548,7 +4555,15 @@ class LocateElectrodes(QtGui.QDialog):
                 most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
                 label_AICHA = most_common
                 label_AICHA_name = AICHA_parcels_names[label_AICHA]
-                           
+
+            if not voxel_to_keepJulichBrain:
+                label_JulichBrain_name = "not in a JulichBrain parcel"
+                label_JulichBrain = round(vol_JulichBrain.value(plot_pos_pix_MNI[0], plot_pos_pix_MNI[1], plot_pos_pix_MNI[2]))
+            else:
+                most_common, num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
+                label_JulichBrain = most_common
+                label_JulichBrain_name = JulichBrain_parcels_names[label_JulichBrain]
+
             if DoResection:
                 most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
                 Resec_label = max(voxel_resec) 
@@ -4580,6 +4595,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Lausanne2008-250' : (label_lausanne[3], label_lausanne_name[3]), \
                 'Lausanne2008-500' : (label_lausanne[4], label_lausanne_name[4]), \
                 'Resection rate'   : (Resec_label, Resec_label_value), \
+                'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
                 }
             
             # add subacq_stat dictionnaries
@@ -4595,6 +4611,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
         plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
         plots_by_label_AICHA = dict([(Lab,[p for p in plot_name if plots_label[p]['AICHA'][1]==Lab]) for Lab in AICHA_parcels_names.values()])
+        plots_by_label_JulichBrain = dict([(Lab,[p for p in plot_name if plots_label[p]['JulichBrain'][1]==Lab]) for Lab in JulichBrain_parcels_names.values()])
         plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
         plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
         plots_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
@@ -4727,7 +4744,10 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_within_sphere_AICHA = [round(vol_AICHA.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepAICHA = [x for x in voxel_within_sphere_AICHA if x != 0 and not math.isnan(x)]
             
-            
+            #JulichBrain
+            voxel_within_sphere_JulichBrain = [round(vol_JulichBrain.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+            voxel_to_keepJulichBrain = [x for x in voxel_within_sphere_JulichBrain if x != 0 and not math.isnan(x)]
+
             if DoResection:
                 voxel_resec = [vol_resec.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
             
@@ -4876,7 +4896,15 @@ class LocateElectrodes(QtGui.QDialog):
                 most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
                 label_AICHA = most_common
                 label_AICHA_name = AICHA_parcels_names[label_AICHA]
-            
+
+            if not voxel_to_keepJulichBrain:
+                label_JulichBrain_name = "not in a JulichBrain parcel"
+                label_JulichBrain = round(vol_JulichBrain.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
+            else:
+                most_common,num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
+                label_JulichBrain = most_common
+                label_JulichBrain_name = JulichBrain_parcels_names[label_JulichBrain]
+
             if DoResection:
                 most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
                 Resec_label = max(voxel_resec) 
@@ -4909,6 +4937,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Lausanne2008-250' : (label_lausanne[3], label_lausanne_name[3]), \
                 'Lausanne2008-500' : (label_lausanne[4], label_lausanne_name[4]), \
                 'Resection rate'   : (Resec_label, Resec_label_value), \
+                'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
                 }
             
             #plots_label_bipolar.append((info_plot_bipolaire[pindex][0],label,label_name,GW_label))
@@ -4927,6 +4956,7 @@ class LocateElectrodes(QtGui.QDialog):
         plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
         plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
         plots_bipolar_by_label_AICHA = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AICHA'][1]==Lab]) for Lab in AICHA_parcels_names.values()])
+        plots_bipolar_by_label_JulichBrain = dict([(Lab, [p for p in plot_name_bip if plots_label_bipolar[p]['JulichBrain'][1] == Lab]) for Lab in JulichBrain_parcels_names.values()])
         plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
         plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
         plots_bipolar_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
@@ -4963,6 +4993,7 @@ class LocateElectrodes(QtGui.QDialog):
             'plots_by_label_Lausanne125' : plots_by_label_Lausanne125, \
             'plots_by_label_Lausanne250' : plots_by_label_Lausanne250, \
             'plots_by_label_Lausanne500' : plots_by_label_Lausanne500, \
+            'plots_by_label_JulichBrain': plots_by_label_JulichBrain, \
             'plots_label_bipolar' : plots_label_bipolar, \
             'plots_bipolar_by_label' : plots_bipolar_by_label, \
             'plots_bipolar_by_label_FS' : plots_bipolar_by_label_FS, \
@@ -4977,6 +5008,7 @@ class LocateElectrodes(QtGui.QDialog):
             'plots_bipolar_by_label_Lausanne125' : plots_bipolar_by_label_Lausanne125, \
             'plots_bipolar_by_label_Lausanne250' : plots_bipolar_by_label_Lausanne250, \
             'plots_bipolar_by_label_Lausanne500' : plots_bipolar_by_label_Lausanne500, \
+            'plots_bipolar_by_label_JulichBrain': plots_bipolar_by_label_JulichBrain, \
             }))
         fout.close()
         
