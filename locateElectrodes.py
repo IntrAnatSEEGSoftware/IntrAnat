@@ -3,7 +3,7 @@
 #
 # Localisation graphique des electrodes
 #
-# (c) Inserm U836 2012-2018 - Manik Bhattacharjee, Pierre Deman, Francois Tadel 
+# (c) Inserm U836 2012-2021 - Manik Bhattacharjee, Pierre Deman, Francois Tadel 
 #
 # License GNU GPL v3
 
@@ -41,8 +41,6 @@ from PIL import Image
 from soma import aims
 from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
-# from IPython.config.application import catch_config_error
-# from operator import pos
 neuroConfig.gui = True
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
@@ -64,8 +62,6 @@ from DeetoMaison import DeetoMaison
 import ImportTheoreticalImplentation
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
-# from MicromedListener import MicromedListener as ML
-
 
 # =============================================================================
 # ===== SPM CALLS =============================================================
@@ -129,46 +125,6 @@ catch
     disp 'AN ERROR OCCURED'; 
 end
 quit;"""
-
-
-# # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
-# spm_normalizePoints = """try
-#     fprintf('Reading inverse MNI transformation... ');
-#     addpath(genpath(%s));
-#     P='%s';
-#     P1=spm_vol([P ',1,1']);
-#     P2=spm_vol([P ',1,2']);
-#     P3=spm_vol([P ',1,3']);
-#     fprintf(' X '); drawnow('update');
-#     [V1,XYZ]=spm_read_vols(P1);
-#     fprintf(' Y '); drawnow('update');
-#     V2=spm_read_vols(P2);
-#     fprintf(' Z\\n'); drawnow('update');
-#     V3=spm_read_vols(P3);
-#  
-#     %% Apply tranformation to electrodes
-#     PosElectrode = dlmread('%s');
-#     wPosElectrode=PosElectrode;
-#     fprintf('Processing %%d contacts... ', size(PosElectrode,1));
-#     for i1=1:size(PosElectrode,1)
-#         fprintf('%%d ', i1); drawnow('update');
-#         if (mod(i1, 20) == 0), fprintf('\\n'); end
-#         %% Compute distance
-#         D=(XYZ(1,:)-PosElectrode(i1,1)).^2+(XYZ(2,:)-PosElectrode(i1,2)).^2+(XYZ(3,:)-PosElectrode(i1,3)).^2;
-#         [tmp,order]=sort(D);
-#         tmp=tmp(1:18);      %%  cubic neighborhoodregisterNormalizeSubject
-#         order=order(1:18);
-#         W=1./tmp;           %%  weight inverse to distance
-#         if sum(isinf(W))>0
-#             W=[1 zeros(1,length(W)-1)];
-#         end
-#         wPosElectrode(i1,:)=[sum(V1(order).*W)./sum(W) sum(V2(order).*W)./sum(W) sum(V3(order).*W)./sum(W)];
-#     end
-#     dlmwrite('%s',wPosElectrode,'precision',18);
-# catch
-#     disp 'AN ERROR OCCURED'; 
-# end
-# quit;"""
 
 
 # Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
@@ -337,7 +293,7 @@ def moveElectrode(target, entry, referential, newRef, a, meshes):
 
     if newRef is None:
         newRef = a.createReferential()
-    transl = target#[-target[0], -target[1], -target[2]]
+    transl = target
     i = array([[1,0,0]])
     z = array([target,]) - array([entry,])
     if z[0][1] < 0.001 and z[0][2] < 0.001:# si i est colinéaire avec z, changer i car on n'obtiendra pas un vecteur perpendiculaire aux deux
@@ -345,21 +301,17 @@ def moveElectrode(target, entry, referential, newRef, a, meshes):
     if linalg.norm(z) == 0:
         return
     z = -z / linalg.norm(z)
-    ## print "z = "+repr(z)
     y = cross (i,z)
     y = -y/linalg.norm(y)
-    ## print "y = "+repr(y)
     x = cross(y,z)
-    ## print "x = "+repr(x)
-    #m = [x[0][0], x[0][1], x[0][2], y[0][0],y[0][1], y[0][2], z[0][0],  z[0][1], z[0][2]]
     m = [x[0][0], y[0][0], z[0][0], x[0][1],y[0][1], z[0][1], x[0][2],  y[0][2], z[0][2]]
     try:
         transf = a.createTransformation(transl+m, origin = newRef, destination = referential)
     except:
-        # print("problem transformation")
         return
     a.assignReferential(newRef, meshes)
     return (newRef, transf)
+
 
 def createElectrode(target, entry, referential, ana=None, windows=None, model = None, dispMode=None, dispParams=None, isTransparent=False):
     elecModel = ElectrodeModel(ana)
@@ -377,6 +329,7 @@ def createElectrode(target, entry, referential, ana=None, windows=None, model = 
         ana.addObjects(meshes, windows)
     return (newRef, transf, elecModel)
 
+
 def createBipole(target, entry, referential, ana=None, windows=None, model = None, dispMode=None, dispParams=None):
   
     elecModel = ElectrodeModel(ana)
@@ -384,7 +337,6 @@ def createBipole(target, entry, referential, ana=None, windows=None, model = Non
     #elecModel.setDisplayReferential(newRef)
   
     meshes = elecModel.getAnatomistObjects()
-    #mesh = self.a.toAObject(aims.SurfaceGenerator.cylinder(aims.Point3df(p[0], p[1], p[2]), aims.Point3df(pEnd), r, r, 24, True, True))
     (newRef, transf) = moveElectrode(target, entry, referential, None, ana, meshes)
 
     if windows is not None:
@@ -409,59 +361,6 @@ def getPlotsCenters(elecModel):
     return dict((p, plots[p]['center']) for p in plots)
 
 
-############### 3D text annotations from anagraphannotate.py #############"
-
-
-byvertex = False
-# This intermediate class is only here because I cannot (yet) make SIP
-# generate a non-abstract class for TextObject binding. One day, I'll find out!
-class TObj ( anatomist.anatomist.cpp.TextObject ):
-    def __init__( self, message='', pos=[0,0,0] ):
-        anatomist.anatomist.cpp.TextObject.__init__( self, message, pos )
-
-class Props( object ):
-    def __init__( self ):
-        self.lvert = []
-        self.lpoly = []
-        self.usespheres = True
-        self.colorlabels = True
-        self.center = aims.Point3df()
-
-# def makelabel( a, label, gc, pos, ref, color, props ):
-#     """ Create a text label designating gc at position pos, using anatomist instance a, a color  and stores the generated elements in props"""
-#     objects = []
-#     # create a text object
-#     to = TObj( label )
-#     to.setScale( 0.1 )
-#     to.setName( 'label: ' + label )
-#     a.releaseObject(to)
-# 
-#     # If we want to show a sphere at the target point
-#     if props.usespheres:
-#         sph = aims.SurfaceGenerator.icosphere( gc, 2, 50 )
-#         asph = a.toAObject( sph )
-#         asph.setMaterial( diffuse=color )
-#         asph.setName( 'gc: ' + label )
-#         a.registerObject( asph, False )
-#         a.releaseObject(asph) #registerObject le "dérelease"
-#         objects.append( asph )
-#     # Choose the color of the label text
-#     if props.colorlabels:
-#         to.GetMaterial().set( { 'diffuse': color } )
-#     # texto is the label (2D texture on a rectangle), but defined to always face the camera
-#     texto = anatomist.anatomist.cpp.TransformedObject( [ to ], False, True, pos )
-#     texto.setDynamicOffsetFromPoint( props.center )
-#     texto.setName( 'annot: ' + label )
-#     objects.append( texto )
-#     # Add to the polygons a line (to  link the label and the target position)
-#     props.lpoly.append( aims.AimsVector_U32_2( ( len( props.lvert ), len( props.lvert ) + 1 ) ) )
-#     props.lvert += [ gc, pos ]
-#     a.registerObject( texto, False )
-#     a.assignReferential(ref, objects)
-#     a.releaseObject(texto)
-#   
-#     return objects
-
 ############################### Useful functions
 
 def createItemDirs(item):
@@ -479,8 +378,7 @@ def createItemDirs(item):
         except OSError, e:
             if not e.errno == errno.EEXIST:
                 # filter out 'File exists' exception, if the same dir has
-                # been created concurrently by another instance of BrainVisa
-                # or another thread
+                # been created concurrently by another instance of BrainVisa or another thread
                 raise e
         for d in dirs:
             dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
@@ -510,7 +408,6 @@ class LocateElectrodes(QtGui.QDialog):
     
         # Load the list of protocols, patients and electrode models from BrainVisa
         if loadAll == True:
-#             self.modalities = ['Raw T1 MRI', 'T2 MRI', 'CT', 'PET', 'Electrode Implantation Coronal Image', 'Electrode Implantation Sagittal Image','fMRI-epile', 'Statistic-Data','FLAIR', 'resection', 'FreesurferAtlas', 'FGATIR','HippoFreesurferAtlas']
             self.modalities = ['Raw T1 MRI', 'T2 MRI', 'CT', 'PET', 'Electrode Implantation Coronal Image', 'Electrode Implantation Sagittal Image','fMRI-epile', 'Statistic-Data','FLAIR', 'resection', 'FreesurferAtlas', 'FGATIR']
             # Electrode models
             self.elecModelList = []
@@ -541,31 +438,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.isModified = False
         self.lastClickedPos = None
         self.lastClickedRef = None
-        #self.MicromedListener = ML()
-    
-        # list of objects to display in window for each scenario (MNI, pre, post, etc)
-#         self.windowContent = { 'MRI pre':['T1pre','electrodes',],\
-#                                'MRI pre T2':['T2pre','electrodes',],\
-#                                'MRI pre + right cortex':['T1pre','T1pre-rightHemi','electrodes',],\
-#                                'MRI pre + right MarsAtlas ':['T1pre','right MARS ATLAS BIDULE','electrodes',],\
-#                                'MRI pre + left cortex':['T1pre','T1pre-leftHemi','electrodes',],\
-#                                'MRI pre + left MarsAtlas':['T1pre','left MARS ATLAS BIDULE','electrodes',],\
-#                                'MRI pre + cortex':['T1pre','T1pre-rightHemi','T1pre-leftHemi','electrodes',],\
-#                                'MRI pre + cortex + head':['T1pre','T1pre-rightHemi','T1pre-leftHemi', 'T1pre-head','electrodes',],\
-#                                'MRI post':['T1post','electrodes',],\
-#                                'MRI post T2':['T2post','electrodes',],\
-#                                'CT post':['CTpost','electrodes',],\
-#                                'PET pre':['PETpre','electrodes',],\
-#                                'FLAIR pre':['FLAIRpre','electrodes',],\
-#                                'FGATIR pre':['FGATIRpre','electrodes',],\
-#                                'fMRI pre':['fMRIpre','electrodes'],\
-#                                'Statistic Data':['Statisticspre','electrodes'],\
-#                                'MRI post-op':['T1postOp','electrodes',],\
-#                                'Resection':['Resection','electrodes',],\
-#                                'FreeSurferAtlas':['FreesurferAtlaspre','electrodes',],\
-#                                'HippoFreeSurferAtlas':['HippoFreesurferAtlaspre','electrodes',],\
-#         }
-        self.windowContent = {}
+        self.windowContent = {}  # list of objects to display in window for each scenario (MNI, pre, post, etc)
         self.updateComboboxes()
         
         # Start anatomist
@@ -616,12 +489,12 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.filterYearCombo, QtCore.SIGNAL('currentIndexChanged(int)'), self.filterSubjects)
             # Image manipulation
             self.connect(self.makefusionButton,QtCore.SIGNAL('clicked()'),self.makeFusion)
-            self.connect(self.generateResectionArray,QtCore.SIGNAL('clicked()'),self.generateResection)
-            self.connect(self.validateROIresection,QtCore.SIGNAL('clicked()'),self.ROIResectiontoNiftiResection)
+            # self.connect(self.generateResectionArray,QtCore.SIGNAL('clicked()'),self.generateResection)
+            # self.connect(self.validateROIresection,QtCore.SIGNAL('clicked()'),self.ROIResectiontoNiftiResection)
             self.connect(self.deleteMarsAtlasfiles,QtCore.SIGNAL('clicked()'),self.DeleteMarsAtlasFiles)
             # Electrodes
-            self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
-            self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
+            # self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
+            # self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
             self.connect(self.addElectrodeButton, QtCore.SIGNAL('clicked()'), self.addElectrode)
             self.connect(self.removeElectrodeButton, QtCore.SIGNAL('clicked()'), self.removeElectrode)
             self.connect(self.nameEdit, QtCore.SIGNAL('editingFinished()'), self.editElectrodeName)
@@ -683,17 +556,14 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== LOAD PREFERENCES =====
         if (loadAll == True) and self.app:
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
-            self.fileNoDBpath = None
             self.spmpath = None
             try:
                 if (os.path.exists(prefpath_imageimport)):
                     filein = open(prefpath_imageimport, 'rU')
                     prefs_imageimport = pickle.load(filein)
                     self.spmpath = prefs_imageimport['spm']
-                    self.fileNoDBpath = prefs_imageimport['FileNoDBPath']
                     filein.close()
             except:
-                # print 'NO SPM path found, will be unable to export MNI position'
                 pass
 
 
@@ -731,10 +601,6 @@ class LocateElectrodes(QtGui.QDialog):
 
     def quit(self):
         """Quits application."""
-        #if self.brainvisaPatientAttributes is not None:
-            #self.saveElectrodes()
-        # Remove the vector field to MNI if it was computed
-        #self.clearT1preMniTransform()
         # Closes BrainVISA
         axon.cleanup()
         # Quits Qt app
@@ -743,7 +609,6 @@ class LocateElectrodes(QtGui.QDialog):
     
     def keyPressEvent( self, event ) :
         if (event.key()==QtCore.Qt.Key_Return):
-            # print self.app.focusWidget()
             if hasattr(self, 'app') and (self.app.focusWidget() == self.nameEdit):
                 self.editElectrodeName()
             event.accept()
@@ -777,12 +642,10 @@ class LocateElectrodes(QtGui.QDialog):
         """Updates the UI when the selected protocol changes"""
         self.currentProtocol = str(self.protocolCombo.currentText())
         self.subjects = [s.attributes()['subject'] for s in self.allSubjects if 'center' in s.attributes() and s.attributes()['center'] == self.currentProtocol]
-        #print 'all subjects:' + repr(self.subjects)
         self.patientList.clear()
         self.patientList.addItems(sorted(self.subjects))
         
         # Update the filters
-        #sites = ['*',] + sorted(set([s.split('_')[0] for s in self.subjects]))
         years = []
         sites = []
         for s in self.subjects:
@@ -984,39 +847,12 @@ class LocateElectrodes(QtGui.QDialog):
             if element.getInfos() and (element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist')):
                 self.a.deleteElements(element)
                
-        # for element in self.electrodes:
-            # for elecKeys in element.keys():
-               # del element[elecKeys]
-        # variablesG=globals()       
-        # variablesL=locals()
         self.electrodeList.clear()
         self.contactList.clear()
         self.currentWindowRef = None
-        listEl = []
-        # for el , value in self.dispObj.items():
-        #      listEl.append(value)
-        # self.__init__(self,loadAll=False)      
-        # for el in listEl:
-        #    if type(el)==list:
-        #        listElec=el
-        #    else:        
-        #        self.a.deleteObjects(el)
-        
-        # del self.electrodes
         self.electrodes = []
-        # del self.dispObj
-        # parcourir les objets, détruire les fusions avant
-        # for obj in self.dispObj: 
         self.currentElectrodes = []
         self.currentContacts = []
-         
-        # todelete = []
-        # for name,obj in self.dispObj.items():
-        #    if isinstance(obj.internalRep,anatomist.anatomist.cpp.MObject):
-        #        todelete.append(name)
-        # for name in todelete:
-        #    del self.dispObj[name]
-            
         self.dispObj = {}
         self.objtokeep = {}
         self.__init__(loadAll=False, isGui=True)
@@ -1191,15 +1027,11 @@ class LocateElectrodes(QtGui.QDialog):
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-500' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'Lausanne2008-500 Atlas':['Lausanne2008-500', 'electrodes']})
                 na = 'Lausanne2008-500'
-#             elif (t.attributes()['modality'] == 'hippofreesurfer_atlas'):
-#                 dictionnaire_list_images.update({'HippoFreeSurferAtlas pre':['HippoFreesurferAtlaspre', 'electrodes']})
-            
+
             # Simiplified acquisition name
             nameAcq = t.attributes()['acquisition']
             if not na:
                 try:
-                    # print "Loading %s as %s"%(t.fileName(), nameAcq)
-                    # print repr(t.attributes())
                     # We try to get the acquisition name without the date (if there is one) : T1pre_2000-01-01 -> T1pre
                     if 'Statistics' in nameAcq:
                         na = nameAcq.split('_')[0] + t.attributes()['subacquisition']
@@ -1320,7 +1152,6 @@ class LocateElectrodes(QtGui.QDialog):
                 for hh in hemis:
                     self.loadAndDisplayObject(hh, na + '-' + hh.attributes()['side'] + 'Hemi', color=[0.8, 0.7, 0.4, 0.7])
                     dictionnaire_list_images.update({strVol + ' + ' + hh.attributes()['side'] + ' cortex':[na, na + '-' + hh.attributes()['side'] + 'Hemi', 'electrodes']})
-                    #print "Found hemisphere " + str(na + '-' + hh.attributes()['side'] + 'Hemi')
                 # Add display with both hemispheres
                 if (len(hemis) >= 2):
                     dictionnaire_list_images.update({strVol + ' + cortex':[na, na + '-rightHemi', na + '-leftHemi', 'electrodes']})
@@ -1346,8 +1177,7 @@ class LocateElectrodes(QtGui.QDialog):
                         # Load object
                         self.loadAndDisplayObject(wm_side, na + '-' + atl.attributes()['side'] + 'MARSATLAS', texture_item=atl, palette='MarsAtlas', color=[0.8, 0.7, 0.4, 0.7])
                         dictionnaire_list_images.update({strVol + ' + ' + atl.attributes()['side'] + ' MarsAtlas':[na, na + '-' + atl.attributes()['side'] + 'MARSATLAS', 'electrodes']})
-                        # print "Found hemisphere " + str(na + '-' + atl.attributes()['side'] + 'MARSATLAS')
-                        
+
                 # === HEAD MESH ===
                 # Get head mesh for the acquisition
                 rdi = ReadDiskItem('Head Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':patient, 'acquisition':nameAcq, 'center':self.currentProtocol})
@@ -1416,9 +1246,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.a.deleteObjects(self.dispObj[name]) # CURRENT
             del self.dispObj[name]
             del self.diskItems[name]
-        
-        # print "loading "+repr(diskitem)+ ' as '+name
-        
+
         obj = self.a.loadObject(diskitem)
 
         if 'ColorPalette' in diskitem.attributes():
@@ -1438,7 +1266,6 @@ class LocateElectrodes(QtGui.QDialog):
         # Store the object
         self.dispObj[name] = obj
         self.diskItems[name] = diskitem
-        #print "Referential of object %s : %s"%(repr(name), repr(obj.getReferential().uuid()))
         # If this is a volume, smooth it :
         try:
             self.a.execute('TexturingParams', objects=[obj], filtering='linear')
@@ -1703,7 +1530,6 @@ class LocateElectrodes(QtGui.QDialog):
             for k,v in plotsT1preRef.iteritems():
                 plot_name_split = k.split('-$&_&$-')
                 info_plotsT1Ref.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v.list()))
-            #plots_label[k]=(label,label_name)
     
             plotsT1Ref_sorted = dict(sorted(info_plotsT1Ref, key=lambda plot_number: plot_number[0]))
               
@@ -1715,22 +1541,16 @@ class LocateElectrodes(QtGui.QDialog):
                 except:
                     raise Exception("problem plotsT1Ref")
                 entry_bipole = numpy.array(plotsT1Ref_sorted[i_bipole.split()[0].title()])
-                #orient_vector_bip = (numpy.array(plotsT1Ref_sorted[i_bipole.split()[0]]) - numpy.array(plotsT1Ref_sorted[i_bipole.split()[2]]))/linalg.norm((numpy.array(plotsT1Ref_sorted[i_bipole.split()[0]]) - numpy.array(plotsT1Ref_sorted[i_bipole.split()[2]])))
                 #il faut un orient vector
                 self.addBipole(i_bipole,pos_bipol,self.preReferential().uuid(),entry_bipole) #on rajoute pour finir un vecteur
-    
-    
+
             self.colorConfigButton.setEnabled(True)
-            #show bipole instead of contacts ?
-            #remove all contacts (mesh and in the list), and set the bipoles instead
-            
+
             contact_labels_seeg = {}
             params.update({'contact_colors':contact_labels_seeg})
             
             self.bipoleLabels = new_label
             self.configureColors()
-            
-            #self.dispObj['electrodes'][0].__getattr__('name')
     
         if mode == self.dispMode and params == self.dispParams:
             print "already using the right display mode"
@@ -1753,9 +1573,7 @@ class LocateElectrodes(QtGui.QDialog):
             if 'electrodes' not in self.dispObj.keys():
                 return
             print "UPDATE CLEAR -> remove electrodes from windows and delete them"
-            #traceback.print_stack(limit=4)
             self.a.removeObjects(self.dispObj['electrodes'], self.wins)
-            #self.a.deleteObjects(self.dispObj['electrodes'])# Should be destroyed in electrode.py CURRENT
             self.dispObj['electrodes'] = []
             return
         if not bipole:    
@@ -1802,7 +1620,6 @@ class LocateElectrodes(QtGui.QDialog):
         # Add electrode name in GUI
         self.electrodeList.addItem(name)
         self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
-#         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.electrodes) - 1)
         # Redraw electrodes
         if isUpdate and isGui:
             self.updateElectrodeMeshes()
@@ -1820,9 +1637,6 @@ class LocateElectrodes(QtGui.QDialog):
         if refId is not None:
             if self.preReferential().uuid() != refId:
                 print "ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId)     
-        #if refId is not None:
-           #if self.preReferential().uuid() != refId:
-             #print "ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId)
         #check is name is already taken
         if len(self.bipoles)>0:
             for bip in self.bipoles:
@@ -1836,13 +1650,6 @@ class LocateElectrodes(QtGui.QDialog):
             
         (newRef, transf, elecModel) = createBipole(positionbip.tolist(), entry_bipole.tolist(), self.preReferential(), self.a, model = matches[0], dispMode = 'bipole', dispParams = None)
         self.bipoles.append({'name': name, 'ref':newRef, 'transf':transf, 'target':positionbip.tolist(), 'entry': entry_bipole.tolist(), 'elecModel':elecModel}) #to change target and entry
-        #on ne touche pas à electrodeList
-        #self.electrodeList.addItem(name)
-        #index = self.elecCombo.findText("Electrode "+str(self.elecname))
-        #self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
-        
-#         self.addElectrodeLabel(name, [0,0,-10], newRef, len(self.bipoles) - 1, True)
-        #self.updateElectrodeMeshes(bipole=True)
         self.isModified = True
         
 
@@ -1859,8 +1666,7 @@ class LocateElectrodes(QtGui.QDialog):
                         element['mesh'].setName(name.replace('Plot', el['name']))
                     else:
                         element['mesh'].setName(el['name'])
-                    #element['mesh'].setChanged()
-                    #element['mesh'].notifyObservers() #Should be needed to refresh display, but it works without it
+
           
     def setBipoleMeshesNames(self, bipole = None):
         if bipole is None:
@@ -2046,15 +1852,11 @@ class LocateElectrodes(QtGui.QDialog):
         self.contactGo(el = electrode)
 
     def contactSelect(self, item):
-        # Select the contacts in anatomist
-        # print "Click on the contact " + str(item.text())
         g = self.a.getDefaultWindowsGroup()
-        #print "CurrentContacts = "+repr(self.currentContacts.keys())
         g.setSelection([self.currentContacts[str(item.text())],])
 
     def contactGo(self, item = None, el=None):
         # Put the cursor on the contact in anatomist
-        #print "Double clic sur le contact " + str(item.text())
         try:
             if el is None:
                 el = self.currentElectrodes[0]
@@ -2064,7 +1866,7 @@ class LocateElectrodes(QtGui.QDialog):
                 name = 'Plot1'
             xyz = getPlotsCenters(el['elecModel'])[name]
             # setLinkedCursor uses window referential : must apply transform before setting the position
-#            if self.currentWindowRef == self.preReferential():
+            # if self.currentWindowRef == self.preReferential():
             if self.wins[0].getReferential() == self.preReferential():
                 xyz = el['transf'].transform(xyz)
                 #self.a.execute('LinkedCursor', window=self.wins[0], position=xyz)
@@ -2081,23 +1883,8 @@ class LocateElectrodes(QtGui.QDialog):
 
     # Center the cursor on all the anatomist views
     def centerCursor(self):
-#         if self.refConv.isRefAvailable('AC-PC'):
-#             xyz = self.refConv.AcPc2Real(0.0, 0.0, 0.0)
         if (self.t1preCenter) and (self.currentWindowRef == self.preReferential()):
             self.wins[0].moveLinkedCursor(self.t1preCenter)
-
-#     def addElectrodeLabel(self, label, position, ref, elecId, bipole=False):
-#         props = Props()
-#         props.usespheres = False
-#         props.center = [0, 0, 0]
-#         gc = aims.Point3df(position)
-#         if not bipole:
-#             self.electrodes[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
-#             self.electrodes[elecId]['props'] = props
-#         elif bipole:
-#             self.bipoles[elecId]['labelObjects'] = makelabel(self.a, label, gc, gc + aims.Point3df([5, 0, 0]), ref, (0, 0, 0, 0), props)
-#             self.bipoles[elecId]['props'] = props      
-
 
     def getElectrodeTemplates(self):
         """Returns a list of Electrode objects, one for each available electrode template model available in the DB"""
@@ -2226,7 +2013,6 @@ class LocateElectrodes(QtGui.QDialog):
         refId = self.preReferential().uuid()
         els = []
         elecs = {}
-        #try:
         f = open(path, 'r')
         lines = f.readlines()
         f.close()
@@ -2259,7 +2045,6 @@ class LocateElectrodes(QtGui.QDialog):
             coords = list(self.refConv.anyRef2Real([float(l[1]), float(l[2]),float(l[3])], refOfPts))
             nameplot = l[0]
             elecs[name].append ( [plot,] + coords)
-            #els.append( {'name':nameplot, 'model':'plot2mmD1mmCentered', 'target': coords, 'entry':coords[0:2]+[coords[2]+1.0,]} )
         # Iterate over all electrodes
         for k,l in elecs.iteritems():
             # Try to get a real model from l [[numPlot, x,y,z], [...], ...]
@@ -2272,8 +2057,6 @@ class LocateElectrodes(QtGui.QDialog):
                     coords = pl[1:]
                     els.append( {'name':k+str(pl[0]), 'model':'plot2mmD1mmCentered', 'target': coords, 'entry':coords[0:2]+[coords[2]+1.0,]} )
     
-        #except:
-        #  print "Error reading PTS file %s"%path
         return (refId, els)
 
 
@@ -2358,7 +2141,6 @@ class LocateElectrodes(QtGui.QDialog):
     
         if refId != self.preReferential().uuid():
             print "CAREFUL: electrodes load are defined in an other referential that the one of the T1 pre, problem possible !"
-        #indices = [3,7,11, 0,1,2, 4,5,6, 8,9,10]
         for e in els:
             self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False, isGui)
         # Update display
@@ -2413,91 +2195,7 @@ class LocateElectrodes(QtGui.QDialog):
             neuroHierarchy.databases.insertDiskItem( di, update=True )
         QtGui.QMessageBox.information(self, u'Implantation saved', u"Implantation has been saved in database. Careful, it deleted MNI information if there was any. you'll have to do the normalization again")
         self.isModified = False
-
-#     # Non blocking wrapper of getAllPlotsCentersMNIRef
-#     def getAllPlotsCentersMNIRefNB(self, plots, toKeep=None):
-#         """ Computes the MNI coordinates of plots from t1 pre scanner-based coordinaotes in a thread (non-blocking)
-#             then call finishAllPlotsCentersMNIRef with the toKeep elements : these will determine how the data is saved
-# 
-#         """
-#         pe = PythonExecutor(lambda myself=self, thePlots=plots: myself.getAllPlotsCentersMNIRef(thePlots), toKeep=toKeep)
-#         self.threads.append(pe)
-#         # Remove it from the list of threads when finished
-#         pe.finished.connect(lambda th=pe:self.finishAllPlotsCentersMNIRef(th))
-#         pe.start()
-
-
-#     def finishAllPlotsCentersMNIRef(self, thread):
-#         """ Callback function when MNI coordinates of plots are computed. Will save to basepath
-#             or to provided diskItems (in 'kept' objects of the thread - which must be a PythonExecutor)
-#          """
-#         plotsMNI = thread.output()
-#         kept = thread.kept()
-#         try:
-#             self.threads.remove(thread)
-#         except:
-#             pass
-#         if plotsMNI is None:
-#             QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization failed !.")
-#             return
-#     
-#         if 'basepath' in kept:# custom path
-#             self.saveTXT(path=kept['basepath']+'_MNI.txt', referential='MNI')
-#             self.savePTS(path=kept['basepath']+'_MNI.pts', referential='MNI')
-#         elif all (k in kept for k in ('wdiptsmni','timestamp','wditxtmnipos', 'wditxtmniname')): # find and save in DB
-#             try:
-#                 self.savePTS(path = kept['wdiptsmni'].fullPath(), contacts = plotsMNI)
-#                 kept['wdiptsmni'].setMinf('referential', self.mniReferentialId())
-#                 kept['wdiptsmni'].setMinf('timestamp', kept['timestamp'])
-#                 neuroHierarchy.databases.insertDiskItem(kept['wdiptsmni'], update=True )
-#                 self.saveTXT(pathPos=kept['wditxtmnipos'].fullPath(), pathName=kept['wditxtmniname'].fullPath(), contacts = plotsMNI)
-#                 neuroHierarchy.databases.insertDiskItem(kept['wditxtmniname'], update=True )
-#                 kept['wditxtmnipos'].setMinf('referential', self.mniReferentialId())
-#                 kept['wditxtmnipos'].setMinf('timestamp', kept['timestamp'])
-#                 neuroHierarchy.databases.insertDiskItem(kept['wditxtmnipos'], update=True )
-#             except:
-#                 QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nThe saving of the MNI normalization failed.")
-#                 return
-#         else:
-#             print "Erreur lors de l'exportation PTS/TXT dans le référentiel MNI"
-#             QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization failed.")
-#             return
-#     
-#         QtGui.QMessageBox.information(self, u'Implantation sauvegardée', u"Implantation has been exported in PTS/TXT file formats in database\nMNI normalization has been applied")
-#     
-#         #add to the elecimplant file
-#         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format' ,requiredAttributes={'center':self.brainvisaPatientAttributes['center'],'subject':self.brainvisaPatientAttributes['subject']})
-#         di=rdi.findValues({},None,False)
-#         ldi = list(rdi.findValues({},None,False))
-#     
-#         if len(ldi) >0:
-#            if (os.path.exists(str(ldi[0]))):
-#                 filein = open(str(ldi[0]), 'rb')
-#                 try:
-#                     previous_data = json.loads(filein.read())
-#                 except:
-#                     filein.close()
-#                     filein = open(str(ldi[0]), 'rb')
-#                     previous_data = pickle.load(filein)
-#     
-#                 filein.close()
-#     
-#         info_plotMNI= []
-#         for k,v in plotsMNI.iteritems():
-#             plot_name_split = k.split('-$&_&$-')
-#             info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-#             #plots_label[k]=(label,label_name)
-#     
-#         plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
-#         previous_data.update({'plotsMNI':info_plotMNI})
-#     
-#         #resave as json file
-#         fout = open(str(ldi[0]),'w')
-#         fout.write(json.dumps(previous_data))
-#         fout.close()
-#         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True )
-#         print ".elecimplant done with MNI"
-    
+        
     
     # EXPORT ALL INFO (INTERACTIVE)
     def exportAll(self):
@@ -2516,10 +2214,7 @@ class LocateElectrodes(QtGui.QDialog):
             "Compute MNI coordinates for all contacts",\
             "Compute MarsAtlas contacts positions",\
             "Compute MarsAtlas resection position",\
-            # "Generate mapping contact - hemi mesh",\
-            # "Generate Bipole Stimulation excel file",\
             "Compute parcel metrics",\
-            # "Compute fiber contact distance",\
             "Save contact coordinates (.pts/.txt files)",\
             "Save contact info (CSV file)",\
             "Save screenshots",\
@@ -2575,6 +2270,7 @@ class LocateElectrodes(QtGui.QDialog):
             msgBox.setWindowTitle(u'Export done')
             msgBox.setDetailedText(strDetails)
             msgBox.exec_()
+
 
     # EXPORT ALL INFO (WORKER)
     def exportAllWorker(self, selOptions, thread=None):
@@ -2731,10 +2427,6 @@ class LocateElectrodes(QtGui.QDialog):
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
             newFiles += self.makeMP4()
 
-        # Compute MarsAtlas contacts positions
-        #     self.generateMappingContactCortex()
-        # Generate Bipole Stimulation excel file
-        #    self.generateMappingContactCortex()
         return [newFiles, errMsg]
     
 
@@ -3353,225 +3045,7 @@ class LocateElectrodes(QtGui.QDialog):
         T = mniInv.header()["transformations"][0].arraydata().reshape(4,4)
         # Invert this transformation
         Tinv = linalg.inv(T)
-        # Process point by point
-        # .... Order of dimensions is not the same 
     
-    
-  
-#     def generateTemplateBipoleStimulationFile(self):
-#         import openpyxl
-#
-#         return
-#         excel_data = openpyxl.load_workbook('template_clincalbipoleLabel.xlsx')
-#         worksheet_names = excel_data.get_sheet_names()
-#         datasheet1 = excel_data[worksheet_names[0]]
-#         
-#         plotsSB = self.getAllPlotsCentersT1preScannerBasedRef()
-#         info_plotSB = []
-#         for k,v in plotsSB.iteritems():
-#             plot_name_split = k.split('-$&_&$-')
-#             info_plotSB.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-#             
-#         plotSB_sorted = sorted(info_plotSB, key=lambda plot_number:plot_number[0])
-#         
-#         #montage bipolaire
-#         info_plotSB_bipolaire = []
-#         for pindex in range(1,len(plotSB_sorted)):
-#             previous_contact = "".join([i for i in plotSB_sorted[pindex-1][0] if not i.isdigit()])
-#             current_contact = "".join([i for i in plotSB_sorted[pindex][0] if not i.isdigit()])
-#             if previous_contact == current_contact:
-#                  info_plotSB_bipolaire.append((plotSB_sorted[pindex][0]+' - '+ plotSB_sorted[pindex-1][0],(numpy.array(plotSB_sorted[pindex][1])+numpy.array(plotSB_sorted[pindex-1][1]))/2 ))
-#                  
-#         plotSB_sorted=dict(plotSB_sorted)
-#         #info_plotSB_bipolaire=dict(info_plotSB_bipolaire)
-#         
-#         for bip_index in range(len(info_plotSB_bipolaire)):
-#             actual_cell = datasheet1.cell(row=bip_index*2+2, column = 1)
-#             actual_cell.set_explicit_value(info_plotSB_bipolaire[bip_index][0])
-#             actual_cell.style.font.size = 11
-#             actual_cell.style.font.bold = True
-#             actual_cell = datasheet1.cell(row=bip_index*2+2, column = 2)
-#             actual_cell.set_explicit_value('50 Hz')
-#             actual_cell.style.font.size = 11
-#             actual_cell.style.font.bold = True
-#             actual_cell = datasheet1.cell(row=bip_index*2+3, column = 1)
-#             actual_cell.set_explicit_value(info_plotSB_bipolaire[bip_index][0])
-#             actual_cell.style.font.size = 11
-#             actual_cell.style.font.bold = True
-#             actual_cell = datasheet1.cell(row=bip_index*2+3, column = 2)
-#             actual_cell.set_explicit_value('1 Hz')
-#             actual_cell.style.font.size = 11
-#             actual_cell.style.font.bold = True
-#         
-#         path_to_save = self.fileNoDBpath + os.path.sep + self.brainvisaPatientAttributes['subject'] + '_bipole' + '.xlsx'
-#         
-#         excel_data.save(path_to_save)
-  
-  
-#   def generateMappingContactCortex(self):
-#       
-#       print("not finished")
-#       return
-#       SizeHorizon = 10
-# 
-#       #check if the meshes has been generated
-#       rdi_mesh_right = ReadDiskItem( 'Right Hemisphere White Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
-#       hemis = list(rdi_mesh_right._findValues( {}, None, False ) )
-#       hemispre_right = [hemis[i] for i in range(len(hemis)) if "T1pre" in hemis[i].attributes()['acquisition']]
-# 
-#       rdi_mesh_left = ReadDiskItem( 'Left Hemisphere White Mesh', 'Anatomist mesh formats', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
-#       hemis = list(rdi_mesh_left._findValues( {}, None, False ) )
-#       hemispre_left = [hemis[i] for i in range(len(hemis)) if "T1pre" in hemis[i].attributes()['acquisition']]
-# 
-#       MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-#       diMaskGW_right = MaskGW_right.findValue(self.diskItems['T1pre'])
-# 
-#       MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-#       diMaskGW_left = MaskGW_left.findValue(self.diskItems['T1pre'])
-#       
-#       FreesurferThickness = ReadDiskItem('FreesurferThicknessType','Texture',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'],'_ontology':'freesurfer'})
-#       diAllFSThick = list(FreesurferThickness.findValues({},None,False))
-#       indexThickRight = [i for i in range(len(diAllFSThick)) if 'rh.thickness' in diAllFSThick[i].fullPath()]
-#       indexThickLeft = [i for i in range(len(diAllFSThick)) if 'lh.thickness' in diAllFSThick[i].fullPath()]
-#       
-#       FreesurferWhite = ReadDiskItem('White','Anatomist mesh formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'],'_ontology':'freesurfer'})
-#       diFSWhite = list(FreesurferWhite.findValues({},None,False))
-#       indexFSWhiteRight = [i for i in range(len(diFSWhite)) if 'rh.white' in diFSWhite[i].fullPath()]
-#       indexFSWhiteLeft = [i for i in range(len(diFSWhite)) if 'lh.white' in diFSWhite[i].fullPath()]      
-# 
-# 
-#       if len(hemispre_right) <= 0 or len(hemispre_left) <= 0:
-#           print "no mesh found"
-#           return
-# 
-#       meshRight = aims.read(str(hemispre_right[0]))
-#       meshLeft = aims.read(str(hemispre_left[0]))
-#       
-#       if len(diFSWhite)>0:
-#         meshFSRight = aims.read(str(diFSWhite[indexFSWhiteRight[0]]))
-#         meshFSLeft = aims.read(str(diFSWhite[indexFSWhiteLeft[0]]))
-# 
-#       #get plots information
-#       plots = self.getAllPlotsCentersT1preRef() #coordonnées en mm à convertir en voxel
-#       if len(plots)==0:
-#           print("no contact found")
-#           return
-# 
-#       print "start matching contacts with vertexes"
-# 
-#       info_plot= []
-#       for k,v in plots.iteritems():
-#           plot_name_split = k.split('-$&_&$-')
-#           info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-#           #plots_label[k]=(label,label_name)
-# 
-#       plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
-# 
-#       #montage bipolaire
-#       info_plot_bipolaire= []
-#       for pindex in range(1,len(plot_sorted)):
-#           previous_contact = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
-#           current_contact = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
-#           if previous_contact == current_contact:
-#                info_plot_bipolaire.append((plot_sorted[pindex][0]+' - '+ plot_sorted[pindex-1][0],(plot_sorted[pindex][1]+plot_sorted[pindex-1][1])/2 ))
-# 
-#       #here I have to calculate distances: vertex to each contacts.
-#       meshRight_vertex_np = numpy.array(meshRight.vertex())
-#       meshLeft_vertex_np = numpy.array(meshLeft.vertex())
-#       
-#       meshFSRight_vertex_np = numpy.array(meshFSRight.vertex())
-#       meshFSLeft_vertex_np = numpy.array(meshFSLeft.vertex())
-# 
-#       dist_contact_meshRight = {}
-#       dist_contact_meshLeft = {}
-# 
-#       #coordonnées longitude et latitude marsAtlas
-#       wdi_longitude = ReadDiskItem( 'Longitude coordinate texture', 'aims Texture formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
-#       di_longitude = list(wdi_longitude.findValues({},None,False))
-#       wdi_latitude = ReadDiskItem( 'Latitude coordinate texture', 'aims Texture formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
-#       di_latitude = list(wdi_latitude.findValues({},None,False))
-#          
-#       indexLongRight = [i for i in range(len(di_longitude)) if 'pre' in di_longitude[i].fullPath() and 'Rwhite' in di_longitude[i].fullPath()]
-#       indexLongLeft = [i for i in range(len(di_longitude)) if 'pre' in di_longitude[i].fullPath() and 'Lwhite' in di_longitude[i].fullPath()]
-#        
-#       indexLatRight = [i for i in range(len(di_latitude)) if 'pre' in di_latitude[i].fullPath() and 'Rwhite' in di_latitude[i].fullPath()]
-#       indexLatLeft = [i for i in range(len(di_latitude)) if 'pre' in di_latitude[i].fullPath() and 'Lwhite' in di_latitude[i].fullPath()]
-#       
-#       MatLongLeft = aims.read(di_longitude[indexLongLeft[0]].fullPath())
-#       MatLatLeft = aims.read(di_latitude[indexLatLeft[0]].fullPath())
-#       
-#       MatLongRight = aims.read(di_longitude[indexLongRight[0]].fullPath())
-#       MatLatRight = aims.read(di_latitude[indexLatRight[0]].fullPath())
-# 
-#       if len(diFSWhite)>0:
-#         FSThickRight = aims.read(diAllFSThick[indexThickRight[0]].fullPath())
-#         FSTHickLeft = aims.read(diAllFSThick[indexThickLeft[0]].fullPath())
-#       
-#       import copy
-#       for ii in range(len(plot_sorted)):
-# 
-#          print "{} on {}".format(ii+1,len(plot_sorted))
-# 
-#          np_plot = numpy.array(plot_sorted[ii][1])
-#          diffRight = meshRight_vertex_np - np_plot  #la je sais pas si il y en a pas un en voxel et un en mm.
-#          diffLeft = meshLeft_vertex_np - np_plot
-#          if len(diFSWhite)>0:
-#            diffFSRight = meshFSRight_vertex_np - np_plot
-#            diffFSLeft = meshFSLeft_vertex_np - np_plot
-# 
-#          
-#          distRight = [numpy.linalg.norm(diffRight[i]) for i in range(len(diffRight))]
-#          distLeft = [numpy.linalg.norm(diffLeft[i]) for i in range(len(diffLeft))]
-#          if len(diFSWhite)>0:
-#            distFSRight = [numpy.linalg.norm(diffFSRight[i]) for i in range(len(diffFSRight))]
-#            distFSLeft = [numpy.linalg.norm(diffFSLeft[i]) for i in range(len(diffFSLeft))]
-#          
-# 
-#          #it's too big, I should keep only the indexes of the one nearest than 2 times SizeHorizon
-#          indexvertexLeft = numpy.where(numpy.array(distLeft)<SizeHorizon)
-#          indexvertexRight = numpy.where(numpy.array(distRight)<SizeHorizon)
-#          
-#          indexSelectedLeft = dict([(indexvertexLeft[0][i],distLeft[indexvertexLeft[0][i]]) for i in range(len(indexvertexLeft[0]))])
-#          indexSelectedRight = dict([(indexvertexRight[0][i],distRight[indexvertexRight[0][i]]) for i in range(len(indexvertexRight[0]))])
-# 
-#          dist_contact_meshRight.update({plot_sorted[ii][0]:copy.deepcopy(indexSelectedRight)})
-#          dist_contact_meshLeft.update({plot_sorted[ii][1]:copy.deepcopy(indexSelectedLeft)})
-#          
-#          numpy.array(distRight).min()
-#          numpy.array(distLeft).min()
-#          distRight.index(numpy.array(distRight).min())
-#          distLeft.index(numpy.array(distLeft).min())
-# 
-#          if numpy.array(distRight).min() > numpy.array(distLeft).min():
-#              MarsAtlasCoordinate = ('L',MatLatLeft[0][distLeft.index(numpy.array(distLeft).min())],MatLongLeft[0][distLeft.index(numpy.array(distLeft).min())])
-#              pdb.set_trace()
-#              if len(diFSWhite)>0:
-#                ValueThickness = FSTHickLeft[0][distFSLeft.index(numpy.array(distFSLeft).min())]
-#                ValueThickness = (ValueThickness,)
-#              else:
-#                ValueThickness = (0,)  
-#              MarsAtlasCoordinate = MarsAtlasCoordinate + ValueThickness               
-#          elif numpy.array(distRight).min() < numpy.array(distLeft).min():
-#              MarsAtlasCoordinate = ('R',MatLatRight[0][distRight.index(numpy.array(distRight).min())],MatLongRight[0][distRight.index(numpy.array(distRight).min())])
-#              if len(diFSWhite)>0:
-#                ValueThickness = FSThickRight[0][distFSRight.index(numpy.array(distFSRight).min())]
-#                ValueThickness = (ValueThickness,)
-#              else:
-#                ValueThickness = (0,) 
-#              MarsAtlasCoordinate = MarsAtlasCoordinate + ValueThickness
-#              
-#          pdb.set_trace()
-# 
-# 
-#       pdb.set_trace()
-#       #test2 = [i for i in range(len(dist_contact_mesh1[1])) if dist_contact_mesh1[1][i] <= SizeHorizon]
-# 
-# 
-#       #generate the texture
-#       #textureContacts = aims.TimeTexture()
-#       print "contacts vertexes matching done"
-
-
 
     # ===== EXPORT CSV FILES =====
     def exportCSVdictionaries(self, useDatabase=True, fileEleclabel=None, fileResecLabel=None, fileCsv=None, dict_plotMNI=None):
@@ -4115,18 +3589,9 @@ class LocateElectrodes(QtGui.QDialog):
                                 aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz')]
             else:
                 print("ERROR: Missing Lausanne2008 in MNI_Freesurfer folder - Update the MNI templates.")
-#         # ===== READ: HIPPOCAMPUS SUBFIELD =====
-#         if not useTemplateHippoSubFreesurfer:
-#             HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-#             rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-#             vol_hipposubfieldFS = aims.read(str(rdi_HippoSubfield[0]))
-#         else:
-#             vol_hipposubfieldFS = aims.read('MNI_Freesurfer/mri/bhHippoMNI.nii')
 
         # ===== READ: RESECTION =====
         if acq:
-            
-            #wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
             wdi_resec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'center':self.brainvisaPatientAttributes['center'], 'subject':self.brainvisaPatientAttributes['subject'] })
             di_resec = list(wdi_resec.findValues({}, None, False ))
             #careful, if we use templates, the resection has to be deformed in the mni template
@@ -4201,11 +3666,6 @@ class LocateElectrodes(QtGui.QDialog):
 
         # ===== READ: MNI ATLASES =====
         # Chargement des atlas dans le MNI (broadman, aal etc ...)
-#         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii')
-#         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii')
-#         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii')
-#         vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii')
-#         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii')
         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii.gz')
         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii.gz')
         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
@@ -4274,7 +3734,6 @@ class LocateElectrodes(QtGui.QDialog):
             info_image = {'voxel_size':[1,1,1]}
         if not info_fs:
             info_fs = info_image
-        #['voxel_size'] #ca devrait etre les meme infos pour gauche et droite "probem when freesurfer is indi and mars atlas is template
         
         #conversion x mm en nombre de voxel:
         sphere_size_stat = 10
@@ -4337,8 +3796,6 @@ class LocateElectrodes(QtGui.QDialog):
             # === PROCESS: FREESURFER ===
             # Destrieux Atlas is reinterpolated in the t1pre space 
             if not useTemplateFreeSurfer:
-#                 plot_pos_pixFS = plot_pos_pix_fs
-#                 nb_voxel_sphereFS = nb_voxel_sphere_fs
                 plot_pos_pixFS = plot_pos_pix_indi
                 nb_voxel_sphereFS = nb_voxel_sphere
             elif useTemplateFreeSurfer:
@@ -4360,19 +3817,7 @@ class LocateElectrodes(QtGui.QDialog):
                 for iVol in range(5):
                     voxel_within_sphere_Laus = [vol_lausanne[iVol].value(plot_pos_pixLAU[0]+vox_i,plot_pos_pixLAU[1]+vox_j,plot_pos_pixLAU[2]+vox_k) for vox_k in range(-nb_voxel_sphereLAU[2],nb_voxel_sphereLAU[2]+1) for vox_j in range(-nb_voxel_sphereLAU[1],nb_voxel_sphereLAU[1]+1) for vox_i in range(-nb_voxel_sphereLAU[0],nb_voxel_sphereLAU[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
                     voxel_to_keep_Laus[iVol] = [x for x in voxel_within_sphere_Laus if x != 0]
-            
-#             # === PROCESS: HIPPO SUBFIELD ===
-#             # Hippo+amygdala atlas + surfaces are resliced following the T1pre: Using t1pre coordinates
-#             if not useTemplateHippoSubFreesurfer:
-#                 plot_pos_pixHippoFS = plot_pos_pix_indi
-#                 nb_voxel_sphereHippoFS = nb_voxel_sphere
-#             elif useTemplateHippoSubFreesurfer:
-#                 plot_pos_pixHippoFS = plot_pos_pix_MNI
-#                 nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
-#             
-#             voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-#             voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
-            
+
             # === PROCESS: MNI ATLASES ===
             # AAL
             voxel_within_sphere_AAL = [round(vol_AAL.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
@@ -4460,14 +3905,6 @@ class LocateElectrodes(QtGui.QDialog):
                         label_lausanne[iVol] = most_common
                         label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
 
-#             if not voxel_to_keep_HippoFS:
-#                 label_hippoFS_name = 'not in a hippocamp subfield'
-#                 label_hippoFS = vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0],plot_pos_pixHippoFS[1],plot_pos_pixHippoFS[2])
-#             else:
-#                 most_common,num_most_common = Counter(voxel_to_keep_HippoFS).most_common(1)[0]
-#                 label_hippoFS = most_common
-#                 label_hippoFS_name = freesurfer_parcel_names[str(int(label_hippoFS))][0]
-            
             if GWAtlas:
                 if not voxelGW_to_keep:
                     if acq:
@@ -4499,38 +3936,22 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-#                label_Broadmann = most_common
                 label_Broadmann = int(round(most_common))
-#		print(label_Broadmann)
-		print(plot_pos_pix_MNI[0])
-                #label_Broadmann_name = unicode(label_Broadmann)
-#                if plot_pos_pix_MNI[0]>90:
-#                    label_Broadmann_name = unicode(label_Broadmann+100)
-#                else:
-#                    label_Broadmann_name = unicode(label_Broadmann)
                 if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = str(label_Broadmann)
+                    label_Broadmann_name = "%d" % (label_Broadmann)
                 else:
-                    label_Broadmann_name = str(label_Broadmann+100)
-#		print(label_Broadmann_name)
+                    label_Broadmann_name = "%d" % (label_Broadmann+100)
                   
             if not voxel_to_keepBroadmannDilate:
                 label_BroadmannDilate_name = "not in a Broadmann parcel" 
                 label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = int(round(most_common))
-		print(label_BroadmannDilate)
-                #label_Broadmann_name = unicode(label_Broadmann)
-#                if plot_pos_pix_MNI[0]>90:
-#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
-#                else:
-#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate-48)       
+                label_BroadmannDilate = int(round(most_common))     
                 if label_BroadmannDilate>48:
-                    label_BroadmannDilate_name = str(label_BroadmannDilate-48+100)
+                    label_BroadmannDilate_name = "%d" % (label_BroadmannDilate-48+100)
                 else:
-                    label_BroadmannDilate_name = str(label_BroadmannDilate)
-#		print(label_BroadmannDilate_name)
+                    label_BroadmannDilate_name = "%d" % (label_BroadmannDilate)
                 
             if not voxel_to_keepHammers:
                 label_Hammers_name = "not in a Hammers parcel" 
@@ -4576,7 +3997,6 @@ class LocateElectrodes(QtGui.QDialog):
 
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
-#             plots_label[plot_sorted[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name), 'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
             plots_label[plot_sorted[pindex][0]]={ \
                 'MarsAtlas'        : (label, label_name), \
                 'MarsAtlasFull'    : full_infoMAcomputed, \
@@ -4627,9 +4047,8 @@ class LocateElectrodes(QtGui.QDialog):
         sphere_size_bipole = 5
         nb_voxel_sphere = [int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
         nb_voxel_sphere_fs = [int(round(sphere_size_bipole/info_fs['voxel_size'][i])) for i in range(0,3)]
-        #if useTemplateMarsAtlas or useTemplateFreeSurfer or useTemplateHippoSubFreesurfer:
-        nb_voxel_sphere_MNI = [sphere_size_bipole, sphere_size_bipole, sphere_size_bipole] #[int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
-        
+        nb_voxel_sphere_MNI = [sphere_size_bipole, sphere_size_bipole, sphere_size_bipole] 
+
         plots_label_bipolar = {}
         plot_name_bip = []
         for pindex in range(len(info_plot_bipolaire)):
@@ -4676,8 +4095,6 @@ class LocateElectrodes(QtGui.QDialog):
             # === PROCESS: FREESURFER ===
             # Destrieux Atlas is reinterpolated in the t1pre space 
             if not useTemplateFreeSurfer:
-#                 plot_pos_pixFS = plot_pos_pix_fs
-#                 nb_voxel_sphereFS = nb_voxel_sphere_fs
                 plot_pos_pixFS = plot_pos_pix_indi
                 nb_voxel_sphereFS = nb_voxel_sphere
             elif useTemplateFreeSurfer:
@@ -4700,20 +4117,6 @@ class LocateElectrodes(QtGui.QDialog):
                 for iVol in range(5):
                     voxel_within_sphere_Laus = [vol_lausanne[iVol].value(plot_pos_pixLAU[0]+vox_i,plot_pos_pixLAU[1]+vox_j,plot_pos_pixLAU[2]+vox_k) for vox_k in range(-nb_voxel_sphereLAU[2],nb_voxel_sphereLAU[2]+1) for vox_j in range(-nb_voxel_sphereLAU[1],nb_voxel_sphereLAU[1]+1) for vox_i in range(-nb_voxel_sphereLAU[0],nb_voxel_sphereLAU[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
                     voxel_to_keep_Laus[iVol] = [x for x in voxel_within_sphere_Laus if x != 0]
-            
-            
-#             # === PROCESS HIPPOCAMPUS SUBFIELD ===
-#             #HippoSubfield  (resliced on T1pre, using T1pre coordinates)
-#             if not useTemplateHippoSubFreesurfer:
-#                 plot_pos_pixHippoFS = plot_pos_pix_indi
-#                 nb_voxel_sphereHippoFS = nb_voxel_sphere
-#             elif useTemplateHippoSubFreesurfer:
-#                 plot_pos_pixHippoFS = plot_pos_pix_MNI
-#                 nb_voxel_sphereHippoFS = nb_voxel_sphere_MNI
-#             
-#             voxel_within_sphere_HippoFS = [vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0]+vox_i,plot_pos_pixHippoFS[1]+vox_j,plot_pos_pixHippoFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereHippoFS[2],nb_voxel_sphereHippoFS[2]+1) for vox_j in range(-nb_voxel_sphereHippoFS[1],nb_voxel_sphereHippoFS[1]+1) for vox_i in range(-nb_voxel_sphereHippoFS[0],nb_voxel_sphereHippoFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-#             voxel_to_keep_HippoFS = [x for x in voxel_within_sphere_HippoFS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
-            
             
             #MNI Atlases
             #AAL
@@ -4806,15 +4209,7 @@ class LocateElectrodes(QtGui.QDialog):
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
                         label_lausanne[iVol] = most_common
                         label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
-            
-#             if not voxel_to_keep_HippoFS:
-#                 label_hippoFS_name = 'not in a hippocamp subfield'
-#                 label_hippoFS = vol_hipposubfieldFS.value(plot_pos_pixHippoFS[0],plot_pos_pixHippoFS[1],plot_pos_pixHippoFS[2])
-#             else:
-#                 most_common,num_most_common = Counter(voxel_to_keep_HippoFS).most_common(1)[0]
-#                 label_hippoFS = most_common
-#                 label_hippoFS_name = freesurfer_parcel_names[str(int(label_hippoFS))][0]
-            
+
             if GWAtlas:
                 if not voxelGW_to_keep:
                     if acq:
@@ -4847,11 +4242,6 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
                 label_Broadmann = int(round(most_common))
-                #label_Broadmann_name = unicode(label_Broadmann)
-#                if plot_pos_pix_MNI[0]>90:
-#                    label_Broadmann_name = unicode(label_Broadmann+100)
-#                else:
-#                    label_Broadmann_name = unicode(label_Broadmann)
                 if plot_pos_pix_MNI[0]>90:
                     label_Broadmann_name = str(label_Broadmann)
                 else:
@@ -4863,11 +4253,6 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
                 label_BroadmannDilate = int(round(most_common))
-                #label_Broadmann_name = unicode(label_Broadmann)
-#                if plot_pos_pix_MNI[0]>90:
-#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
-#                else:
-#                    label_BroadmannDilate_name = unicode(label_BroadmannDilate-48) 
                 if label_BroadmannDilate>48:
                     label_BroadmannDilate_name = str(label_BroadmannDilate-48+100)
                 else:
@@ -4918,7 +4303,6 @@ class LocateElectrodes(QtGui.QDialog):
             GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
             Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
             
-#             plots_label_bipolar[info_plot_bipolaire[pindex][0]]={'MarsAtlas':(label,label_name),'MarsAtlasFull':full_infoMAcomputed,'Freesurfer':(label_freesurfer,label_freesurfer_name),'Hippocampal Subfield':(label_hippoFS,label_hippoFS_name),'GreyWhite':(GW_label,GW_label_name),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name),'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(Resec_label,Resec_label_name)}
             plots_label_bipolar[info_plot_bipolaire[pindex][0]]={\
                 'MarsAtlas'        : (label, label_name), \
                 'MarsAtlasFull'    : full_infoMAcomputed, \
@@ -4940,7 +4324,6 @@ class LocateElectrodes(QtGui.QDialog):
                 'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
                 }
             
-            #plots_label_bipolar.append((info_plot_bipolaire[pindex][0],label,label_name,GW_label))
             # add subacq_stat dictionnaries
             if len(subacq_existing)>0:
                 for i_substat in range(len(subacq_stat)):
@@ -4948,7 +4331,6 @@ class LocateElectrodes(QtGui.QDialog):
             # Add to list of exported plot names
             plot_name_bip += [info_plot_bipolaire[pindex][0]]
             
-        #plots_by_label = {Lab:[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab] for Lab in parcels_names.values()}
         plots_bipolar_by_label = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
         #do the same for freesurfer, broadmann, hammers, all and alldilate
         plots_bipolar_by_label_FS = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
@@ -4973,7 +4355,6 @@ class LocateElectrodes(QtGui.QDialog):
                 return []
             fileEleclabel = di.fullPath()
         
-        #UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer,'HippocampalSubfield Freesurfer':useTemplateHippoSubFreesurfer,'InitialSegmentation':initSegmentation}
         UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer, 'InitialSegmentation':initSegmentation}
         
         fout = open(fileEleclabel,'w')
@@ -5096,7 +4477,6 @@ class LocateElectrodes(QtGui.QDialog):
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         # Run SPM normalization
         errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
-        #errMsg = self.normalizePoints(field, coords)
         if errMsg:
             print errMsg
             return [None,[]]
@@ -5360,16 +4740,9 @@ class LocateElectrodes(QtGui.QDialog):
                 el = self.currentElectrode()
                 if el is None:
                     return
-#                 if 'refRotation' in el:
-#                     self.electrodeRefRotationSlider.setValue(el['refRotation'])
                 if 'ref' in el:
                     self.setWindowsReferential(el['ref'])
                     self.electrodeGo(electrode = el)
-                    
-                    #self.wins[0].camera(view_quaternion=[-0.5, 0.5, 0.5, -0.5], zoom=1.5) 
-                    # slice_quaternion=[0.3, 0.3, 0, 0.9]
-                    # observer_position=None, view_quaternion=None, slice_quaternion=None, force_redraw=None, cursor_position=None, boundingbox_min=None, boundingbox_max=None, slice_orientation=None
-                    
         else:
             # Change back to T1pre native ref
             if isRestoreNative:
@@ -5383,14 +4756,6 @@ class LocateElectrodes(QtGui.QDialog):
         for i in range(4):
             self.updateWindowOrient(self.wins[i])
             
-#     def updateElectrodeViewRotation(self, degrees):
-#         """Sets the angle of an electrode referential, degrees is the angle in degrees"""
-#         if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
-#             #Change angle of electrode referential
-#             el = self.currentElectrode()
-#             if el:
-#                 el['refRotation'] = degrees
-
 
     def clippingUpdate(self):
         for i in range(3):
@@ -5401,7 +4766,6 @@ class LocateElectrodes(QtGui.QDialog):
                 print "clipping not activated"
                 self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=0)
 
-
   
     def makeFusion(self):
         #get objects
@@ -5410,19 +4774,16 @@ class LocateElectrodes(QtGui.QDialog):
         
         for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win1)][0]:
-                #print "Adding %s"%obj
                 obj1 = obj
         
         for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win2)][0]:
-                #print "Adding %s"%obj
                 obj2 = obj
         
         if 'obj1' in locals() and 'obj2' in locals():
             print "do the fusion"
             fusion_obj = self.a.fusionObjects((self.dispObj[obj1], self.dispObj[obj2]), method='Fusion2DMethod')
             self.a.addObjects(fusion_obj, self.wins[1])
-        
             # Add the fusion in the disObj and the windowCombo
             self.dispObj[obj1+'+'+obj2] = fusion_obj
             # Update list of available items in the combo boxes
@@ -5436,307 +4797,261 @@ class LocateElectrodes(QtGui.QDialog):
             return
 
 
-    def generateResection(self):
-
-        #look for T1 pre and T1 postop
-        T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'normalized':'no' })
-        diT1 = list(T1.findValues({}, None, False ))
-        for t in diT1:
-            if 'T1pre' in t.attributes()['acquisition']:
-                T1pre = t.fullPath()
-                try:
-                    SB_transf = t.attributes()['SB_Transform']
-                except:
-                    SB_transf = t.attributes()['transformations'][0]
-        
-            elif 'postOp' in t.attributes()['acquisition']:
-                T1postop = t.fullPath()
-        
-        if not T1pre:
-            print('don t find the t1pre')
-            return
-        
-        if 'T1postop' not in locals():
-            print('don t find the t1postop')
-            print('look for a CTpostop')
-            CTs = ReadDiskItem('CT', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diCTs = list(CTs.findValues({},None,False))
-            for t in diCTs:
-                if 'postOp' in t.attributes()['acquisition']:
-                    CTpostop = t.fullPath()
-                    method = 'CT'
-            if 'CTpostop' not in locals():
-                print("can't find a CTpostop either")
-                return
-        else:
-            method = 'T1'
-        
-        T1pre = None
-        T1postop = None
-        
-        id_pre = [x for x in range(len(diT1)) if 'T1pre' in str(diT1[x])]
-        T1pre = diT1[id_pre[0]]
-        
-        if method == 'T1':          
-            id_postop = [x for x in range(len(diT1)) if 'postOp' in str(diT1[x])]
-            T1postop = diT1[id_postop[0]]
-            
-        elif method == 'CT': 
-            id_ctpostop = [x for x in range(len(diCTs)) if 'postOp' in str(diCTs[x])]
-            CTpostop = diCTs[id_ctpostop[0]]
-        
-        if method == 'T1':
-            #The following commented lines are not necessary for resection
-            
-            #try:
-            #    self.refConv.loadACPC(T1pre)
-            #except Exception, e:
-            #    print "Cannot load AC-PC referential from T1 pre MRI : "+repr(e)
-            #    return
-            #Ac = self.refConv.Ac
-            #Pc = self.refConv.Pc
-            #Ih = self.refConv.Ih
-            #Ac.append(1)
-            #Pc.append(1)
-            #Ih.append(1)
-            #Ac_vector = numpy.array([Ac])
-            #Pc_vector = numpy.array([Pc])
-            #Ih_vector = numpy.array([Ih])
-            
-            wdiTransform = ReadDiskItem('Transform Raw T1 MRI to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol }) #pourquoi la suite marche pas ?, requiredAttributes = {'modalityTarget':T1pre.attributes()['modality'], 'acquisitionTarget':T1pre.attributes()['acquisition']}
-            diTransform = list(wdiTransform.findValues({}, None, False ))
-            
-            for t in diTransform:
-                if t.attributes()['modality'] == 't1mri' and 'postOp' in t.attributes()['acquisition']:
-                    trmpostop_to_pre = t
-                    #transfo_postop_to_pre = aims.read(trmpostop_to_pre.fullPath()).toMatrix()
-                    #transfo_pre_to_postop = numpy.linalg.inv(transfo_postop_to_pre)
-            
-            wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diTransform2 = wdiTransform2.findValues({}, None, False )
-            
-            for t in diTransform2:
-                if t.attributes()['modality'] == 't1mri' and 'postOp' in t.attributes()['acquisition']:
-                    trmpostop_to_SB = t
-                    #transfo_postop_to_SB = aims.read(trmpostop_to_SB.fullPath()).toMatrix()
-                if t.attributes()['modality'] == 't1mri' and 'T1pre' in t.attributes()['acquisition']:
-                    trmpre_to_SB = t
-                    #transfo_pre_to_SB = aims.read(trmpre_to_SB.fullPath()).toMatrix()
-
-        if method == 'CT':
-            wdiTransform = ReadDiskItem('Transform CT to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol }) #pourquoi la suite marche pas ?, requiredAttributes = {'modalityTarget':T1pre.attributes()['modality'], 'acquisitionTarget':T1pre.attributes()['acquisition']}
-            diTransform = list(wdiTransform.findValues({}, None, False ))
-            
-            for t in diTransform:
-                if t.attributes()['modality'] == 'ct' and 'postOp' in t.attributes()['acquisition']:
-                    trmpostop_to_pre = t
-                 
-            wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diTransform2 = wdiTransform2.findValues({}, None, False )
-            
-            for t in diTransform2:
-                if t.attributes()['modality'] == 'ct' and 'postOp' in t.attributes()['acquisition']:
-                    trmpostop_to_SB = t
-                    #transfo_postop_to_SB = aims.read(trmpostop_to_SB.fullPath()).toMatrix()
-                if t.attributes()['modality'] == 't1mri' and 'T1pre' in t.attributes()['acquisition']:
-                    trmpre_to_SB = t
-                    #transfo_pre_to_SB = aims.read(trmpre_to_SB.fullPath()).toMatrix()
-
-        import copy
-        trmpre_to_SBinvpath = trmpre_to_SB.fullPath().split('/')
-        trmpre_to_SBinvpath[-1] = 'inv'+trmpre_to_SBinvpath[-1]
-        trmpostop_to_pre_path = copy.deepcopy(trmpre_to_SBinvpath)
-        trmpostop_to_pre_path[-1] = 'postop_to_pre.trm'
-        trmpre_to_postop_path = copy.deepcopy(trmpre_to_SBinvpath)
-        trmpre_to_postop_path[-1] = 'pre_to_postop.trm'
-        trmpre_to_SBinvpath = '/'.join(trmpre_to_SBinvpath)
-        trmpostop_to_pre_path = '/'.join(trmpostop_to_pre_path)
-        trmpre_to_postop_path = '/'.join(trmpre_to_postop_path)
-
-        ret = subprocess.call(['AimsInvertTransformation','-i',trmpre_to_SB.fullPath(),'-o', trmpre_to_SBinvpath])
-        ret = subprocess.call(['AimsComposeTransformation', '-o',trmpostop_to_pre_path, trmpre_to_SBinvpath, trmpostop_to_pre.fullPath(), trmpostop_to_SB.fullPath()])
-        ret = subprocess.call(['AimsInvertTransformation','-i',trmpostop_to_pre_path,'-o',trmpre_to_postop_path])
-        
-        print 'select the center of the resection'
-        center_seg = QtGui.QMessageBox(self)
-        center_seg.setText("Enter the center (approximately) of the resection")
-        center_seg.setWindowTitle("Resection center")
-        center_seg.setWindowModality(QtCore.Qt.NonModal)
-        center_seg.show()
-        center_seg.exec_()
-        
-        #convert brainvisa voxel position into spm_voxel position
-        # ResecCenterCoord = list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
-        ResecCenterCoord = self.positionPreRef()
-        print ResecCenterCoord
-        
-        if method == 'T1':
-            transfo_pre_to_postop = aims.read(trmpre_to_postop_path).toMatrix()
-            
-            #Ac_vector_postop = transfo_pre_to_postop.dot(Ac_vector.T)
-            #Pc_vector_postop = transfo_pre_to_postop.dot(Pc_vector.T)
-            #Ih_vector_postop = transfo_pre_to_postop.dot(Ih_vector.T)
-            #vect1 = numpy.array(Ac_vector_postop[0:3])-numpy.array(Pc_vector_postop[0:3])
-            #vect2 = numpy.array(Ih_vector_postop[0:3])-numpy.array(Pc_vector_postop[0:3])
-            
-            #result_cross = cross(vect1.T.tolist(),vect2.T.tolist())/numpy.linalg.norm(cross(vect1.T.tolist(),vect2.T.tolist()))*40
-            #Lh_postop = numpy.array(Ac[0:3]) + result_cross
-            
-            brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diBrain = list(brainMask.findValues({}, None, False ))
-            
-            id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
-            id_postop = [x for x in range(len(diBrain)) if 'postOp' in str(diBrain[x])]
-            
-            #NOT NECESSARY FOR 'ResectionStart' AND TAKES TIME
-            morphologist = getProcessInstance('morphologist')
-            #morphologist.executionNode().PrepareSubject.setSelected(True)
-            morphologist.executionNode().BiasCorrection.setSelected(True)
-            morphologist.executionNode().PrepareSubject.StandardACPC.setSelected(False)
-            morphologist.executionNode().PrepareSubject.Normalization.setSelected(True)
-            morphologist.executionNode().HistoAnalysis.setSelected(True)
-            morphologist.executionNode().BrainSegmentation.setSelected(True)
-            morphologist.executionNode().Renorm.setSelected(False)
-            morphologist.executionNode().SplitBrain.setSelected(False)
-            morphologist.executionNode().TalairachTransformation.setSelected(False)
-            morphologist.executionNode().HeadMesh.setSelected(False)
-            morphologist.executionNode().HemispheresProcessing.setSelected(False)
-            morphologist.executionNode().SulcalMorphometry.setSelected(False)
-            
-            
-            if not id_pre:             
-                self.brainvisaContext.runProcess(morphologist, t1mri = T1pre, perform_normalization = True, anterior_commissure = '',\
-                        posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
-                
-            if not id_postop:
-                self.brainvisaContext.runProcess(morphologist, t1mri = T1postop, perform_normalization = True, anterior_commissure = '',\
-                    posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
-                
-            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
-            
-            #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord, methodo=method:self.resectionStart(trm,resec_coord,methodo), 
-            #                                            morphologist, t1mri = T1postop, perform_normalization = False)
-                                #anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
-                                #posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
-            #self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
-        if method == 'CT':
-            self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord,method = 'CT')
+#     def generateResection(self):
+# 
+#         #look for T1 pre and T1 postop
+#         T1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'normalized':'no' })
+#         diT1 = list(T1.findValues({}, None, False ))
+#         for t in diT1:
+#             if 'T1pre' in t.attributes()['acquisition']:
+#                 T1pre = t.fullPath()
+#                 try:
+#                     SB_transf = t.attributes()['SB_Transform']
+#                 except:
+#                     SB_transf = t.attributes()['transformations'][0]
+#         
+#             elif 'postOp' in t.attributes()['acquisition']:
+#                 T1postop = t.fullPath()
+#         
+#         if not T1pre:
+#             print('don t find the t1pre')
+#             return
+#         
+#         if 'T1postop' not in locals():
+#             print('don t find the t1postop')
+#             print('look for a CTpostop')
+#             CTs = ReadDiskItem('CT', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diCTs = list(CTs.findValues({},None,False))
+#             for t in diCTs:
+#                 if 'postOp' in t.attributes()['acquisition']:
+#                     CTpostop = t.fullPath()
+#                     method = 'CT'
+#             if 'CTpostop' not in locals():
+#                 print("can't find a CTpostop either")
+#                 return
+#         else:
+#             method = 'T1'
+#         
+#         T1pre = None
+#         T1postop = None
+#         
+#         id_pre = [x for x in range(len(diT1)) if 'T1pre' in str(diT1[x])]
+#         T1pre = diT1[id_pre[0]]
+#         
+#         if method == 'T1':          
+#             id_postop = [x for x in range(len(diT1)) if 'postOp' in str(diT1[x])]
+#             T1postop = diT1[id_postop[0]]
+#             
+#         elif method == 'CT': 
+#             id_ctpostop = [x for x in range(len(diCTs)) if 'postOp' in str(diCTs[x])]
+#             CTpostop = diCTs[id_ctpostop[0]]
+#         
+#         if method == 'T1':
+#             wdiTransform = ReadDiskItem('Transform Raw T1 MRI to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol }) #pourquoi la suite marche pas ?, requiredAttributes = {'modalityTarget':T1pre.attributes()['modality'], 'acquisitionTarget':T1pre.attributes()['acquisition']}
+#             diTransform = list(wdiTransform.findValues({}, None, False ))
+#             
+#             for t in diTransform:
+#                 if t.attributes()['modality'] == 't1mri' and 'postOp' in t.attributes()['acquisition']:
+#                     trmpostop_to_pre = t
+#             
+#             wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diTransform2 = wdiTransform2.findValues({}, None, False )
+#             
+#             for t in diTransform2:
+#                 if t.attributes()['modality'] == 't1mri' and 'postOp' in t.attributes()['acquisition']:
+#                     trmpostop_to_SB = t
+#                 if t.attributes()['modality'] == 't1mri' and 'T1pre' in t.attributes()['acquisition']:
+#                     trmpre_to_SB = t
+# 
+#         if method == 'CT':
+#             wdiTransform = ReadDiskItem('Transform CT to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol }) #pourquoi la suite marche pas ?, requiredAttributes = {'modalityTarget':T1pre.attributes()['modality'], 'acquisitionTarget':T1pre.attributes()['acquisition']}
+#             diTransform = list(wdiTransform.findValues({}, None, False ))
+#             
+#             for t in diTransform:
+#                 if t.attributes()['modality'] == 'ct' and 'postOp' in t.attributes()['acquisition']:
+#                     trmpostop_to_pre = t
+#                  
+#             wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diTransform2 = wdiTransform2.findValues({}, None, False )
+#             
+#             for t in diTransform2:
+#                 if t.attributes()['modality'] == 'ct' and 'postOp' in t.attributes()['acquisition']:
+#                     trmpostop_to_SB = t
+#                 if t.attributes()['modality'] == 't1mri' and 'T1pre' in t.attributes()['acquisition']:
+#                     trmpre_to_SB = t
+# 
+#         import copy
+#         trmpre_to_SBinvpath = trmpre_to_SB.fullPath().split('/')
+#         trmpre_to_SBinvpath[-1] = 'inv'+trmpre_to_SBinvpath[-1]
+#         trmpostop_to_pre_path = copy.deepcopy(trmpre_to_SBinvpath)
+#         trmpostop_to_pre_path[-1] = 'postop_to_pre.trm'
+#         trmpre_to_postop_path = copy.deepcopy(trmpre_to_SBinvpath)
+#         trmpre_to_postop_path[-1] = 'pre_to_postop.trm'
+#         trmpre_to_SBinvpath = '/'.join(trmpre_to_SBinvpath)
+#         trmpostop_to_pre_path = '/'.join(trmpostop_to_pre_path)
+#         trmpre_to_postop_path = '/'.join(trmpre_to_postop_path)
+# 
+#         ret = subprocess.call(['AimsInvertTransformation','-i',trmpre_to_SB.fullPath(),'-o', trmpre_to_SBinvpath])
+#         ret = subprocess.call(['AimsComposeTransformation', '-o',trmpostop_to_pre_path, trmpre_to_SBinvpath, trmpostop_to_pre.fullPath(), trmpostop_to_SB.fullPath()])
+#         ret = subprocess.call(['AimsInvertTransformation','-i',trmpostop_to_pre_path,'-o',trmpre_to_postop_path])
+#         
+#         print 'select the center of the resection'
+#         center_seg = QtGui.QMessageBox(self)
+#         center_seg.setText("Enter the center (approximately) of the resection")
+#         center_seg.setWindowTitle("Resection center")
+#         center_seg.setWindowModality(QtCore.Qt.NonModal)
+#         center_seg.show()
+#         center_seg.exec_()
+#         
+#         #convert brainvisa voxel position into spm_voxel position
+#         ResecCenterCoord = self.positionPreRef()
+#         print ResecCenterCoord
+#         
+#         if method == 'T1':
+#             transfo_pre_to_postop = aims.read(trmpre_to_postop_path).toMatrix()
+#             
+#             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diBrain = list(brainMask.findValues({}, None, False ))
+#             
+#             id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
+#             id_postop = [x for x in range(len(diBrain)) if 'postOp' in str(diBrain[x])]
+#             
+#             #NOT NECESSARY FOR 'ResectionStart' AND TAKES TIME
+#             morphologist = getProcessInstance('morphologist')
+#             #morphologist.executionNode().PrepareSubject.setSelected(True)
+#             morphologist.executionNode().BiasCorrection.setSelected(True)
+#             morphologist.executionNode().PrepareSubject.StandardACPC.setSelected(False)
+#             morphologist.executionNode().PrepareSubject.Normalization.setSelected(True)
+#             morphologist.executionNode().HistoAnalysis.setSelected(True)
+#             morphologist.executionNode().BrainSegmentation.setSelected(True)
+#             morphologist.executionNode().Renorm.setSelected(False)
+#             morphologist.executionNode().SplitBrain.setSelected(False)
+#             morphologist.executionNode().TalairachTransformation.setSelected(False)
+#             morphologist.executionNode().HeadMesh.setSelected(False)
+#             morphologist.executionNode().HemispheresProcessing.setSelected(False)
+#             morphologist.executionNode().SulcalMorphometry.setSelected(False)
+#             
+#             
+#             if not id_pre:             
+#                 self.brainvisaContext.runProcess(morphologist, t1mri = T1pre, perform_normalization = True, anterior_commissure = '',\
+#                         posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
+#                 
+#             if not id_postop:
+#                 self.brainvisaContext.runProcess(morphologist, t1mri = T1postop, perform_normalization = True, anterior_commissure = '',\
+#                     posterior_commissure = '', interhemispheric_point = '', left_hemisphere_point = '', perform_sulci_recognition = False)
+#                 
+#             self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
+#             
+#             #self.brainvisaContext.runInteractiveProcess(lambda x='',trm=trmpostop_to_pre_path,resec_coord=ResecCenterCoord, methodo=method:self.resectionStart(trm,resec_coord,methodo), 
+#             #                                            morphologist, t1mri = T1postop, perform_normalization = False)
+#                                 #anterior_commissure = Ac_vector_postop[0:3].T.tolist()[0],\
+#                                 #posterior_commissure = Pc_vector_postop[0:3].T.tolist()[0], interhemispheric_point = Ih_vector_postop[0:3].T.tolist()[0], left_hemisphere_point = Lh_postop.tolist()[0], perform_sulci_recognition = False)
+#             #self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord, method = 'T1')
+#         if method == 'CT':
+#             self.resectionStart(trmpostop_to_pre_path, ResecCenterCoord,method = 'CT')
 
   
-    def resectionStart(self,trm_postop_to_pre, resec_coord,method = 'T1'):
-        wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
-        di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
-        
-        #if the path doesn't exist, create it
-        if not os.path.exists(os.path.dirname(di_resec.fullPath())):
-            os.makedirs( os.path.dirname(di_resec.fullPath()))
-        
-        
-        if method == 'T1':
-            brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diBrain = list(brainMask.findValues({}, None, False ))
-            
-            id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
-            id_postop = [x for x in range(len(diBrain)) if 'postOp' in str(diBrain[x])]
-            
-            fullname_postop = diBrain[id_postop[0]].fullPath()
-            fullpost_split = fullname_postop.split('/')
-            fullpost_split[-1] = 'brainpostop_on_pre.nii'
-            fullpost = '/'.join(fullpost_split)
-            
-            ret = subprocess.call(['AimsResample', '-i', diBrain[id_postop[0]].fullPath(), '-m', trm_postop_to_pre, '-o', fullpost, '-t', 'n', '-r', diBrain[id_pre[0]].fullPath()])
-            ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', fullpost, '-o', fullpost, '-r', '1.2'])
-            ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', diBrain[id_pre[0]].fullPath(), '-o', diBrain[id_pre[0]].fullPath(), '-r', '0.75'])
-            ret = subprocess.call(['AimsMask', '-i',  fullpost, '-m', diBrain[id_pre[0]].fullPath(), '-o', fullpost])
-            ret = subprocess.call(['AimsLinearComb', '-i', diBrain[id_pre[0]].fullPath(), '-j', fullpost, '-c', '-1', '-o', di_resec.fullPath()])
-            ret = subprocess.call(['AimsThreshold', '-i', di_resec.fullPath(), '-m', 'ge', '-t', '250' , '-o', di_resec.fullPath()])
-            ret = subprocess.call(['AimsMorphoMath', '-m', 'ero', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1']) #to remove small structures out of interest
-            ret = subprocess.call(['AimsConnectComp', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-c', '6'])
-                
-        if method == 'CT':
-            brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diBrain = list(brainMask.findValues({}, None, False ))
-            
-            id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
-            
-            CTs = ReadDiskItem('CT', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-            diCTs = list(CTs.findValues({},None,False))
-            for t in diCTs:
-                if 'postOp' in t.attributes()['acquisition']:
-                    CTpostop = t.fullPath()
-                
-            #id_ctpostop = [x for x in range(len(diCTs)) if 'postOp' in str(diCTs[x])]
-            
-            #fullname_postop = diCTs[id_ctpostop[0]].fullPath()
-            #fullpost_split = fullname_postop.split('/')
-            #fullpost_split[-1] = 'CTpostop_on_pre.nii'
-            #fullpost = '/'.join(fullpost_split)
-            
-            ret = subprocess.call(['AimsResample', '-i', str(CTpostop), '-m', trm_postop_to_pre, '-o',  di_resec.fullPath(), '-t', 'c', '-r',diBrain[id_pre[0]].fullPath()])
-            
-            ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'be','-t','-20','-u','25','-b','-o', di_resec.fullPath()])
-            ret = subprocess.call(['cartoLinearComb.py','-i',str(di_resec.fullPath()),'-i',str(diBrain[id_pre[0]]),'-o',str(di_resec.fullPath()),'-f','(I1/32767*I2/255)'])
-            
-            #apply brainmask
-            #./cartoLinearComb.py -i /data/brainvisa_4.5/Epilepsy/Gre_2015_CETo/t1mri/T1pre_2015-1-1/default_analysis/segmentation/brain_Gre_2015_CETo.nii -i /data/brainvisa_4.5/Epilepsy/Gre_2015_CETo/Resection/Resection/Gre_2015_CETo-Resection.nii -f 'I2/32767*I1/255' -o /tmp/test.nii        
-            ret = subprocess.call(['AimsMorphoMath', '-m','ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
-            
-            #la faut passer par numpy ...
-            
-            ret = subprocess.call(['AimsConnectComp', '-i',di_resec.fullPath(),'-o',di_resec.fullPath(),'-c','6',])
-        
-        vol_connectcomp = aims.read(di_resec.fullPath())
-        #a small sphere here as for plots:
-        sphere_size = 4
-        nb_voxel_sphere = [int(round(sphere_size/vol_connectcomp.getVoxelSize()[i])) for i in range(0,3)]
-        voxel_within_sphere = [vol_connectcomp.value(resec_coord[0]/vol_connectcomp.getVoxelSize()[0]+vox_i,resec_coord[1]/vol_connectcomp.getVoxelSize()[1]+vox_j,resec_coord[2]/vol_connectcomp.getVoxelSize()[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-        
-        voxel_to_keep = [x for x in voxel_within_sphere if x != 0]
-        from collections import Counter
-        most_common,num_most_common = Counter(voxel_to_keep).most_common(1)[0]
-        
-        #value_connectcomp = vol_connectcomp.value(resec_coord[0],resec_coord[1],resec_coord[2])
-        ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'eq','-t',str(most_common) , '-o', di_resec.fullPath()])
-        ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1.75'])
-        #resave as the resection Image and do the .minf
-        #ret = subprocess.call(['AimsFileConvert', '-i', str(di_resec.fullPath()), '-o', str(di_resec.fullPath()), '-t', 'S16'])
-        if ret < 0:
-            print "Importation error"
-            QtGui.QMessageBox.warning(self, "Error", "Brainvisa Importation error/ AimsFileConvert")
-            return
-        
-        neuroHierarchy.databases.insertDiskItem( di_resec, update=True )
-        self.transfoManager.setReferentialTo(di_resec, self.diskItems['T1pre'].attributes()['referential'] )
-        
-        wdi_resec_roi = WriteDiskItem( 'ROI IntrAnat', 'Graph' )
-        di_resec_roi = wdi_resec_roi.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
-
-        self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi,di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Volume To ROI Graph Converter', read = di_resec, write = di_resec_roi)  #, sulcus_identification ='label')
+#     def resectionStart(self,trm_postop_to_pre, resec_coord,method = 'T1'):
+#         wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
+#         di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
+#         
+#         #if the path doesn't exist, create it
+#         if not os.path.exists(os.path.dirname(di_resec.fullPath())):
+#             os.makedirs( os.path.dirname(di_resec.fullPath()))
+#         
+#         
+#         if method == 'T1':
+#             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diBrain = list(brainMask.findValues({}, None, False ))
+#             
+#             id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
+#             id_postop = [x for x in range(len(diBrain)) if 'postOp' in str(diBrain[x])]
+#             
+#             fullname_postop = diBrain[id_postop[0]].fullPath()
+#             fullpost_split = fullname_postop.split('/')
+#             fullpost_split[-1] = 'brainpostop_on_pre.nii'
+#             fullpost = '/'.join(fullpost_split)
+#             
+#             ret = subprocess.call(['AimsResample', '-i', diBrain[id_postop[0]].fullPath(), '-m', trm_postop_to_pre, '-o', fullpost, '-t', 'n', '-r', diBrain[id_pre[0]].fullPath()])
+#             ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', fullpost, '-o', fullpost, '-r', '1.2'])
+#             ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', diBrain[id_pre[0]].fullPath(), '-o', diBrain[id_pre[0]].fullPath(), '-r', '0.75'])
+#             ret = subprocess.call(['AimsMask', '-i',  fullpost, '-m', diBrain[id_pre[0]].fullPath(), '-o', fullpost])
+#             ret = subprocess.call(['AimsLinearComb', '-i', diBrain[id_pre[0]].fullPath(), '-j', fullpost, '-c', '-1', '-o', di_resec.fullPath()])
+#             ret = subprocess.call(['AimsThreshold', '-i', di_resec.fullPath(), '-m', 'ge', '-t', '250' , '-o', di_resec.fullPath()])
+#             ret = subprocess.call(['AimsMorphoMath', '-m', 'ero', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1']) #to remove small structures out of interest
+#             ret = subprocess.call(['AimsConnectComp', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-c', '6'])
+#                 
+#         if method == 'CT':
+#             brainMask = ReadDiskItem('Brain Mask', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diBrain = list(brainMask.findValues({}, None, False ))
+#             
+#             id_pre = [x for x in range(len(diBrain)) if 'T1pre' in str(diBrain[x])]
+#             
+#             CTs = ReadDiskItem('CT', 'aims readable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#             diCTs = list(CTs.findValues({},None,False))
+#             for t in diCTs:
+#                 if 'postOp' in t.attributes()['acquisition']:
+#                     CTpostop = t.fullPath()
+# 
+#             ret = subprocess.call(['AimsResample', '-i', str(CTpostop), '-m', trm_postop_to_pre, '-o',  di_resec.fullPath(), '-t', 'c', '-r',diBrain[id_pre[0]].fullPath()])
+#             
+#             ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'be','-t','-20','-u','25','-b','-o', di_resec.fullPath()])
+#             ret = subprocess.call(['cartoLinearComb.py','-i',str(di_resec.fullPath()),'-i',str(diBrain[id_pre[0]]),'-o',str(di_resec.fullPath()),'-f','(I1/32767*I2/255)'])
+#             
+#             #apply brainmask
+#             ret = subprocess.call(['AimsMorphoMath', '-m','ope', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '2'])
+# 
+#             ret = subprocess.call(['AimsConnectComp', '-i',di_resec.fullPath(),'-o',di_resec.fullPath(),'-c','6',])
+#         
+#         vol_connectcomp = aims.read(di_resec.fullPath())
+#         #a small sphere here as for plots:
+#         sphere_size = 4
+#         nb_voxel_sphere = [int(round(sphere_size/vol_connectcomp.getVoxelSize()[i])) for i in range(0,3)]
+#         voxel_within_sphere = [vol_connectcomp.value(resec_coord[0]/vol_connectcomp.getVoxelSize()[0]+vox_i,resec_coord[1]/vol_connectcomp.getVoxelSize()[1]+vox_j,resec_coord[2]/vol_connectcomp.getVoxelSize()[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+#         
+#         voxel_to_keep = [x for x in voxel_within_sphere if x != 0]
+#         from collections import Counter
+#         most_common,num_most_common = Counter(voxel_to_keep).most_common(1)[0]
+#         
+#         ret = subprocess.call(['AimsThreshold', '-i',di_resec.fullPath(),'-m', 'eq','-t',str(most_common) , '-o', di_resec.fullPath()])
+#         ret = subprocess.call(['AimsMorphoMath', '-m', 'dil', '-i', di_resec.fullPath(), '-o', di_resec.fullPath(), '-r', '1.75'])
+#         if ret < 0:
+#             print "Importation error"
+#             QtGui.QMessageBox.warning(self, "Error", "Brainvisa Importation error/ AimsFileConvert")
+#             return
+#         
+#         neuroHierarchy.databases.insertDiskItem( di_resec, update=True )
+#         self.transfoManager.setReferentialTo(di_resec, self.diskItems['T1pre'].attributes()['referential'] )
+#         
+#         wdi_resec_roi = WriteDiskItem( 'ROI IntrAnat', 'Graph' )
+#         di_resec_roi = wdi_resec_roi.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
+# 
+#         self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi,di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Volume To ROI Graph Converter', read = di_resec, write = di_resec_roi)  #, sulcus_identification ='label')
 
 
-    def roiconversionDone(self,di_resec_roi,di_resec):
-        neuroHierarchy.databases.insertDiskItem( di_resec_roi, update=True )
-        self.transfoManager.setReferentialTo(di_resec_roi, self.diskItems['T1pre'].attributes()['referential'] )
-        obj_roi = self.a.loadObject(di_resec_roi)
+#     def roiconversionDone(self,di_resec_roi,di_resec):
+#         neuroHierarchy.databases.insertDiskItem( di_resec_roi, update=True )
+#         self.transfoManager.setReferentialTo(di_resec_roi, self.diskItems['T1pre'].attributes()['referential'] )
+#         obj_roi = self.a.loadObject(di_resec_roi)
+#         
+#         Text_win1 = self.windowCombo1.currentText()
+#         obj = self.a.loadObject(di_resec)
+#         self.diskItems['Resection'] = di_resec
+#         self.dispObj['Resection']=obj
+#         # Update list of available items in the combo boxes
+#         self.windowContent.update({'Resection':['Resection','electrodes']})
+#         self.updateComboboxes(Text_win1, 'Resection')
+#         # Update anatomist windows
+#         self.updateAllWindows()
         
-        Text_win1 = self.windowCombo1.currentText()
-        obj = self.a.loadObject(di_resec)
-        self.diskItems['Resection'] = di_resec
-        self.dispObj['Resection']=obj
-        # Update list of available items in the combo boxes
-        self.windowContent.update({'Resection':['Resection','electrodes']})
-        self.updateComboboxes(Text_win1, 'Resection')
-        # Update anatomist windows
-        self.updateAllWindows()
-        
-    def ROIResectiontoNiftiResection(self):
-        wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
-        di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
-        
-        wdi_resec_roi = ReadDiskItem( 'ROI Intranat', 'Graph', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
-        di_resec_roi = list(wdi_resec_roi.findValues({}, None, False))
-
-        self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
+#     def ROIResectiontoNiftiResection(self):
+#         wdi_resec = WriteDiskItem('Resection', 'NIFTI-1 image')
+#         di_resec = wdi_resec.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':'Resection'})
+#         
+#         wdi_resec_roi = ReadDiskItem( 'ROI Intranat', 'Graph', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol} )
+#         di_resec_roi = list(wdi_resec_roi.findValues({}, None, False))
+# 
+#         self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
 
 
     def DeleteMarsAtlasFiles(self):
@@ -5765,58 +5080,38 @@ class LocateElectrodes(QtGui.QDialog):
         print("MarsAtlas files deleted.")
       
       
-    def importRosaImplantation(self):
-         import ImportTheoreticalImplentation
+#     def importRosaImplantation(self):
+#          import ImportTheoreticalImplentation
+#         
+#          TheoElectrodes = ImportTheoreticalImplentation.importRosaImplantation(self)
+#          #wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+#          #self.t1pre2ScannerBasedTransform
+#          print("not finished")
+#          return
+#          for cle, valeur in TheoElectrodes.items():
+#         
+#              raise Exception("???")
+#              rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True,  requiredAttributes={'modality':'t1mri','subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']})
+#              newvalTarget=[float(x) for x in valeur["target"]]
+#              newvalTarget=tuple(newvalTarget)
+#              newvalEntry=[float(x) for x in valeur["entry"]]
+#              newvalEntry=tuple(newvalEntry)
+#              volume = aims.read(str(self.diskItems['T1pre']))
+#              size=volume.getVoxelSize()
+#              sizex=size[0]
+#              sizey=size[1]
+#              sizez=size[2]
+#              xt=float(newvalTarget[0])/sizex
+#              yt=float(newvalTarget[1])/sizey
+#              zt=float(newvalTarget[2])/sizez
+#              xe=float(newvalEntry[0])/sizex
+#              ye=float(newvalEntry[1])/sizey
+#              ze=float(newvalEntry[2])/sizez
+#              self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze], None, True)
         
-         TheoElectrodes = ImportTheoreticalImplentation.importRosaImplantation(self)
-         #wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-         #self.t1pre2ScannerBasedTransform
-         print("not finished")
-         return
-         for cle, valeur in TheoElectrodes.items():
-        
-             raise Exception("???")
-             rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True,  requiredAttributes={'modality':'t1mri','subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']})
-             newvalTarget=[float(x) for x in valeur["target"]]
-             newvalTarget=tuple(newvalTarget)
-             newvalEntry=[float(x) for x in valeur["entry"]]
-             newvalEntry=tuple(newvalEntry)
-             volume = aims.read(str(self.diskItems['T1pre']))
-             size=volume.getVoxelSize()
-             sizex=size[0]
-             sizey=size[1]
-             sizez=size[2]
-             xt=float(newvalTarget[0])/sizex
-             yt=float(newvalTarget[1])/sizey
-             zt=float(newvalTarget[2])/sizez
-             xe=float(newvalEntry[0])/sizex
-             ye=float(newvalEntry[1])/sizey
-             ze=float(newvalEntry[2])/sizez
-             #correctTarget=(xt,yt,zt)
-             #correctEntry=(xe,ye,ze)
-             #di = rdi.findValue(self.diskItems['T1pre'])
-             #matriceTransfo = aims.read(di.fullPath())
-             #newXYZentry = matriceTransfo.transform(correctTarget)
-             #newXYZtarget= matriceTransfo.transform(correctEntry)
-             #matriceTransfoT = numpy.array([[-volume.getSizeX()/2, -volume.getSizeY()/2, -volume.getSizeZ()/2, 0]])
-             #correctTarget=numpy.array(newXYZtarget)
-             #correctTarget=numpy.insert(correctTarget,3,1) 
-             #newXYZtarget=numpy.add(correctTarget,matriceTransfoT)
-             #correctEntry=numpy.array(newXYZentry)
-             #correctEntry=numpy.insert(correctEntry,3,1) 
-             #newXYZentry=numpy.add(correctEntry,matriceTransfoT)
-             #xtf=newXYZtarget[0][0]
-             #ytf=newXYZtarget[0][1]
-             #ztf=newXYZtarget[0][2]
-             #xef=newXYZentry[0][0]
-             #yef=newXYZentry[0][1]
-             #zef=newXYZentry[0][2]
-             #self.t1pre2ScannerBasedTransform.transform((xt,yt,zt))
-             self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze], None, True)
-        
-    def approximateElectrode(self):      
-        self.deetoMaison=DeetoMaison(self)
-        self.deetoMaison.show()
+#     def approximateElectrode(self):      
+#         self.deetoMaison=DeetoMaison(self)
+#         self.deetoMaison.show()
 
 
 
