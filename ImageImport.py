@@ -328,6 +328,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
         self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
         self.connect(self.ui.bvUpdateDb, QtCore.SIGNAL('clicked()'), self.updateBvDb)
+        self.connect(self.ui.bvImportBids, QtCore.SIGNAL('clicked()'), self.importFromBids)
         # TAB2: Add subject
         self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('activated(QString)'), self.updatePatientCode)
         self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('editTextChanged(QString)'), self.updatePatientCode)
@@ -365,6 +366,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.prefSpmTemplateButton, QtCore.SIGNAL('clicked()'), self.setSpmTemplatePath)
         self.connect(self.ui.prefANTsButton, QtCore.SIGNAL('clicked()'), self.setANTsPath)
         self.connect(self.ui.prefFreesurferButton, QtCore.SIGNAL('clicked()'), self.setFreesurferPath)
+        self.connect(self.ui.prefBidsButton, QtCore.SIGNAL('clicked()'), self.setBidsPath)
         self.connect(self.ui.prefANTScheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('ANTS'))
         self.connect(self.ui.prefSPMcheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('SPM'))
         self.ui.radioProjFtract.toggled.connect(self.updatePatientCode)
@@ -375,7 +377,6 @@ class ImageImport (QtGui.QDialog):
         self.ui.radioClassic.toggled.connect(self.updatePatientCode)
         self.ui.radioProjNeuro.toggled.connect(self.switchProjectButton)
         self.ui.radioProjNeuro.toggled.connect(self.updatePatientCode)
-
         self.ui.SavePreferencespushButton.clicked.connect(self.savePreferences)
     
         self.warningMEDIC()
@@ -508,7 +509,10 @@ class ImageImport (QtGui.QDialog):
 
         if 'ants' in self.prefs:
             self.setANTsPath(self.prefs['ants'])
-
+            
+        if 'bids' in self.prefs:
+            self.setBidsPath(self.prefs['bids'])
+            
         if 'coregisterMethod' in self.prefs:
             self.coregMethod = self.prefs['coregisterMethod']
             if self.coregMethod == 'ANTs':
@@ -541,19 +545,27 @@ class ImageImport (QtGui.QDialog):
         self.prefs['currentProtocol'] = self.currentProtocol
         self.prefs['currentSubject'] = self.currentSubject
         self.prefs['sites'] = [str(self.ui.subjectSiteCombo.itemText(item)) for item in range(self.ui.subjectSiteCombo.count())]
+        # SPM path
         if len(str(self.ui.prefSpmTemplateEdit.text()))>0:
             self.prefs['spm'] = str(self.ui.prefSpmTemplateEdit.text())
         else:
             self.prefs.pop('spm',None)
+        # ANTs path
         if len(str(self.ui.prefANTsEdit.text()))>0:
             self.prefs['ants']=str(self.ui.prefANTsEdit.text())
         else:
             self.prefs.pop('ants',None)
+        # FreeSurfer path
         if len(str(self.ui.prefFreesurferEdit.text()))>0:
             self.prefs['freesurfer'] = str(self.ui.prefFreesurferEdit.text())
         else:
             self.prefs.pop('freesurfer',None)
-
+        # BIDS database
+        if len(str(self.ui.prefBidsEdit.text()))>0:
+            self.prefs['bids'] = str(self.ui.prefBidsEdit.text())
+        else:
+            self.prefs.pop('bids',None)
+            
         if self.ui.prefANTScheckbox.isChecked():
             self.prefs['coregisterMethod'] = 'ANTs'
         elif self.ui.prefSPMcheckbox.isChecked():
@@ -904,6 +916,16 @@ class ImageImport (QtGui.QDialog):
         # Reset the list of subjects
         self.analyseBrainvisaDB()
         
+    # ===== IMPORT FROM BIDS =====
+    def importFromBids(self):
+        """ Open a dialog window to import subjects from a BIDS database """
+        if self.prefs['bids'] is None:
+            QtGui.QMessageBox.warning(self, u"SPM", u"SPM version not supported anymore")
+            return
+        # Parse folders and subfolders to look for files
+        
+    
+    # ===== ANATOMIST =====    
     
     def clearAnatomist(self, windows=None):
         """ If "windows" is provided, just empties the provided windows.
@@ -2841,6 +2863,12 @@ class ImageImport (QtGui.QDialog):
         if path is not None:
             self.ui.prefFreesurferEdit.setText(path)
 
+    def setBidsPath(self, path=None):
+        if path is None:
+            path = QtGui.QFileDialog.getExistingDirectory(self, u"Select BIDS database")
+        if path is not None:
+            self.ui.prefBidsEdit.setText(path)
+            
     def setPrefCoregister(self,key):
         if key == 'ANTS':
             if self.ui.prefANTScheckbox.isChecked():
