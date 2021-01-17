@@ -21,7 +21,6 @@ import brainvisa.registration as registration
 import numpy
 
 from externalprocesses import *
-from checkSpmVersion import *
 
 ########## SPM calls
 # Convert SPM normalization _sn.mat to vector field

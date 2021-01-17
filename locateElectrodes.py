@@ -2,33 +2,8 @@
 # -*- coding: utf-8 -*-
 #
 # Localisation graphique des electrodes
-#
 # (c) Inserm U836 2012-2021 - Manik Bhattacharjee, Pierre Deman, Francois Tadel 
-#
 # License GNU GPL v3
-
-# Pour un seul patient
-# 1) Charger les modeles d'electrode
-# 2) Recherche de sujet/classement par date des sujets
-# 3) Obtenir la liste des données nécessaires
-# 4) Rechercher les référentiels disponibles (MNI/Talairach/MRI/CA-CP/CA-CPnormalise)
-#     et tous les referentiels "image" (pre/post/IRMf/PET ?)
-# 5) Interface : Ajout/Sélection/Suppression d'électrodes, labels (attention au numéro des plots)
-#      Plot 1 = extremite
-# 6) Afficher les coordonnées de chacun des plots dans le referentiel choisi
-# 7) Exporter (et reimporter) les coordonnées des electrodes
-
-# TODO
-# Liens BrainVisa (chargement des images, sauvegarde des implantations)
-# Affichage des labels --> problème de référentiel ?
-# En normalisant et exportant : si un fichier va être écrasé, demander confirmation !
-# RemoveElectrode : remove also the label objects
-# Exportation : classer les plots pour que l'exportation comporte A0 A1 A2 B1 B3 et pas B3 A1 B1 A0...
-# AimsMIRegister -> utilisation des fichiers TRM ou utilisation du recalage SPM ?
-# Valider les templates d'electrodes avant de les utiliser : un plot doit TOUJOURS se nommer "Plot152" et pas "Element 21" ou "Plot 152" -> modifier l'éditeur de template
-
-# for DTI : ./AimsMeshDistance --help
- 
  
 # Standard Python imports
 import sys, os, pickle, numpy, re, string, time, subprocess, json, io
@@ -52,14 +27,12 @@ from brainvisa.data.writediskitem import WriteDiskItem
 # IntrAnat local imports
 from externalprocesses import *
 from referentialconverter import ReferentialConverter
-from checkSpmVersion import checkSpmVersion
 from readSulcusLabelTranslationFile import readSulcusLabelTranslationFile
 from readFreesurferLabelFile import readFreesurferLabelFile
 from TimerMessageBox import *
 from generate_contact_colors import *
 from bipoleSEEGColors import bipoleSEEGColors
 from DeetoMaison import DeetoMaison
-import ImportTheoreticalImplentation
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
 
@@ -754,8 +727,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.t1preMniFieldPath = di_inv_read.fileName()
             return self.t1preMniFieldPath
     
-        spm_version = checkSpmVersion(self.spmpath)
-    
         #look for a y_file second
         rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image')
         di_y = rdi_y.findValue(self.diskItems['T1pre'])
@@ -771,16 +742,11 @@ class LocateElectrodes(QtGui.QDialog):
             di_inverse = wdi_inverse.findValue(di_y)
             #on fait l'inversion de la deformation
             #pour le moment ce bout de code ne marche qu'avec spm12
-            if spm_version == '(SPM12)':
-                print 'SPM12 used'
-                errMsg = matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
-                if errMsg:
-                    print errMsg
-                    return None
-            if spm_version == '(SPM8)':
-                 raise Exception("SPM8 used: NOT SUPPORTED")
-                 # matlabRun(spm_inverse_y_field8%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
-    
+            errMsg = matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+            if errMsg:
+                print errMsg
+                return None
+
             self.t1preMniFieldPath = di_inverse.fileName()
             neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
             return self.t1preMniFieldPath
@@ -5078,41 +5044,6 @@ class LocateElectrodes(QtGui.QDialog):
         if len(diMaskright)>0:
             removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
         print("MarsAtlas files deleted.")
-      
-      
-#     def importRosaImplantation(self):
-#          import ImportTheoreticalImplentation
-#         
-#          TheoElectrodes = ImportTheoreticalImplentation.importRosaImplantation(self)
-#          #wdiTransform2 = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes = {'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-#          #self.t1pre2ScannerBasedTransform
-#          print("not finished")
-#          return
-#          for cle, valeur in TheoElectrodes.items():
-#         
-#              raise Exception("???")
-#              rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True,  requiredAttributes={'modality':'t1mri','subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']})
-#              newvalTarget=[float(x) for x in valeur["target"]]
-#              newvalTarget=tuple(newvalTarget)
-#              newvalEntry=[float(x) for x in valeur["entry"]]
-#              newvalEntry=tuple(newvalEntry)
-#              volume = aims.read(str(self.diskItems['T1pre']))
-#              size=volume.getVoxelSize()
-#              sizex=size[0]
-#              sizey=size[1]
-#              sizez=size[2]
-#              xt=float(newvalTarget[0])/sizex
-#              yt=float(newvalTarget[1])/sizey
-#              zt=float(newvalTarget[2])/sizez
-#              xe=float(newvalEntry[0])/sizex
-#              ye=float(newvalEntry[1])/sizey
-#              ze=float(newvalEntry[2])/sizez
-#              self.addElectrode(unicode(cle), "Dixi-D08-12AM",[xt,yt,zt],[xe,ye,ze], None, True)
-        
-#     def approximateElectrode(self):      
-#         self.deetoMaison=DeetoMaison(self)
-#         self.deetoMaison.show()
-
 
 
 # =============================================================================

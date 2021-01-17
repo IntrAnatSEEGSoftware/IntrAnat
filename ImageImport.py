@@ -25,8 +25,7 @@ from soma.wip.application.api import Application
 
 from externalprocesses import *
 from dicomutilities import *
-import seegprocessing, patientinfo, pathologypatientinfo
-from checkSpmVersion import *
+import patientinfo, pathologypatientinfo
 from freesurfer.brainvisaFreesurfer import *
 from TimerMessageBox import *
 from progressbar import ProgressDialog
@@ -2052,15 +2051,6 @@ class ImageImport (QtGui.QDialog):
         self.brainvisaContext.runProcess('Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
         self.taskfinished(u'Hip-Hop done')
 
-
-    def spm_template_t1(self):
-        spm_version = checkSpmVersion(str(self.prefs['spm']))
-        if spm_version == '(SPM12)':
-            return "{'"+str(self.ui.prefSpmTemplateEdit.text())+os.sep+'tpm/TPM.nii'+",1'}"  #ou tpm/TPM.nii' parce que pour la normalisation dartel c'est tpm.nii /'toolbox/OldNorm/T1.nii'
-        elif spm_version == '(SPM8)':
-            return "{'"+str(self.ui.prefSpmTemplateEdit.text())+os.sep+'templates/T1.nii'+",1'}"
-
-
     def spmNormalize(self, image, protocol, patient, acq):
         """ Normalize one image (filepath of nifti file) to the T1 template MNI referential""" 
         # Delete existing normalization
@@ -2069,14 +2059,8 @@ class ImageImport (QtGui.QDialog):
         if rdi_y:
             print("Deleting existing SPM normalization...")
             self.deleteExistingNormalization(rdi_y[0], acq)
-        # Check SPM version
-        spm_version = checkSpmVersion(str(self.prefs['spm']))
-        if spm_version == '(SPM12)':
-            print 'SPM12 used'
-            call = spm12_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", self.spm_template_t1())
-        elif spm_version == '(SPM8)':
-            print 'SPM8 used'
-            call = spm8_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", self.spm_template_t1())
+        # SPM call
+        call = spm12_normalise%("'"+str(self.prefs['spm'])+"'","{'"+str(image)+",1'}", "{'"+str(image)+",1'}", "{'"+str(self.ui.prefSpmTemplateEdit.text())+os.sep+'tpm/TPM.nii'+",1'}")
         # Call SPM normalization
         errMsg = matlabRun(call)
         if errMsg:
@@ -2166,15 +2150,8 @@ class ImageImport (QtGui.QDialog):
 
     def insertSPMdeformationFile(self, protocol, patient, acq):
         """ Should be called when a _sn file (SPM normalization transformation file) was created to update it in the database """
-        spm_version = checkSpmVersion(str(self.prefs['spm']))
-        if spm_version == '(SPM8)':
-            print 'SPM8 used'
-            wdi = WriteDiskItem('SPM2 normalization matrix',  'Matlab file')#'gz compressed NIFTI-1 image' )
-            di = wdi.findValue( { 'center': protocol, 'subject' : patient, 'acquisition':acq } )
-        elif spm_version == '(SPM12)':
-            print 'SPM12 used'
-            wdi = WriteDiskItem('SPM normalization deformation field', 'NIFTI-1 image' )
-            di = wdi.findValue( { 'center': protocol, 'subject' : patient, 'acquisition':acq } )
+        wdi = WriteDiskItem('SPM normalization deformation field', 'NIFTI-1 image' )
+        di = wdi.findValue( { 'center': protocol, 'subject' : patient, 'acquisition':acq } )
         if di is None:
             #QtGui.QMessageBox.warning(self, "Error", "Impossible to find a valid path to import SPM normalization into BrainVisa")
             print("Error: Impossible to find a valid path to import SPM normalization into BrainVisa")
@@ -2219,7 +2196,6 @@ class ImageImport (QtGui.QDialog):
             idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
             self.mriAcPc = allT1[idxT1pre[0]]
 
-            spm_version = checkSpmVersion(str(self.prefs['spm']))
             for i_stat2conv in range(len(StatToConvert)):
 
                 self.setStatus(u"Start MNI to ScannerBased conversion of %s "%str(di[StatToConvert[i_stat2conv]].fileName()))
@@ -2281,40 +2257,34 @@ class ImageImport (QtGui.QDialog):
                         di_inverse = wdi_inverse.findValue(di_y[0])
                         #on fait l'inversion de la deformation
                         #pour le moment ce bout de code ne marche qu'avec spm12
-                        if spm_version == '(SPM12)':
-                            print 'SPM12 used'
-                            matlabRun(spm_inverse_y_field12%("'"+str(self.prefs['spm'])+"'","'"+str(di_y[0].fileName())+"'","'"+str(self.mriAcPc)+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
-                            neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
-                            matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_inverse)+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+                        matlabRun(spm_inverse_y_field12%("'"+str(self.prefs['spm'])+"'","'"+str(di_y[0].fileName())+"'","'"+str(self.mriAcPc)+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+                        neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
+                        matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_inverse)+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
         
-                            cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii"]
-                            line1 = runCmd(cmd1)
+                        cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii"]
+                        line1 = runCmd(cmd1)
         
-                            rname = tempNameMNI2SB.split('/')
-                            rname[-1]="r"+rname[-1]
-                            rname = "/".join(rname)
-                            cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
-                            line2 = runCmd(cmd2)
+                        rname = tempNameMNI2SB.split('/')
+                        rname[-1]="r"+rname[-1]
+                        rname = "/".join(rname)
+                        cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
+                        line2 = runCmd(cmd2)
         
-                            os.remove(tempNameMNI2SB)
-                            os.remove(rname)
-                            os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
+                        os.remove(tempNameMNI2SB)
+                        os.remove(rname)
+                        os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
         
-                            write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
-                            wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
-                            write_filters.update({'subacquisition':di[StatToConvert[i_stat2conv]].attributes()['subacquisition']})
+                        write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
+                        wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
+                        write_filters.update({'subacquisition':di[StatToConvert[i_stat2conv]].attributes()['subacquisition']})
         
-                            di_new = wdi_new.findValue(write_filters)
+                        di_new = wdi_new.findValue(write_filters)
         
-                            ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
-                            di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
-                            di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-                            neuroHierarchy.databases.insertDiskItem( di[StatToConvert[i_stat2conv]], update=True )
-                            self.transfoManager.setReferentialTo(di[StatToConvert[i_stat2conv]], self.mriAcPc)
-        
-                        else:
-                            print "doesn't work with SPM8"
-                            return
+                        ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
+                        di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
+                        di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+                        neuroHierarchy.databases.insertDiskItem( di[StatToConvert[i_stat2conv]], update=True )
+                        self.transfoManager.setReferentialTo(di[StatToConvert[i_stat2conv]], self.mriAcPc)
     
                 self.setStatus(u"MNI to ScannerBased conversion of %s done"%str(di[StatToConvert[i_stat2conv]].fileName()))
 
@@ -2370,8 +2340,6 @@ class ImageImport (QtGui.QDialog):
         self.transfoManager.setReferentialTo(diFS, T1pre.attributes()['referential'] )
 
         if AmygdalaRight:
-#             for ii in range(len(notrightamygdalapx[0])):
-#                 volDestrieux.setValue(0,notrightamygdalapx[3][ii],notrightamygdalapx[2][ii],notrightamygdalapx[1][ii])
             # Save amigdala mask in a temporary .nii file (set all the non-amygdala values to zero)
             xyzAmyg = ([0] * notrightamygdalapx[3].size, notrightamygdalapx[1].tolist(), notrightamygdalapx[2].tolist(), notrightamygdalapx[3].tolist())
             iAmyg = numpy.ravel_multi_index(xyzAmyg, volDestrieux.arraydata().shape)
@@ -2394,8 +2362,6 @@ class ImageImport (QtGui.QDialog):
                     self.transfoManager.setReferentialTo(dirightamygdala, T1pre.attributes()['referential'] )
 
         if AmygdalaLeft:
-#             for ii in range(len(notleftamygdalapx[0])):
-#                 volDestrieux.setValue(0,notleftamygdalapx[3][ii],notleftamygdalapx[2][ii],notleftamygdalapx[1][ii])
             # Save amigdala mask in a temporary .nii file (set all the non-amygdala values to zero)
             xyzAmyg = ([0] * notleftamygdalapx[3].size, notleftamygdalapx[1].tolist(), notleftamygdalapx[2].tolist(), notleftamygdalapx[3].tolist())
             iAmyg = numpy.ravel_multi_index(xyzAmyg, volDestrieux.arraydata().shape)
@@ -2425,8 +2391,6 @@ class ImageImport (QtGui.QDialog):
             m = aims.Motion(T1pre.attributes()['SB_Transform'])
 
         if HippoRight:
-#             for ii in range(len(notrighthippopx[0])):
-#                 volDestrieux.setValue(0,notrighthippopx[3][ii],notrighthippopx[2][ii],notrighthippopx[1][ii])
             # Save hippocampush mask in a temporary .nii file (set all the non-hippocampus values to zero)
             xyzHippo = ([0] * notrighthippopx[3].size, notrighthippopx[1].tolist(), notrighthippopx[2].tolist(), notrighthippopx[3].tolist())
             iHippo = numpy.ravel_multi_index(xyzHippo, volDestrieux.arraydata().shape)
@@ -2472,16 +2436,6 @@ class ImageImport (QtGui.QDialog):
             aims.write(testhippocut,os.path.join(getTmpDir(),'testhippocut.gii'))
             aims.write(testhippocut2,os.path.join(getTmpDir(),'testhippocut2.gii'))
             
-            # Test BrainVISA:
-#             mesh = aims.read("/home/ftadel/test_cutmesh/test_mesh.gii")
-#             testcut = aims.AimsSurfaceTriangle()
-#             border = aims.AimsTimeSurface(2)
-#             aims.SurfaceManip.cutMesh(mesh, [0.5225450036568081, 0.6545940900566004, -0.5463087921828437, -68.96895971837064], testcut, border)
-#             print testcut.vertex().size()
-
-            #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut.gii'), '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center)),'-p',os.path.join(getTmpDir(),'testplan.nii')])
-            #ret = subprocess.call(['AimsMeshCut', '-i', str(dirightHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut2.gii'), '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center)),'-p',os.path.join(getTmpDir(),'testplan2.nii')])
-
             #equivalent à : test = aims.read(-numpy.inner(rotation[2,:],center))  truc = aims.AimsTimeSurface_2()  bidule=aims.AimsTimeSurface()  aims.SurfaceManip.cutMesh(test1,[rotation[2,2],rotation[2,1],rotation[2,0],-numpy.inner(rotation[2,:],center)],bidule,truc) aims.write(bidule,os.path.join(getTmpDir(),'bidule.gii'))
             hippogii = aims.read(os.path.join(getTmpDir(),'testhippocut.gii'))
             hippovertex = numpy.array(hippogii.vertex().list())
@@ -2566,8 +2520,6 @@ class ImageImport (QtGui.QDialog):
 
 
         if HippoLeft:
-#             for ii in range(len(notlefthippopx[0])):
-#                 volDestrieux.setValue(0,notlefthippopx[3][ii],notlefthippopx[2][ii],notlefthippopx[1][ii])
             # Save hippocampush mask in a temporary .nii file (set all the non-hippocampus values to zero)
             xyzHippo = ([0] * notlefthippopx[3].size, notlefthippopx[1].tolist(), notlefthippopx[2].tolist(), notlefthippopx[3].tolist())
             iHippo = numpy.ravel_multi_index(xyzHippo, volDestrieux.arraydata().shape)
@@ -2610,8 +2562,6 @@ class ImageImport (QtGui.QDialog):
                 aims.SurfaceManip.meshMerge(testhippocut2,planmesh2)
                 aims.write(testhippocut, os.path.join(getTmpDir(),'testhippocut.gii'))
                 aims.write(testhippocut2, os.path.join(getTmpDir(),'testhippocut2.gii'))
-                #ret = subprocess.call(['AimsMeshCut', '-i', str(dileftHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut.gii'), '-a',str(rotation[2,2]),'-b',str(rotation[2,1]),'-c',str(rotation[2,0]),'-d',str(-numpy.inner(rotation[2,:],center))])
-                #ret = subprocess.call(['AimsMeshCut', '-i', str(dileftHippo.fullPath()), '-o', os.path.join(getTmpDir(),'testhippocut2.gii'), '-a',str(-rotation[2,2]),'-b',str(-rotation[2,1]),'-c',str(-rotation[2,0]),'-d',str(numpy.inner(rotation[2,:],center))])
 
                 hippogii = aims.read(os.path.join(getTmpDir(),'testhippocut.gii'))
                 hippovertex = numpy.array(hippogii.vertex().list())

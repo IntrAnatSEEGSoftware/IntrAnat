@@ -29,12 +29,9 @@ from brainvisa.data import neuroHierarchy
 from readSulcusLabelTranslationFile import *
 from readFreesurferLabelFile import *
 # from externalprocesses import PythonExecutor
-from checkSpmVersion import *
 from readFunctionalTractography import *
 from scipy import spatial as sc_sp
-#from numpy.matlib import repmat
 from collections import OrderedDict
-import control_ftract
 from locateElectrodes import natural_keys
 
 from bipoleSEEGColors import bipoleSEEGColors
