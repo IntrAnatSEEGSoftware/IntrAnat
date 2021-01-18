@@ -357,8 +357,6 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
         self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
-        self.connect(self.ui.FreeSurferReconAllpushButton,QtCore.SIGNAL('clicked()'),self.runFreesurferReconAll)
-        self.ui.FreeSurferReconAllpushButton.setEnabled(False)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
         self.connect(self.ui.runHiphopOnly, QtCore.SIGNAL('clicked()'), self.runProcessHiphop)
         # TAB6: Preferences
@@ -435,6 +433,30 @@ class ImageImport (QtGui.QDialog):
         print "Quit !"
         self.app.quit()
 
+
+    def setStatus(self, text):
+        """ Sets the status text displayed at the bottom of the dialog"""
+        self.ui.statusCombo.insertItem(0,QtCore.QTime.currentTime().toString("H:m:s") + ': ' + text)
+        self.ui.statusCombo.setCurrentIndex(0)
+
+    def setGuide(self, text):
+        """ Set the text of the User Guide on the top of the window"""
+        self.ui.guideLabel.setText(text)
+
+    def setTabGuide(self, tabId):
+        helpTab = [u'Look for images in BrainVisa database. Double click to load an images in anatomist windows on the side',\
+                   u'Add a new patient in the Database (perform an anonymization as well)',\
+                   u'Precise patient information (general and pathology specific)',\
+                   u'Import images (format: Nifti/GIS/Analyse/(mgz in some case). Select the file and fill information needed',\
+                   u'Coregister all images to the 3DT1 before electrode implantation. Normalize this 3DTI to the MNI, perform grey/white matter segmentation, mesh of the cortex, and MarsAtlas parcellation',\
+                   u'Set software preferences',\
+                   u'Import SEEG data' ,\
+                   u'Importez des images depuis un dossier DICOM : Sélectionnez une image, importez et convertissez en Nifti, puis importez-là dans la base',\
+                   u'Importez des images depuis un PACS. Sélectionnez une image, importez et convertissez en Nifti, puis importez-là dans la base',\
+                   u'Importez les schémas d\'implantation scannés',\
+                   ]
+        self.setGuide(helpTab[tabId])
+        
 
     def initialize(self):
         """Reads the preference file, checks the available patients and sequences"""
@@ -603,22 +625,6 @@ class ImageImport (QtGui.QDialog):
             for d in dirs:
                 dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
 
-
-    def analyzeDicomOutput(self, root):
-        """ Structure of the dicom output directory is supposed to be
-        root/patient/sequence/dicomfiles.
-        This returns the dictionary of patients and sequences already imported in there"""
-        if not os.path.isdir(root):
-            return {}
-        return dict([(f, os.listdir(os.path.join(root, f))) for f in os.listdir(root) if os.path.isdir(os.path.join(root, f))])
-
-    def analyzeNiftiOutput(self, root):
-        """ Structure of the nifti output directory is supposed to be
-        root/patient/sequence.nii.
-        This returns the dictionary of patients and sequences already imported in there"""
-        if not os.path.isdir(root):
-            return {}
-        return dict([(f, [seq.split('.nii')[0] for seq in os.listdir(os.path.join(root, f))]) for f in os.listdir(root) if os.path.isdir(os.path.join(root, f))])
 
     def storeImageReferentialsAndTransforms(self, image):
         """Stores referential and transformation files for an image from its headers -> native, scanner-based, coregistered to"""
@@ -921,11 +927,13 @@ class ImageImport (QtGui.QDialog):
         if self.prefs['bids'] is None:
             QtGui.QMessageBox.warning(self, u"SPM", u"SPM version not supported anymore")
             return
-        # Parse folders and subfolders to look for files
+        # Parse subfolders to list subjects
+        subList = [f[4:] for f in os.listdir(path) if ((len(f) > 4) and (f[:4] == 'sub-') and os.path.isdir(os.path.join(path, f)) )]
+        # Get list of subjects in database
+        
         
     
     # ===== ANATOMIST =====    
-    
     def clearAnatomist(self, windows=None):
         """ If "windows" is provided, just empties the provided windows.
             If not, all loaded objects are closed and all windows are emptied """
@@ -954,78 +962,7 @@ class ImageImport (QtGui.QDialog):
             self.a.addObjects(im2, self.wins[1])
             self.dispObj.append(im2)
 
-    def setStatus(self, text):
-        """ Sets the status text displayed at the bottom of the dialog"""
-        self.ui.statusCombo.insertItem(0,QtCore.QTime.currentTime().toString("H:m:s") + ': ' + text)
-        self.ui.statusCombo.setCurrentIndex(0)
-
-    def setGuide(self, text):
-        """ Set the text of the User Guide on the top of the window"""
-        self.ui.guideLabel.setText(text)
-
-    def setTabGuide(self, tabId):
-        helpTab = [u'Look for images in BrainVisa database. Double click to load an images in anatomist windows on the side',\
-                   u'Add a new patient in the Database (perform an anonymization as well)',\
-                   u'Precise patient information (general and pathology specific)',\
-                   u'Import images (format: Nifti/GIS/Analyse/(mgz in some case). Select the file and fill information needed',\
-                   u'Coregister all images to the 3DT1 before electrode implantation. Normalize this 3DTI to the MNI, perform grey/white matter segmentation, mesh of the cortex, and MarsAtlas parcellation',\
-                   u'Set software preferences',\
-                   u'Import SEEG data' ,\
-                   u'Importez des images depuis un dossier DICOM : Sélectionnez une image, importez et convertissez en Nifti, puis importez-là dans la base',\
-                   u'Importez des images depuis un PACS. Sélectionnez une image, importez et convertissez en Nifti, puis importez-là dans la base',\
-                   u'Importez les schémas d\'implantation scannés',\
-                   ]
-        self.setGuide(helpTab[tabId])
-
-    def patientSelectionChanged(self, t):
-        """ Update the studies selected when the patient selection changes. t is the list, 'pacs' or 'dir' in the UI"""
-    
-        print 'patientSelectionChanged('+t+')'
-        list = None
-        if t == 'pacs':
-            list = self.ui.pacsPatientList
-            out = self.ui.pacsStudiesList
-            studies = self.pacsStudies
-        elif t == 'dir':
-            list = self.ui.dirPatientList
-            out = self.ui.dirStudiesList
-            studies = self.dirStudies
-    
-        # Unselect all studies
-        for s in out.selectedItems():
-            out.setItemSelected(s, False)
-    
-        # Select all studies that match the selected patients
-        names = [str(p.text()) for p in list.selectedItems()]
-        outItems = [out.item(i) for i in xrange(out.count())]
-        for s in outItems:
-            if studies[self.studiesUIDbyName[str(s.text())]]['PatientsName'] in names:
-                out.setItemSelected(s, True)
-
-
-    def studiesSelectionChanged(self, t):
-        """ Update the series selected when the studies selection changes. t is the list, 'pacs' or 'dir' in the UI"""
-        list = None
-        if t == 'pacs':
-            list = self.ui.pacsStudiesList
-            out = self.ui.pacsSeriesList
-            series = self.pacsStudies
-        elif t == 'dir':
-            list = self.ui.dirStudiesList
-            out = self.ui.dirSeriesList
-            series = self.dirSeries
-    
-        # Unselect all studies
-        for s in out.selectedItems():
-            out.setItemSelected(s, False)
-    
-        # Select all series that match the selected studies
-        names = [self.studiesUIDbyName[str(s.text())] for s in list.selectedItems()]
-        outItems = [out.item(i) for i in xrange(out.count())]
-        for s in outItems:
-            if series[self.seriesUIDbyName[str(s.text())]]['StudyInstanceUID'] in names:
-                out.setItemSelected(s, True)
-
+    # ===== TAB4: IMPORT =====
     def setBrainCenter(self):
         brainCenterCoord = list(self.a.linkCursorLastClickedPosition())
         self.ui.brainCenterLabel.setText("%.1f, %.1f, %.1f"%tuple([float(x) for x in brainCenterCoord][:3]))
@@ -1848,7 +1785,6 @@ class ImageImport (QtGui.QDialog):
 
 
     def setANTstrm_database(self,im, tmp_folder):
-
         file_to_open = tmp_folder + '0GenericAffine.mat'
         tmp_trm_path = getTmpFilePath('txt')
         # ants_call ='{}/ConvertTransformFile 3 {} {} --RAS --homogeneousMatrix'.format(self.prefs['ants'],file_to_open,tmp_trm_path)
@@ -1859,16 +1795,11 @@ class ImageImport (QtGui.QDialog):
         rot_mat = info_mat[:3,:3]
         tr_mat = info_mat[:3,3]
         result_mat = numpy.vstack((tr_mat,rot_mat))
-        #info_mat = scipy.io.loadmat(file_to_open)setANTstrm_database
-        #matrix_unshaped = info_mat['AffineTransform_double_3_3']
-        #matrix_shaped = matrix_unshaped.reshape(4,3)
-        #matrix_shaped = numpy.roll(matrix_shaped,3)
     
         numpy.savetxt(tmp_trm_path,result_mat,delimiter =' ',fmt='%8.8f')
         self.insertTransformationToT1pre(tmp_trm_path,im)
         if 'ANTs_IntrAnat' in tmp_folder:
             shutil.rmtree(tmp_folder)
-
 
 
     def enableACPCButtons(self, trueorfalse):
@@ -2648,72 +2579,6 @@ class ImageImport (QtGui.QDialog):
         self.setStatus(u"generation of amygdala and hippocamp meshes done")
 
 
-    def runFreesurferReconAll(self):
-
-        proto = str(self.ui.regProtocolCombo.currentText())
-        subj = str(self.ui.regSubjectCombo.currentText())
-        images = self.findAllImagesForSubject(proto, subj)
-        # Find all images, normalize the T1s, find the T1pre if there is one, read image headers, store their referentials and transformations in the DB
-        t1preImage = None
-        FlairpreImage = None
-        T2preImage = None
-        FreesurferMethod = 0
-        for image in images:
-            patient = image.attributes()['subject']
-            acq = image.attributes()['acquisition']
-            # Store Scanner-based referential and referential files in the DB
-            if acq.startswith('T1'):
-                # If there is a T1pre, remember the image
-                if acq.find('T1pre') == 0:
-                    t1preImage = image
-
-            elif acq.startswith('FLAIR'):
-                if acq.find('FLAIRpre') == 0:
-                    FlairpreImage = image
-
-            elif acq.startswith('T2'):
-                if acq.find('T2pre') == 0:
-                    T2preImage = image
-
-        # No T1pre : nothing else to do
-        if t1preImage is None:
-            print('no T1pre image')
-            return
-
-        self.brainvisaContext.write("recon-all from freesurfer")
-
-        if t1preImage and FlairpreImage:
-            FreesurferMethod = 1
-        elif t1preImage and T2preImage:
-            FreesurferMethod = 2
-        elif t1preImage:
-            FreesurferMethod = 0
-
-        #prevenir que freesurfer demarre dans la bare de tache
-        #il faut rajouter le test si le sujet exist déjà dans freesurfer il faut d'abord le supprimer pour pouvoir le relancer.
-
-        if FreesurferMethod == 0:
-            try:
-                launchFreesurferCommand(context, None, 'recon-all', '-all', '-subjid', subj ,'-i',str(t1preImage.fullPath()))
-            except:
-                launchFreesurferCommand(context, None, 'recon-all', '-all', '-subjid', subj)
-        elif FreesurferMethod == 1:
-            try:
-                launchFreesurferCommand(context, None, 'recon-all', '-all', '-subjid', subj ,'-i',str(t1preImage.fullPath()),'-FLAIRpial', '-FLAIR', str(FlairpreImage.fullPath()))
-            except:
-                shutil.rmtree(os.path.join(configuration.freesurfer._get_subjects_dir_path(),subj))
-                launchFreesurferCommand(context, None, 'recon-all', '-all', '-subjid', subj ,'-i',str(t1preImage.fullPath()),'-FLAIRpial', '-FLAIR', str(FlairpreImage.fullPath()))
-        elif FreesurferMethod == 2:
-            try:
-                launchFreesurferCommand(context, None, 'recon-all', '-all', '-subjid', subj ,'-i',str(t1preImage.fullPath()),'-T2pial', '-T2',str(T2preImage.fullPath()))
-            except:
-                shutil.rmtree(os.path.join(configuration.freesurfer._get_subjects_dir_path(),subj))
-                launchFreesurferCommand(context, None, 'recon-all', '-all', '-subjid', subj ,'-i',str(t1preImage.fullPath()),'-T2pial', '-T2',str(T2preImage.fullPath()))
-
-        self.importFSoutput(subject=subj)
-
-
-
     def fitvolumebyellipse(self,volumeposition):
 
         #cut the hippocampus in two:
@@ -2980,85 +2845,6 @@ class ImageImport (QtGui.QDialog):
         else:
             self.ui.radioButtonGado.setEnabled(False)
             self.ui.radioButtonNoGado.setEnabled(False)
-
-
-    def anonymizeTRC_Sys98_t4(filepath, firstname="No", lastname="Name", nowrite=False, overwriteMontage=True, overwriteUndocumentedElectrode = True): # Anonymize Micromed's System 98 type 4 TRC files
-        """ Anonymize Micromed's System 98 type 4 TRC files """
-        fo=open(filepath, "r+b") # Open read-write binary mode
-        # should check for a TRC header !
-        fo.seek(2)
-        headerTitle = fo.read(26)
-        fo.seek(175)
-        headerType = fo.read(1)
-        trcVersion =  struct.unpack('B',headerType)[0]
-        if headerTitle != "MICROMED  Brain-Quick file" or (trcVersion != 4 and trcVersion != 3):
-            print "Not a MICROMED System 98 Type 3/4 TRC file -> ignoring"
-            fo.close()
-            return False
-        fo.seek(64) # go to patient data offset in header
-        # get a 22-char string, padding with spaces, convert to integers and pack as 22 unsigned chars in little endian
-        if nowrite:
-            fo.close()
-            return True
-        fo.write(struct.pack('<22B',*[ord(a) for a in lastname[:22].ljust(22,' ')]))
-        # Same with 20 chars
-        fo.write(struct.pack('<20B',*[ord(a) for a in firstname[:20].ljust(20,' ')]))
-        # Same with date (3 unsigned chars, for example [10, 05, 72] for october 5th 1972
-        fo.seek(107)
-        fo.write(struct.pack('<B',1))
-
-        if overwriteMontage:
-            try:
-                if trcVersion == 3:
-                     sizeMontage = 3072
-                elif trcVersion == 4:
-                    sizeMontage = 4096
-                # Read unsigned short int number of montages
-                fo.seek(152)
-                nbMontages = struct.unpack('H',fo.read(2))[0]
-                # Reading Montage header to get offset of montage data
-                fo.seek(288)
-                if fo.read(8) != 'MONTAGE ':
-                    raise Exception("Incorrect MONTAGE header")
-                montageOffs = struct.unpack('I', fo.read(4))[0]
-                # Montage name
-                for i in range(nbMontages):
-                    newMontageName = "Montage "+str(i)
-                    fo.seek(montageOffs + sizeMontage*i+264)
-                    # To print description string : desc = f.read(64); print desc[:desc.find('\x00')]
-                    fo.write(struct.pack('<64B',*[ord(a) for a in newMontageName.ljust(64,'\x00')]))
-
-                # Montage name in HISTORY : find history offset,
-                fo.seek(336)
-                if fo.read(8) != 'HISTORY ':
-                    raise Exception ("Incorrect HISTORY header")
-                historyOffs = struct.unpack('I', fo.read(4))[0]
-                # There is first an area unsigned long int[MAX_SAMPLE] --> 128* 4-bytes values (the sample where themontage was changed when viewing)
-                # We can skip that, then MAX_HISTORY = 128  "specific montage" structures which are identical to the montages above.
-                # Description string starts at offset 264 of each montage structure and is 64 bytes long,, just like above.
-                for i in range(30):
-                    newMontageName = "Montage History "+str(i)
-                    fo.seek(historyOffs + 128*4 + sizeMontage*i+264)
-                    desc = fo.read(64)
-                    # To print description string : desc = f.read(64); print desc[:desc.find('\x00')]
-                    if "".join(["\x00" for j in range(64)]) != desc:
-                        fo.seek(historyOffs + 128*4 + sizeMontage*i+264)
-    
-                # undocumented string in place of the last electrode in  name in HISTORY : find history offset,
-                fo.seek(192)
-                if fo.read(8) != 'LABCOD  ':
-                    raise Exception ("Incorrect LABCOD header")
-                elecOffs = struct.unpack('I', fo.read(4))[0]
-                # There should be 640 electrode structures of 128 bytes. But the last one is not an electrode structure. It seems to be a 32 bits integer and a 64 bytes string that contains a montage name...
-                if overwriteUndocumentedElectrode:
-                    fo.seek(elecOffs + 639*128 + 4)
-                    fo.write(struct.pack('<64B',*[ord(a) for a in "undocumented montage".ljust(64,'\x00')]))
-            except:
-                print "Could not overwrite Montage name"
-
-        fo.close()
-        return True
-
 
 
 # =============================================================================

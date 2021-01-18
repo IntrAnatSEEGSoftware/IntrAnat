@@ -911,13 +911,6 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="FreeSurferReconAllpushButton">
-          <property name="text">
-           <string>Run Freesurfer: recon-all (up to 24 hours)</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QPushButton" name="runMarsAtlasFreesurferButton">
           <property name="text">
            <string>Run HipHop on Freesurfer segmentation</string>
@@ -1096,16 +1089,6 @@
            </layout>
           </item>
          </layout>
-        </item>
-        <item>
-         <widget class="QPushButton" name="selectNormalizationImage">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="text">
-           <string>Select this image for the MNI Normalization</string>
-          </property>
-         </widget>
         </item>
        </layout>
       </widget>
