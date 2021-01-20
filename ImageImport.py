@@ -22,13 +22,13 @@ from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
 import brainvisa.data.neuroDiskItems
 from soma.wip.application.api import Application
+from freesurfer.brainvisaFreesurfer import *
 
 from externalprocesses import *
-from dicomutilities import *
 import patientinfo, pathologypatientinfo
-from freesurfer.brainvisaFreesurfer import *
 from TimerMessageBox import *
 from progressbar import ProgressDialog
+import DialogCheckbox
 
 
 #  Matlab code : coregister file1 to file2
@@ -469,8 +469,6 @@ class ImageImport (QtGui.QDialog):
         try:
             if (os.path.exists(prefpath)):
                 filein = open(prefpath, 'rU')
-                #self.prefs = pickle.load(filein)
-                #fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info}))
                 try:
                     self.prefs = json.loads(filein.read())
                 except:
@@ -925,13 +923,34 @@ class ImageImport (QtGui.QDialog):
     def importFromBids(self):
         """ Open a dialog window to import subjects from a BIDS database """
         if self.prefs['bids'] is None:
-            QtGui.QMessageBox.warning(self, u"SPM", u"SPM version not supported anymore")
+            QtGui.QMessageBox.warning(self, u"BIDS", u"Set the path to the BIDS database in the Prefs tab.")
             return
         # Parse subfolders to list subjects
-        subList = [f[4:] for f in os.listdir(path) if ((len(f) > 4) and (f[:4] == 'sub-') and os.path.isdir(os.path.join(path, f)) )]
+        subBids = [f[4:] for f in os.listdir(self.prefs['bids']) if ((len(f) > 4) and (f[:4] == 'sub-') and os.path.isdir(os.path.join(self.prefs['bids'], f)) )]
+        if not subBids:
+            return
         # Get list of subjects in database
+        rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':str(self.ui.bvProtocolCombo.currentText())} )
+        subBvFiles = list(rdi._findValues( {}, None, False))
+        if not subBvFiles:
+            subBv = [os.path.split(s.attributes()['subject'])[1] for s in subBvFiles]
+        # Difference between lists
+        subMissing = list(set(subBids) - set(subBv))
+        # No subjects to import
+        if not subMissing:
+            QtGui.QMessageBox.warning(self, "Error", u"All BIDS subjects are already imported in the IntrAnat database.")
+        # Ask user to select which ones to import
+        dialog = DialogCheckbox.DialogCheckbox(subMissing, "Import BIDS", "Select the patients to import:")
+        selSub = dialog.exec_()
         
-        
+        # Loop on patients to import
+        for i in range(length(subMissing)):
+            # Skip ignore subjects
+            if not selSub[i]:
+                continue
+            # Create patient in database
+            print("Import subject: " + subMissing(i))
+            
     
     # ===== ANATOMIST =====    
     def clearAnatomist(self, windows=None):
