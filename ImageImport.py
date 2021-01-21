@@ -327,7 +327,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
         self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
         self.connect(self.ui.bvUpdateDb, QtCore.SIGNAL('clicked()'), self.updateBvDb)
-        self.connect(self.ui.bvImportBids, QtCore.SIGNAL('clicked()'), self.importFromBids)
+        self.connect(self.ui.bvImportBids, QtCore.SIGNAL('clicked()'), self.importBids)
         # TAB2: Add subject
         self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('activated(QString)'), self.updatePatientCode)
         self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('editTextChanged(QString)'), self.updatePatientCode)
@@ -920,22 +920,79 @@ class ImageImport (QtGui.QDialog):
         self.analyseBrainvisaDB()
         
     # ===== IMPORT FROM BIDS =====
-    def importFromBids(self):
+    def importBids(self):
         """ Open a dialog window to import subjects from a BIDS database """
         if self.prefs['bids'] is None:
             QtGui.QMessageBox.warning(self, u"BIDS", u"Set the path to the BIDS database in the Prefs tab.")
             return
-        # Parse subfolders to list subjects
-        subBids = [f[4:] for f in os.listdir(self.prefs['bids']) if ((len(f) > 4) and (f[:4] == 'sub-') and os.path.isdir(os.path.join(self.prefs['bids'], f)) )]
-        if not subBids:
+        
+        # === GET BIDS SUBJECTS ===
+        # Parse folders to list subjects
+        dirListSub = os.listdir(self.prefs['bids']);
+        bidsSub = []
+        bidsImg = []
+        for dirSub in dirListSub:
+            # Skip all the files that are not subject folder
+            pathSub = os.path.join(self.prefs['bids'], dirSub)
+            if not ((len(dirSub) > 4) and (dirSub[:4] == 'sub-') and os.path.isdir(pathSub)):
+                continue
+            # Reset list of images to add for this subject
+            addImg = []
+            # List sessions
+            dirListSes = os.listdir(pathSub);
+            for dirSes in dirListSess:
+                # Skip all the files that are not session folders
+                pathSes = os.path.join(pathSub, dirSes)
+                if not ((len(dirSes) > 4) and (dirSes[:4] == 'ses-') and os.path.isdir(pathSes)):
+                    continue
+                # List modalities
+                dirListMod = os.listdir(pathSes);
+                for dirMod in dirListMod:
+                    # Skip all the files that are not anat or pet subfolders
+                    pathMod = os.path.join(pathSes, dirMod)
+                    if not (dirMod == "anat") and not (dirMod == "pet"):
+                        continue
+                    # List images to import
+                    dirListImg = os.listdir(pathMod);
+                    for dirImg in dirListImg:
+                        # Look for T1, T2, FLAIR, CT and PET files
+                        pathImg = os.path.join(pathSes, dirImg)
+                        if ('_T1w.nii' in dirImg):
+                            imgMod = 'T1'
+                        elif ('_T2w.nii' in dirImg):
+                            imgMod = 'T2'
+                        elif ('_FLAIR.nii' in dirImg):
+                            imgMod = 'FLAIR'
+                        elif ('_pet.nii' in dirImg):
+                            imgMod = 'PET'
+                        elif ('_CT.nii' in dirImg):
+                            imgMod = 'CT'
+                        else:
+                            continue
+                        # Add images for this subject
+                        addImg.append({'ses', dirSes[4:], 'path', pathImg, 'mod', imgMod})
+            # If there are no images to import in this subject: skip
+            if not addImg:
+                continue
+            # Add subject to list of subjects to import               
+            bidsSub.append(subDir[4:])
+            bidsImg.append(addImg)
+        if not bidsSub:
             return
-        # Get list of subjects in database
+        
+# ONE SUBECT per SUB OR SUB/SES ??? WAIT PHILIPPE'S ANSWER
+# SUBJECT NAMING 
+
+        # === 
+        # Get list of subjects in BrainVISA database
         rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':str(self.ui.bvProtocolCombo.currentText())} )
         subBvFiles = list(rdi._findValues( {}, None, False))
-        if not subBvFiles:
+        if subBvFiles:
             subBv = [os.path.split(s.attributes()['subject'])[1] for s in subBvFiles]
-        # Difference between lists
-        subMissing = list(set(subBids) - set(subBv))
+            # Difference between two lists
+            subMissing = list(set(subBids) - set(subBv))
+        else:
+            subMissing = subBids
         # No subjects to import
         if not subMissing:
             QtGui.QMessageBox.warning(self, "Error", u"All BIDS subjects are already imported in the IntrAnat database.")
@@ -944,13 +1001,18 @@ class ImageImport (QtGui.QDialog):
         selSub = dialog.exec_()
         
         # Loop on patients to import
-        for i in range(length(subMissing)):
+        for i in range(len(subMissing)):
             # Skip ignore subjects
             if not selSub[i]:
                 continue
             # Create patient in database
-            print("Import subject: " + subMissing(i))
+            print("Import subject: " + subMissing[i])
+            # Create patient in database
+            if not self.storePatientInDB(subMissing[i]):
+                continue
+            # Import images
             
+            importNifti(self, path = None, patient = None, proto=None, modality = None, acq = None)
     
     # ===== ANATOMIST =====    
     def clearAnatomist(self, windows=None):
@@ -1346,44 +1408,44 @@ class ImageImport (QtGui.QDialog):
     def updatePatientCode(self):
         # <site>_<year>_<three letters from name><one letter from first name><number if duplicate entries, but should be entered manually anyway>
         if self.prefs['projectSelected'][0] == 1 or self.prefs['projectSelected'][0] == 2:
-            print "neuropsynov or classique"
+            # print "neuropsynov or classique"
             self.ui.subjectPatientCode.setText(self.ui.subjectSiteCombo.currentText() + '_' + str(self.ui.subjectYearSpinbox.value()) + '_'  + str(self.ui.subjectPatientName.text())[:3].upper() + str(self.ui.subjectPatientFirstName.text())[:1].lower())
         if self.prefs['projectSelected'][0] == 0:
-            print "f-Tract"
+            # print "f-Tract"
             self.ui.subjectPatientCode.setText(str(self.ui.subjectPatientName.text()).upper() + str(self.ui.subjectSiteCombo.currentText()).upper())
         if self.prefs['projectSelected'][0] == 3:
-            print "other"
+            # print "other"
             self.ui.subjectPatientCode.setText(self.ui.subjectSiteCombo.currentText() + '_' + str(self.ui.subjectYearSpinbox.value()) + '_'  + str(self.ui.subjectPatientName.text())[:3].upper() + str(self.ui.subjectPatientFirstName.text())[:1].lower())
 
-    def storePatientInDB(self):
-        anon = str(self.ui.subjectPatientCode.text())
-        if self.prefs['projectSelected'][0] == 1 or self.prefs['projectSelected'][0] == 2:
-            if len(anon) < 10:
-                QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
-                return
-        if self.prefs['projectSelected'][0] == 0:
-            if len(anon) < 16:
-                QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
-                return
-            elif len(anon) > 16:
-                QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too long and doesn't match the subject identifier model chosen in preferences")
-                return
-            else:
-                if not (anon[0:4].isdigit() and not anon[4:8].isdigit() and anon[8:].isdigit() and anon[7] == '_'):
-                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
-                    return
+    def storePatientInDB(self, anon=None):
+        if not anon:
+            anon = str(self.ui.subjectPatientCode.text())
+            if self.prefs['projectSelected'][0] == 1 or self.prefs['projectSelected'][0] == 2:
+                if len(anon) < 10:
+                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
+                    return False
+            if self.prefs['projectSelected'][0] == 0:
+                if len(anon) < 16:
+                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
+                    return False
+                elif len(anon) > 16:
+                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too long and doesn't match the subject identifier model chosen in preferences")
+                    return False
                 else:
-                    if not int(anon[8:12]) > 1950 and not int(anon[8:12]) < 2100 and not int(anon[12:14]) >0 and not int(anon[12:14]) < 13 and not int(anon[14:16]) > 0 and not int(anon[14:16]) < 32:
+                    if not (anon[0:4].isdigit() and not anon[4:8].isdigit() and anon[8:].isdigit() and anon[7] == '_'):
                         QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
-                        return
-    
+                        return False
+                    else:
+                        if not int(anon[8:12]) > 1950 and not int(anon[8:12]) < 2100 and not int(anon[12:14]) >0 and not int(anon[12:14]) < 13 and not int(anon[14:16]) > 0 and not int(anon[14:16]) < 32:
+                            QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
+                            return False
     
         wdi = WriteDiskItem( 'Subject', 'Directory' )
         di = wdi.findValue( { 'center': str(self.ui.subjectProtocolCombo.currentText()), 'subject' : anon } )
         if di is None:
           QtGui.QMessageBox.warning(self, u"Error", u"Impossible to find a valid path for the patient")
           self.setStatus(u"Subject add failed : the path is not valid")
-          return
+          return False
         # Create directories that do not exist yet
         self.createItemDirs(di)
         try:
@@ -1393,9 +1455,11 @@ class ImageImport (QtGui.QDialog):
           self.currentSubject = anon
         except:
           self.setStatus(u"Subject adding failed : impossible to create subject folder")
+          return False
     
         self.ui.tabWidget.setCurrentIndex(2)
-
+        return True
+        
     # ******************************* Registration
 
     def selectRegSubject(self, subj):

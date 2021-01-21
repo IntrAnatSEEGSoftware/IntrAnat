@@ -160,13 +160,6 @@
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QPushButton" name="bvImportBids">
-          <property name="text">
-           <string>Import patients from BIDS database</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="tab_2">
@@ -408,12 +401,9 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="subjectAddProjectDatabase">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
+         <widget class="QPushButton" name="bvImportBids">
           <property name="text">
-           <string>Add to distant database (f-tract or Neuropsynov)</string>
+           <string>Import patients from BIDS database</string>
           </property>
          </widget>
         </item>
@@ -422,7 +412,6 @@
        <zorder>subjectAddSubjectButton</zorder>
        <zorder>verticalSpacer_4</zorder>
        <zorder>verticalSpacer_5</zorder>
-       <zorder>subjectAddProjectDatabase</zorder>
       </widget>
       <widget class="QWidget" name="tab_3">
        <attribute name="title">

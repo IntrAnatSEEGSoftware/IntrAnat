@@ -32,7 +32,6 @@ from readFreesurferLabelFile import readFreesurferLabelFile
 from TimerMessageBox import *
 from generate_contact_colors import *
 from bipoleSEEGColors import bipoleSEEGColors
-from DeetoMaison import DeetoMaison
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
 
