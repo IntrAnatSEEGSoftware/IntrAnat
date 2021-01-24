@@ -999,7 +999,7 @@ class ImageImport (QtGui.QDialog):
                     d = img['ses'] + '-01-01'
                 acq = str(img['mod'] + img['acq'] + '_' + d)
                 # Brain center
-                braincenter = (0,0,0)
+                braincenter = None
                 # Add image to database
                 self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
                 # Update list of images
@@ -1103,6 +1103,12 @@ class ImageImport (QtGui.QDialog):
             proto = str(self.ui.bvProtocolCombo.currentText())
         if modality is None:
             modality = str(self.ui.niftiSeqType.currentText()) # T1 / T2 / CT / PET /fMRI
+        if (brainCenter is None) and (acq is None):
+            if self.brainCenter is None:
+                print "brain center not set"
+                QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
+                return
+            brainCenter = self.brainCenter
         if acq is None:
             if self.ui.acqDate.date() == self.defaultAcqDate:
                 QtGui.QMessageBox.warning(self, "Error",u"Acquisition date is not valid!")
@@ -1114,12 +1120,6 @@ class ImageImport (QtGui.QDialog):
                 isGado = True
             else:
                 isGado = False
-        if brainCenter is None:
-            if self.brainCenter is None:
-                print "brain center not set"
-                QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
-                return
-            brainCenter = self.brainCenter
         # Select patient
         self.selectBvSubject(patient)
         # Stat: question
