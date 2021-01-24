@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1185</width>
+    <width>1193</width>
     <height>656</height>
    </rect>
   </property>
@@ -79,14 +79,57 @@
              </size>
             </property>
             <property name="text">
-             <string>Protocol</string>
+             <string>Databases</string>
             </property>
            </widget>
           </item>
           <item row="0" column="1">
+           <widget class="QPushButton" name="bvEditPref">
+            <property name="text">
+             <string>Select</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="bvUpdateDb">
+            <property name="text">
+             <string>Update</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QPushButton" name="bvImportBids">
+            <property name="text">
+             <string>Import from BIDS</string>
+            </property>
+           </widget>
+          </item>
+          
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_16">
+            <property name="maximumSize">
+             <size>
+              <width>70</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Protocol</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" colspan="2">
            <widget class="QComboBox" name="bvProtocolCombo"/>
           </item>
-          <item row="1" column="0">
+          <item row="1" column="3">
+           <widget class="QPushButton" name="bvNewSubjectButton">
+            <property name="text">
+             <string>New patient</string>
+            </property>
+           </widget>
+          </item>
+          
+          <item row="2" column="0">
            <widget class="QLabel" name="label_17">
             <property name="maximumSize">
              <size>
@@ -99,32 +142,13 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
+          <item row="2" column="1" colspan="2">
            <widget class="QComboBox" name="bvSubjectCombo"/>
           </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="bvUpdateDb">
-            <property name="maximumSize">
-             <size>
-              <width>130</width>
-              <height>16777215</height>
-             </size>
-            </property>
+          <item row="2" column="3">
+           <widget class="QPushButton" name="bvDeleteSubjectButton">
             <property name="text">
-             <string>Update databases</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="bvEditPref">
-            <property name="maximumSize">
-             <size>
-              <width>130</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Select databases</string>
+             <string>Delete patient</string>
             </property>
            </widget>
           </item>
@@ -137,13 +161,6 @@
          <widget class="QPushButton" name="bvDeleteImageButton">
           <property name="text">
            <string>Delete selected image</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="bvDeleteSubjectButton">
-          <property name="text">
-           <string>Delete selected patient</string>
           </property>
          </widget>
         </item>
@@ -340,14 +357,8 @@
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QPushButton" name="bvImportBids">
-          <property name="text">
-           <string>Import patients from BIDS database</string>
-          </property>
-         </widget>
-        </item>
        </layout>
+       <zorder>bvImportBids</zorder>
        <zorder>frame</zorder>
        <zorder>subjectAddSubjectButton</zorder>
        <zorder>verticalSpacer_4</zorder>
@@ -393,29 +404,37 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_13">
-          <item>
+         <layout class="QGridLayout" name="horizontalLayout_9">
+          <item row="0" column="0">
            <widget class="QLabel" name="label_30">
             <property name="text">
-             <string>Patient </string>
+             <string>Patient</string>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>130</width>
+              <height>16777215</height>
+             </size>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="0" column="1">
            <widget class="QComboBox" name="niftiSubjectCombo"/>
           </item>
-         </layout>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_9">
-          <item>
+          <item row="1" column="0">
            <widget class="QLabel" name="label_12">
             <property name="text">
-             <string>Acquisition Date</string>
+             <string>Acquisition date</string>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>130</width>
+              <height>16777215</height>
+             </size>
             </property>
            </widget>
           </item>
-          <item>
+          <item row="1" column="1">
            <widget class="QDateEdit" name="acqDate">
             <property name="date">
              <date>
@@ -441,22 +460,9 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_10">
           <item>
-           <spacer name="horizontalSpacer_10">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
            <widget class="QComboBox" name="niftiSeqType">
             <property name="editable">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <item>
              <property name="text">
@@ -505,33 +511,15 @@
             </item>
             <item>
              <property name="text">
-              <string>HippoFreesurferAtlas</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
               <string>DTI - volume</string>
              </property>
             </item>
            </widget>
           </item>
           <item>
-           <spacer name="horizontalSpacer_8">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
            <widget class="QComboBox" name="niftiAcqType">
             <property name="editable">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <item>
              <property name="text">
@@ -549,19 +537,6 @@
              </property>
             </item>
            </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_9">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
           </item>
           <item>
            <widget class="QRadioButton" name="radioButtonNoGado">
@@ -946,7 +921,6 @@
         </item>
         <item>
          <layout class="QGridLayout" name="gridLayout">
-
           <item row="0" column="0">
            <widget class="QLabel" name="label_38">
             <property name="text">
@@ -955,7 +929,11 @@
            </widget>
           </item>
           <item row="0" column="1" colspan="3">
-           <widget class="QLineEdit" name="prefSpmTemplateEdit"/>
+           <widget class="QLineEdit" name="prefSpmTemplateEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item row="0" column="4">
            <widget class="QPushButton" name="prefSpmTemplateButton">
@@ -964,7 +942,6 @@
             </property>
            </widget>
           </item>
-		  
           <item row="2" column="0">
            <widget class="QLabel" name="label_51">
             <property name="text">
@@ -973,7 +950,11 @@
            </widget>
           </item>
           <item row="2" column="1" colspan="3">
-           <widget class="QLineEdit" name="prefANTsEdit"/>
+           <widget class="QLineEdit" name="prefANTsEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item row="2" column="4">
            <widget class="QPushButton" name="prefANTsButton">
@@ -982,7 +963,6 @@
             </property>
            </widget>
           </item>
-		 
           <item row="3" column="0">
            <widget class="QLabel" name="label_54">
             <property name="text">
@@ -991,7 +971,11 @@
            </widget>
           </item>
           <item row="3" column="1" colspan="3">
-           <widget class="QLineEdit" name="prefFreesurferEdit"/>
+           <widget class="QLineEdit" name="prefFreesurferEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item row="3" column="4">
            <widget class="QPushButton" name="prefFreesurferButton">
@@ -1000,7 +984,6 @@
             </property>
            </widget>
           </item>
-		 
           <item row="4" column="0">
            <widget class="QLabel" name="labelBIDS">
             <property name="text">
@@ -1009,7 +992,11 @@
            </widget>
           </item>
           <item row="4" column="1" colspan="3">
-           <widget class="QLineEdit" name="prefBidsEdit"/>
+           <widget class="QLineEdit" name="prefBidsEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item row="4" column="4">
            <widget class="QPushButton" name="prefBidsButton">
@@ -1018,7 +1005,6 @@
             </property>
            </widget>
           </item>
-		  
           <item row="5" column="0">
            <widget class="QLabel" name="label_49">
             <property name="text">
@@ -1043,7 +1029,6 @@
             </property>
            </widget>
           </item>
-		  
           <item row="6" column="0">
            <widget class="QLabel" name="label_53">
             <property name="text">
@@ -1052,38 +1037,26 @@
            </widget>
           </item>
           <item row="6" column="1">
-           <widget class="QRadioButton" name="radioProjFtract">
-            <property name="text">
-             <string>F-Tract</string>
+           <widget class="QComboBox" name="prefProjectCombo">
+            <property name="editable">
+             <bool>false</bool>
             </property>
+            <item>
+             <property name="text">
+              <string>CHUGA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Other</string>
+             </property>
+            </item>
            </widget>
           </item>
-          <item row="6" column="2">
-           <widget class="QRadioButton" name="radioProjNeuro">
-            <property name="text">
-             <string>NeuroPsynov</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="3">
-           <widget class="QRadioButton" name="radioClassic">
-            <property name="text">
-             <string>Classic</string>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="4">
-           <widget class="QRadioButton" name="radioOther">
-            <property name="text">
-             <string>Other</string>
-            </property>
-           </widget>
-          </item>
-
          </layout>
         </item>
         <item>
-         <widget class="QPushButton" name="SavePreferencespushButton">
+         <widget class="QPushButton" name="prefSaveButton">
           <property name="text">
            <string>Save Preferences</string>
           </property>

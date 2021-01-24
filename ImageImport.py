@@ -313,6 +313,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectBvSubject)
         self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.bvImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectBvImage)
+        self.connect(self.ui.bvNewSubjectButton, QtCore.SIGNAL('clicked()'), self.addBvSubject)
         self.connect(self.ui.bvDeleteImageButton, QtCore.SIGNAL('clicked()'), self.deleteBvImage)
         self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
         self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
@@ -349,16 +350,9 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.prefBidsButton, QtCore.SIGNAL('clicked()'), self.setBidsPath)
         self.connect(self.ui.prefANTScheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('ANTS'))
         self.connect(self.ui.prefSPMcheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('SPM'))
-        self.ui.radioProjFtract.toggled.connect(self.updatePatientCode)
-        self.ui.radioProjFtract.toggled.connect(self.switchProjectButton)
-        self.ui.radioOther.toggled.connect(self.switchProjectButton)
-        self.ui.radioOther.toggled.connect(self.updatePatientCode)
-        self.ui.radioClassic.toggled.connect(self.switchProjectButton)
-        self.ui.radioClassic.toggled.connect(self.updatePatientCode)
-        self.ui.radioProjNeuro.toggled.connect(self.switchProjectButton)
-        self.ui.radioProjNeuro.toggled.connect(self.updatePatientCode)
-        self.ui.SavePreferencespushButton.clicked.connect(self.savePreferences)
-    
+        self.connect(self.ui.prefProjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.setPrefProject)
+        self.connect(self.ui.prefSaveButton, QtCore.SIGNAL('clicked()'), self.savePreferences)
+
         self.warningMEDIC()
 
         # Rest of the interface
@@ -452,7 +446,7 @@ class ImageImport (QtGui.QDialog):
             self.ui.subjectSiteCombo.clear()
             self.ui.subjectSiteCombo.addItems(self.prefs['sites'])
 
-        #check what spm path has been precised in BrainVisa
+        # Check what spm path has been defined in BrainVisa
         configuration = Application().configuration
         brainvisa_spm12_path = configuration.SPM.spm12_path
         brainvisa_freesurfer_home_path = configuration.freesurfer._freesurfer_home_path
@@ -496,22 +490,17 @@ class ImageImport (QtGui.QDialog):
             self.setBidsPath(self.prefs['bids'])
             
         if 'coregisterMethod' in self.prefs:
-            self.coregMethod = self.prefs['coregisterMethod']
-            if self.coregMethod == 'ANTs':
+            if self.prefs['coregisterMethod'] == 'ANTs':
                 self.ui.prefSPMcheckbox.setCheckState(False)
                 self.ui.prefANTScheckbox.setCheckState(True)
-            if self.coregMethod == 'spm':
+            if self.prefs['coregisterMethod'] == 'spm':
                 self.ui.prefSPMcheckbox.setCheckState(True)
                 self.ui.prefANTScheckbox.setCheckState(False)
 
-        if 'projectSelected' in self.prefs:
-            if self.prefs['projectSelected'] != []:
-                projects= [self.ui.radioProjFtract, self.ui.radioProjNeuro, self.ui.radioClassic, self.ui.radioOther]
-                projects[self.prefs['projectSelected'][0]].setChecked(True)
-        else:
-            self.prefs.update({'projectSelected':[2]})
-            projects= [self.ui.radioProjFtract, self.ui.radioProjNeuro, self.ui.radioClassic, self.ui.radioOther]
-            projects[self.prefs['projectSelected'][0]].setChecked(True)
+        if ('projectSelected' in self.prefs) and (self.prefs['projectSelected']) and isinstance(self.prefs['projectSelected'], str):
+            iProject = self.ui.prefProjectCombo.findText(self.prefs['projectSelected'])
+            if iProject != -1:
+                self.ui.prefProjectCombo.setCurrentIndex(iProject)
 
     def warningMEDIC(self):
         shortwarning = TimerMessageBox(5,self)
@@ -521,9 +510,8 @@ class ImageImport (QtGui.QDialog):
         self.a.getControlWindow().setVisible(self.showAnatomist.isChecked())
         
         
-    def savePreferences(self):
+    def savePreferences(self):       
         prefpath = os.path.join(os.path.expanduser('~'), '.imageimport')
-
         self.prefs['currentProtocol'] = self.currentProtocol
         self.prefs['currentSubject'] = self.currentSubject
         self.prefs['sites'] = [str(self.ui.subjectSiteCombo.itemText(item)) for item in range(self.ui.subjectSiteCombo.count())]
@@ -547,19 +535,15 @@ class ImageImport (QtGui.QDialog):
             self.prefs['bids'] = str(self.ui.prefBidsEdit.text())
         else:
             self.prefs.pop('bids',None)
-            
+        # Coregistration
         if self.ui.prefANTScheckbox.isChecked():
             self.prefs['coregisterMethod'] = 'ANTs'
         elif self.ui.prefSPMcheckbox.isChecked():
             self.prefs['coregisterMethod'] = 'spm'
         else:
             self.prefs['coregisterMethod'] = 'spm'
-
-        self.coregMethod = self.prefs['coregisterMethod']
-        projects= [self.ui.radioProjFtract.isChecked(),self.ui.radioProjNeuro.isChecked(), self.ui.radioClassic.isChecked(),self.ui.radioOther.isChecked()]
-        project_selected = [x for x in range(len(projects)) if projects[x]==True]
-
-        self.prefs['projectSelected'] = project_selected
+        # Project
+        self.prefs['projectSelected'] = str(self.ui.prefProjectCombo.currentText())
         # Save file
         fileout = open(prefpath, 'wb')
         pickle.dump(self.prefs, fileout)
@@ -803,6 +787,10 @@ class ImageImport (QtGui.QDialog):
             os.remove(file + '.minf')
 
 
+    def addBvSubject(self):
+        self.ui.tabWidget.setCurrentIndex(1)
+        
+
     def deleteBvSubject(self):
         protocol = str(self.ui.bvProtocolCombo.currentText())
         subj = str(self.ui.bvSubjectCombo.currentText())
@@ -873,7 +861,7 @@ class ImageImport (QtGui.QDialog):
     # ===== IMPORT FROM BIDS =====
     def importBids(self):
         """ Open a dialog window to import subjects from a BIDS database """
-        if self.prefs['bids'] is None:
+        if ('bids' not in self.prefs) or (not self.prefs['bids']):
             QtGui.QMessageBox.warning(self, u"BIDS", u"Set the path to the BIDS database in the Prefs tab.")
             return
         
@@ -998,6 +986,8 @@ class ImageImport (QtGui.QDialog):
             # Create patient in database
             if not self.storePatientInDB(bidsSub[iSub]):
                 continue
+            # Update patient list
+            self.updateSubjectList(self.ui.bvSubjectCombo)
             # Import images
             for iImg in range(len(bidsImg[iSub])):
                 img = bidsImg[iSub][iImg]
@@ -1011,6 +1001,8 @@ class ImageImport (QtGui.QDialog):
                 braincenter = (0,0,0)
                 # Add image to database
                 self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
+                # Update list of images
+                self.selectBvSubject(bidsSub[iSub])
     
     
     # ===== ANATOMIST =====    
@@ -1452,14 +1444,9 @@ class ImageImport (QtGui.QDialog):
     # ANONYMIZATION TAKES PLACE HERE
     def updatePatientCode(self):
         # <site>_<year>_<three letters from name><one letter from first name><number if duplicate entries, but should be entered manually anyway>
-        if self.prefs['projectSelected'][0] == 1 or self.prefs['projectSelected'][0] == 2:
-            # print "neuropsynov or classique"
+        if self.prefs['projectSelected'] == 'CHUGA':
             self.ui.subjectPatientCode.setText(self.ui.subjectSiteCombo.currentText() + '_' + str(self.ui.subjectYearSpinbox.value()) + '_'  + str(self.ui.subjectPatientName.text())[:3].upper() + str(self.ui.subjectPatientFirstName.text())[:1].lower())
-        if self.prefs['projectSelected'][0] == 0:
-            # print "f-Tract"
-            self.ui.subjectPatientCode.setText(str(self.ui.subjectPatientName.text()).upper() + str(self.ui.subjectSiteCombo.currentText()).upper())
-        if self.prefs['projectSelected'][0] == 3:
-            # print "other"
+        else:
             self.ui.subjectPatientCode.setText(self.ui.subjectSiteCombo.currentText() + '_' + str(self.ui.subjectYearSpinbox.value()) + '_'  + str(self.ui.subjectPatientName.text())[:3].upper() + str(self.ui.subjectPatientFirstName.text())[:1].lower())
 
     def storePatientInDB(self, subj=None):
@@ -1643,7 +1630,7 @@ class ImageImport (QtGui.QDialog):
                 continue
     
             # ===== ANTS =====
-            if self.coregMethod == 'ANTs':
+            if self.prefs['coregisterMethod'] == 'ANTs':
                 print("Coregistration method: ANTs")
                 if progressThread:
                     progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
@@ -1656,7 +1643,7 @@ class ImageImport (QtGui.QDialog):
                 self.setANTstrm_database(image, temp_folder_ants)
                 
             # ===== SPM =====
-            elif self.coregMethod == 'spm':
+            elif self.prefs['coregisterMethod'] == 'spm':
                 print("Coregistration method: SPM")
                 # SPM coregister+resample
                 if self.ui.regResampleCheck.isChecked():
@@ -2825,10 +2812,9 @@ class ImageImport (QtGui.QDialog):
             if self.ui.prefSPMcheckbox.isChecked():
                 self.ui.prefANTScheckbox.setCheckState(False)
     
-    def switchProjectButton(self):
-        projects= [self.ui.radioProjFtract.isChecked(),self.ui.radioProjNeuro.isChecked(), self.ui.radioClassic.isChecked(),self.ui.radioOther.isChecked()]
-        project_selected = [x for x in range(len(projects)) if projects[x]==True]
-        self.prefs['projectSelected'] = project_selected
+    def setPrefProject(self):
+        self.prefs['projectSelected'] = self.ui.prefProjectCombo.currentText()
+        self.updatePatientCode()
 
 
 # =============================================================================
