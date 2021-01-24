@@ -26,7 +26,6 @@ from soma.wip.application.api import Application
 from freesurfer.brainvisaFreesurfer import *
 
 from externalprocesses import *
-import patientinfo, pathologypatientinfo
 from TimerMessageBox import *
 from progressbar import ProgressDialog
 import DialogCheckbox
@@ -306,19 +305,9 @@ class ImageImport (QtGui.QDialog):
 
         self.threads = []
         self.waitingForThreads = {}
-    
-        # Initialize patient informations tab
-        self.patientInfo = patientinfo.buildUI(self.ui.patGroupBox)
-        cdate = self.patientInfo['currentDate'].date()
-        bdate = self.patientInfo['patientBirthday'].date()
-        page = bdate.daysTo(cdate)/365
-        self.patientInfo['patientAge'].setText(str(page))
-        self.patientInfo['comoraucune'].stateChanged.connect(self.checkbox_comor)
-        self.patientInfo['patientBirthday'].dateChanged.connect(self.update_patientAge)
-    
+
         # TABS: Reload at each tab change
         self.connect(self.ui.tabWidget,  QtCore.SIGNAL('currentChanged(int)'), self.analyseBrainvisaDB)
-        self.connect(self.ui.tabWidget,  QtCore.SIGNAL('currentChanged(int)'), self.setTabGuide)
         # TAB1: Database
         self.connect(self.ui.bvProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.bvSubjectCombo))
         self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectBvSubject)
@@ -336,23 +325,15 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.subjectPatientName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
         self.connect(self.ui.subjectPatientFirstName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
         self.connect(self.ui.subjectAddSubjectButton, QtCore.SIGNAL('clicked()'), self.storePatientInDB)
-        # TAB3: Patient info
-        self.connect(self.ui.patProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.patSubjectCombo))
-        self.connect(self.ui.patProtocolCombo, QtCore.SIGNAL('activated(QString)'),lambda :pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)) #lambda :pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)) self._pathologyinfo(self.ui.patpatGroupBox,self.currentProtocol)
-        self.connect(self.ui.patSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectPatSubject)
-        self.connect(self.ui.patSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.patInfoValidate,QtCore.SIGNAL('clicked()'),self.ValidatePatInfo)
-        # TAB4: Import to BrainVisa
+        # TAB3: Import to BrainVisa
         self.connect(self.ui.chooseNiftiButton, QtCore.SIGNAL('clicked()'), self.chooseNifti)
         self.connect(self.ui.niftiImportButton, QtCore.SIGNAL('clicked()'), self.importNifti)
         self.connect(self.ui.niftiSetBraincenterButton, QtCore.SIGNAL('clicked()'), self.setBrainCenter)
         self.connect(self.ui.ImportFSoutputspushButton, QtCore.SIGNAL('clicked()'),self.importFSoutput)
         self.connect(self.ui.buttonImportLausanne, QtCore.SIGNAL('clicked()'),self.importLausanne2008)
-        self.connect(self.ui.niftiProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.niftiSubjectCombo))
         self.connect(self.ui.niftiSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.niftiSeqType, QtCore.SIGNAL('currentIndexChanged(QString)'),self.enable_disable_gadooption)
-        # TAB5: Coregistration
-        self.connect(self.ui.regProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.regSubjectCombo))
+        # TAB4: Coregistration
         self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectRegSubject)
         self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
@@ -361,7 +342,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
         self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
         self.connect(self.ui.runHiphopOnly, QtCore.SIGNAL('clicked()'), self.runProcessHiphop)
-        # TAB6: Preferences
+        # TAB5: Preferences
         self.connect(self.ui.prefSpmTemplateButton, QtCore.SIGNAL('clicked()'), self.setSpmTemplatePath)
         self.connect(self.ui.prefANTsButton, QtCore.SIGNAL('clicked()'), self.setANTsPath)
         self.connect(self.ui.prefFreesurferButton, QtCore.SIGNAL('clicked()'), self.setFreesurferPath)
@@ -392,7 +373,6 @@ class ImageImport (QtGui.QDialog):
         
         # Finds the available protocols in brainvisa database and fills the comboboxes
         self.analyseBrainvisaDB()
-        self.setGuide("Choose on of the tabs to import data in the BrainVisa database")
         self.enableACPCButtons(False)
         # Show anatomist
         self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
@@ -440,20 +420,6 @@ class ImageImport (QtGui.QDialog):
         """ Sets the status text displayed at the bottom of the dialog"""
         self.ui.statusCombo.insertItem(0,QtCore.QTime.currentTime().toString("H:m:s") + ': ' + text)
         self.ui.statusCombo.setCurrentIndex(0)
-
-    def setGuide(self, text):
-        """ Set the text of the User Guide on the top of the window"""
-        self.ui.guideLabel.setText(text)
-
-    def setTabGuide(self, tabId):
-        helpTab = [u'BrainVISA database: Double click to display an image.',\
-                   u'Add a new patient in the database',\
-                   u'...',\
-                   u'Import images for selected patient',\
-                   u'Coregister all images to the 3DT1 before electrode implantation. Normalize this 3DTI to the MNI, perform grey/white matter segmentation, mesh of the cortex, and MarsAtlas parcellation',\
-                   u'Software preferences']
-        self.setGuide(helpTab[tabId])
-        
 
     def initialize(self):
         """Reads the preference file, checks the available patients and sequences"""
@@ -507,7 +473,7 @@ class ImageImport (QtGui.QDialog):
                 else:
                     QtGui.QMessageBox.warning(self, u"SPM", u"SPM version unknown")
             else:
-                QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
+                QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined in tab 'Pref'\n Normalization and SPM coregistration won't work !")
         else:
             if len(configuration.SPM.spm12_path)>0:
                 print("used brainvisa spm path")
@@ -710,61 +676,44 @@ class ImageImport (QtGui.QDialog):
         if len(protocols) == 0:
             rep = QtGui.QMessageBox.warning(self, "Center (former protocol)", u"No center/protocole defined in BrainVisa Database !")
             text, ok = QtGui.QInputDialog.getText(self, 'Input Dialog', 'Enter the name of the center/protocole:')
-    
             if (ok & bool(text)):
                 wdi = WriteDiskItem('Center', 'Directory' )    #'gz compressed NIFTI-1 image' )
                 di = wdi.findValue({'center' : str(text)})
                 os.mkdir(di.fullPath())
                 neuroHierarchy.databases.insertDiskItem( di, update=True )
-    
         if self.currentProtocol in protocols:
             currentIndex = protocols.index(self.currentProtocol)
         else:
             currentIndex = 0
-
-        def selectSubj(subjCombo):
-            " Subfunction to select the current subject "
-            if self.currentSubject is None:
-                return
-            idx = subjCombo.findText(self.currentSubject)
-            # print "search current subj"
-            if idx != -1:
-                # print "found at "+repr(idx)
-                subjCombo.setCurrentIndex(idx)
-
-        if tab == 0 or tab is None: # Tab 0 is BrainVisa database tab
+        # Update subjects lists
+        if tab == 0 or tab is None: # BrainVisa database tab
             self.ui.bvProtocolCombo.clear()
             self.ui.bvProtocolCombo.addItems(protocols)
             self.ui.bvProtocolCombo.setCurrentIndex(currentIndex)
-            selectSubj(self.ui.bvSubjectCombo)
-        if tab == 1 or tab is None: # Tab 1 is Create Subject tab
-            self.ui.subjectProtocolCombo.clear()
-            self.ui.subjectProtocolCombo.addItems(protocols)
-            self.ui.subjectProtocolCombo.setCurrentIndex(currentIndex)
-        if tab == 2 or tab is None: # Tab 2 is Patient Information tab
-            self.ui.patProtocolCombo.clear()
-            self.ui.patProtocolCombo.addItems(protocols)
-            self.ui.patProtocolCombo.setCurrentIndex(currentIndex)
-            self.pathologypatientInfo = pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)
-            selectSubj(self.ui.patSubjectCombo)
-        if tab == 3 or tab is None: # Tab 3 is Import Nifti tab
-            self.ui.niftiProtocolCombo.clear()
-            self.ui.niftiProtocolCombo.addItems(protocols)
-            self.ui.niftiProtocolCombo.setCurrentIndex(currentIndex)
-            selectSubj(self.ui.niftiSubjectCombo)
-        if tab == 4 or tab is None: # Tab 4 is Registration tab
-            self.ui.regProtocolCombo.clear()
-            self.ui.regProtocolCombo.addItems(protocols)
-            self.ui.regProtocolCombo.setCurrentIndex(currentIndex)
-            selectSubj(self.ui.regSubjectCombo)
+        if tab == 1 or tab is None: # Create Subject tab
+            pass
+        if tab == 2 or tab is None: # Import Nifti tab
+            self.updateSubjectList(self.ui.niftiSubjectCombo)
+        if tab == 3 or tab is None: # Registration tab
+            self.updateSubjectList(self.ui.regSubjectCombo)
 
-    def selectProtocol(self, proto, comboToFillWithSubjects):
+    def selectProtocol(self, proto, subjCombo):
         """ A BrainVisa protocol was selected : query the database to get the list of subjects and put them in the provided QComboBox"""
         self.currentProtocol = str(proto)
-        rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':str(proto)} )
+        self.updateSubjectList(subjCombo)
+        
+    def updateSubjectList(self, subjCombo):
+        # Update subject list
+        rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':self.currentProtocol} )
         subjects = list( rdi._findValues( {}, None, False ) )
-        comboToFillWithSubjects.clear()#self.ui.bvSubjectCombo.clear()
-        comboToFillWithSubjects.addItems(sorted([s.attributes()['subject'] for s in subjects]))
+        subjCombo.clear()
+        subjCombo.addItems(sorted([s.attributes()['subject'] for s in subjects]))
+        # Update selected subject
+        if self.currentSubject:
+            idx = subjCombo.findText(self.currentSubject)
+            if idx != -1:
+                subjCombo.setCurrentIndex(idx)
+        
 
     def setCurrentSubject(self, subj):
         if not subj: # ignore empty values
@@ -1043,7 +992,7 @@ class ImageImport (QtGui.QDialog):
         
         # === IMPORT NEW BIDS SUBJECTS ===
         # Get current protocol
-        proto = str(self.ui.niftiProtocolCombo.currentText())
+        proto = str(self.ui.bvProtocolCombo.currentText())
         # Loop on patients to import
         for iSub in iSubImport:
             # Create patient in database
@@ -1138,6 +1087,14 @@ class ImageImport (QtGui.QDialog):
         self.ui.brainCenterLabel.setText("%.1f, %.1f, %.1f"%tuple([float(x) for x in brainCenterCoord][:3]))
         self.brainCenter = brainCenterCoord
 
+    def enable_disable_gadooption(self):
+        if str(self.ui.niftiSeqType.currentText()) == 'T1':
+            self.ui.radioButtonGado.setEnabled(True)
+            self.ui.radioButtonNoGado.setEnabled(True)
+        else:
+            self.ui.radioButtonGado.setEnabled(False)
+            self.ui.radioButtonNoGado.setEnabled(False)
+
     def importNifti(self, path = None, patient = None, proto=None, modality = None, acq = None, isGado = None, brainCenter = None):
         """ Imports a Nifti file in the BrainVisa database.
         path is the input image, patient is e.g. Dupont_Jean, acq is the acquisition name e.g. 'T1pre_2000-01-01'
@@ -1150,7 +1107,7 @@ class ImageImport (QtGui.QDialog):
         if patient is None:
             patient = str(self.ui.niftiSubjectCombo.currentText())
         if proto is None:
-            proto = str(self.ui.niftiProtocolCombo.currentText())
+            proto = str(self.ui.bvProtocolCombo.currentText())
         if modality is None:
             modality = str(self.ui.niftiSeqType.currentText()) # T1 / T2 / CT / PET /fMRI
         if acq is None:
@@ -1347,7 +1304,7 @@ class ImageImport (QtGui.QDialog):
     def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
         # Where to copy the new files
         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
-        write_filters = { 'center': str(self.ui.niftiProtocolCombo.currentText()), 'acquisition': str(acq), 'subject' : subject }
+        write_filters = { 'center': str(self.ui.bvProtocolCombo.currentText()), 'acquisition': str(acq), 'subject' : subject }
         # Progress bar
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying files to freesurfer database...")
@@ -1429,7 +1386,7 @@ class ImageImport (QtGui.QDialog):
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
-        self.generateAmygdalaHippoMesh(str(self.ui.niftiProtocolCombo.currentText()), subject, acq, diFSDestrieux)
+        self.generateAmygdalaHippoMesh(str(self.ui.bvProtocolCombo.currentText()), subject, acq, diFSDestrieux)
 
 
     # Sub-selection of the operations done when importing the full FreeSurfer segmentation
@@ -1480,7 +1437,7 @@ class ImageImport (QtGui.QDialog):
             acqLaus = str(diT1pre.attributes()['acquisition']).replace('T1','Lausanne2008-{}-'.format(n))
             # Importing Destrieux atlas to BrainVISA database
             wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
-            diLaus = wdi.findValue({'center' : str(self.ui.niftiProtocolCombo.currentText()), 'acquisition' : acqLaus, 'subject' : subject})
+            diLaus = wdi.findValue({'center' : str(self.ui.bvProtocolCombo.currentText()), 'acquisition' : acqLaus, 'subject' : subject})
             # Create the folder if doesn't exist
             self.createItemDirs(diLaus)
             # Reslice volume to match T1pre
@@ -1505,31 +1462,34 @@ class ImageImport (QtGui.QDialog):
             # print "other"
             self.ui.subjectPatientCode.setText(self.ui.subjectSiteCombo.currentText() + '_' + str(self.ui.subjectYearSpinbox.value()) + '_'  + str(self.ui.subjectPatientName.text())[:3].upper() + str(self.ui.subjectPatientFirstName.text())[:1].lower())
 
-    def storePatientInDB(self, anon=None):
-        if not anon:
-            anon = str(self.ui.subjectPatientCode.text())
+    def storePatientInDB(self, subj=None):
+        if not subj:
+            isSwitchTab = True
+            subj = str(self.ui.subjectPatientCode.text())
             if self.prefs['projectSelected'][0] == 1 or self.prefs['projectSelected'][0] == 2:
-                if len(anon) < 10:
+                if len(subj) < 10:
                     QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
                     return False
             if self.prefs['projectSelected'][0] == 0:
-                if len(anon) < 16:
+                if len(subj) < 16:
                     QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
                     return False
-                elif len(anon) > 16:
+                elif len(subj) > 16:
                     QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too long and doesn't match the subject identifier model chosen in preferences")
                     return False
                 else:
-                    if not (anon[0:4].isdigit() and not anon[4:8].isdigit() and anon[8:].isdigit() and anon[7] == '_'):
+                    if not (subj[0:4].isdigit() and not subj[4:8].isdigit() and subj[8:].isdigit() and subj[7] == '_'):
                         QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
                         return False
                     else:
-                        if not int(anon[8:12]) > 1950 and not int(anon[8:12]) < 2100 and not int(anon[12:14]) >0 and not int(anon[12:14]) < 13 and not int(anon[14:16]) > 0 and not int(anon[14:16]) < 32:
+                        if not int(subj[8:12]) > 1950 and not int(subj[8:12]) < 2100 and not int(subj[12:14]) >0 and not int(subj[12:14]) < 13 and not int(subj[14:16]) > 0 and not int(subj[14:16]) < 32:
                             QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
                             return False
+        else:
+            isSwitchTab = False
     
         wdi = WriteDiskItem( 'Subject', 'Directory' )
-        di = wdi.findValue( { 'center': str(self.ui.subjectProtocolCombo.currentText()), 'subject' : anon } )
+        di = wdi.findValue( { 'center': str(self.ui.bvProtocolCombo.currentText()), 'subject' : subj } )
         if di is None:
           QtGui.QMessageBox.warning(self, u"Error", u"Impossible to find a valid path for the patient")
           self.setStatus(u"Subject add failed : the path is not valid")
@@ -1539,14 +1499,16 @@ class ImageImport (QtGui.QDialog):
         try:
           os.mkdir(di.fileName())
           neuroHierarchy.databases.insertDiskItem( di, update=True )
-          self.setStatus(u"Subject %s added to the database"%anon)
-          self.currentSubject = anon
+          self.setStatus(u"Subject %s added to the database"%subj)
+          self.currentSubject = subj
         except:
           self.setStatus(u"Subject adding failed : impossible to create subject folder")
           return False
-    
-        self.ui.tabWidget.setCurrentIndex(2)
+        # Switch to next tab
+        if isSwitchTab:
+            self.ui.tabWidget.setCurrentIndex(2)
         return True
+        
         
     # ******************************* Registration
 
@@ -1555,7 +1517,7 @@ class ImageImport (QtGui.QDialog):
         # Display "Date : XXXX-XX-XX - Seq: T1 - Acq : T1Pre
         self.ui.regImageList.clear()
         self.ui.regImageList2.clear()
-        images = self.findAllImagesForSubject(self.ui.regProtocolCombo.currentText(), subj)
+        images = self.findAllImagesForSubject(self.ui.bvProtocolCombo.currentText(), subj)
         #name = modality + acquisition + subacquisition if exist subacquisition key else modality + acquisition
     
         dict_temporaire1 = {}
@@ -1621,7 +1583,7 @@ class ImageImport (QtGui.QDialog):
     def registerNormalizeSubject(self, progressThread=None):
         """ Registers all images of the subject with SPM, then store the transforms in BrainVisa database, and launch T1pre morphologist analysis (brain segmentation) """
 
-        proto = str(self.ui.regProtocolCombo.currentText())
+        proto = str(self.ui.bvProtocolCombo.currentText())
         subj = str(self.ui.regSubjectCombo.currentText())
         images = self.findAllImagesForSubject(proto, subj)
         
@@ -1818,7 +1780,7 @@ class ImageImport (QtGui.QDialog):
 
     def runPipelineBV(self):
 
-        proto = str(self.ui.regProtocolCombo.currentText())
+        proto = str(self.ui.bvProtocolCombo.currentText())
         subj = str(self.ui.regSubjectCombo.currentText())
         images = self.findAllImagesForSubject(proto, subj)
         # Find all images, normalize the T1s, find the T1pre if there is one, read image headers, store their referentials and transformations in the DB
@@ -1858,7 +1820,7 @@ class ImageImport (QtGui.QDialog):
     def runPipelineFS(self):
 
         # Get protocol and subject
-        protocol = str(self.ui.regProtocolCombo.currentText())
+        protocol = str(self.ui.bvProtocolCombo.currentText())
         subject = str(self.ui.regSubjectCombo.currentText())
         # Find FreeSurfer orig.mgz (FreeSurfer DB)
         rT1 = ReadDiskItem('T1 FreesurferAnat', 'FreesurferMGZ', requiredAttributes={'subject':subject, '_ontology':'freesurfer'})
@@ -1930,7 +1892,7 @@ class ImageImport (QtGui.QDialog):
         
     def runProcessHiphop(self):
         # Get current protocol/subject
-        center = str(self.ui.regProtocolCombo.currentText())
+        center = str(self.ui.bvProtocolCombo.currentText())
         subject = str(self.ui.regSubjectCombo.currentText())
         # Get possible inputs
         Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={'side': 'left', 'subject':subject, 'center':center})
@@ -2867,155 +2829,6 @@ class ImageImport (QtGui.QDialog):
         projects= [self.ui.radioProjFtract.isChecked(),self.ui.radioProjNeuro.isChecked(), self.ui.radioClassic.isChecked(),self.ui.radioOther.isChecked()]
         project_selected = [x for x in range(len(projects)) if projects[x]==True]
         self.prefs['projectSelected'] = project_selected
-
-
-    ################################## Patient Information Tab #####################################
-    def selectPatSubject(self, subj):
-        pass
-
-    def checkbox_comor(self):
-        if self.patientInfo['comoraucune'].isChecked():
-            self.patientInfo['comorpsy'].setEnabled(False)
-            self.patientInfo['comorautre'].setEnabled(False)
-            self.patientInfo['comorneuro'].setEnabled(False)
-        else:
-            self.patientInfo['comorpsy'].setEnabled(True)
-            self.patientInfo['comorautre'].setEnabled(True)
-            self.patientInfo['comorneuro'].setEnabled(True)
-
-    def update_patientAge(self):
-        patAge = self.patientInfo['patientBirthday'].date().daysTo( self.patientInfo['currentDate'].date())/365
-        self.patientInfo['patientAge'].setText(str(patAge))
-
-    def ValidatePatInfo(self):
-        patListToCheck = ['previousHistory','previousFamilyHistory','causaleDisease','mriLesion','comorneuro','comorpsy','comorautre']
-        patpatListToCheck = {'Epilepsy':['Aura','TraitementTried','TraitementNow']}
-
-        #read choice2 list from intersubject database
-        write_filters = { 'center': self.currentProtocol, 'subject' : self.currentSubject }
-        wdi_global = ReadDiskItem('PatientInfoTemplate','Patient Template format')
-        di_global = list(wdi_global.findValues({}, None, False))
-
-        if len(di_global):
-            if os.path.isfile(str(di_global[0])):
-                print "read previous patienttemplate json"
-                from codecs import open as opencodecs
-                fin = opencodecs(str(di_global[0]),'r','latin1')
-                info_dicti = json.loads(fin.read().decode('latin1'))
-                fin.close()
-    
-                previous_lists_not_path = info_dicti['notPathoSpecific']
-                previous_lists_path_full = info_dicti['PathoSpecific']
-                previous_lists_path_protocol = info_dicti['PathoSpecific'][self.currentProtocol]
-    
-        else:
-            previous_lists_not_path = {}
-            previous_lists_path_full = {}
-            previous_lists_path_protocol = {}
-    
-        #register non pathology specific patient Info
-        PatInfo = {}
-        for kk, vv in self.patientInfo.iteritems():
-            if isinstance(vv,QtGui.QDateEdit):
-                PatInfo.update({kk:unicode(vv.date().toPyDate())})
-                if vv.date() == self.defaultAcqDate:
-                    QtGui.QMessageBox.warning(self, "Error",u"The acquisition date is not valid !  " + kk)
-                    return
-            elif isinstance(vv,QtGui.QComboBox):
-                #faire deux conditions lorsque c'est une liste checkable et lorsque non
-                if vv.model().item(1).isCheckable():
-                    item_checked = [unicode(vv.itemText(x)) for x in range(1,vv.count()) if vv.model().item(x).checkState()]
-                    if len(item_checked) > 1:
-                        if 'Inconnu' in item_checked or 'Aucun' in item_checked or 'Aucune' in item_checked:
-                            QtGui.QMessageBox.warning(self, "Error",u"You can't have 'Inconnu' or 'Aucune' selected whith another choice, it doesn't make sens" + kk)
-                            return
-                    #c est une combo box editable du coup il faut verifier si il faut updater la liste des choix possibles
-    
-                else:
-                    item_checked = unicode(vv.currentText())
-                PatInfo.update({kk:item_checked})
-            elif isinstance(vv,QtGui.QDialogButtonBox):
-                item_selected = [unicode(vv.children()[i].text()) for i in range(1,len(vv.children())) if vv.children()[i].isChecked()]
-                PatInfo.update({kk:item_selected})
-            elif isinstance(vv,QtGui.QLineEdit):
-                PatInfo.update({kk:unicode(vv.text())})
-            elif isinstance(vv,QtGui.QCheckBox):
-                PatInfo.update({kk:vv.isChecked()})
-            else:
-                print "qtgui format not recognized"
-    
-        patPatInfo = {}
-        for kk, vv in self.pathologypatientInfo.iteritems():
-            if isinstance(vv,QtGui.QDateEdit):
-                patPatInfo.update({kk:unicode(vv.date().toPyDate())})
-                if vv.date() == self.defaultAcqDate:
-                    QtGui.QMessageBox.warning(self, "Error",u"The acquisition date is not valid !  " + kk)
-                    return
-            elif isinstance(vv,QtGui.QComboBox):
-                #faire deux conditions lorsque c'est une liste checkable et lorsque non
-                if vv.model().item(1).isCheckable():
-                    item_checked = [unicode(vv.itemText(x)) for x in range(1,vv.count()) if vv.model().item(x).checkState()]
-                    if len(item_checked) > 1:
-                        if 'Inconnu' in item_checked or 'Aucun' in item_checked or 'Aucune' in item_checked:
-                            QtGui.QMessageBox.warning(self, "Error",u"You can't have 'Inconnu' or 'Aucune' selected whith another choice, it doesn't make sens"+ kk)
-                            return
-                else:
-                    item_checked = unicode(vv.currentText())
-                patPatInfo.update({kk:item_checked})
-            elif isinstance(vv,QtGui.QDialogButtonBox):
-                item_selected = [unicode(vv.children()[i].text()) for i in range(1,len(vv.children())) if vv.children()[i].isChecked()]
-                patPatInfo.update({kk:item_selected})
-            elif isinstance(vv,QtGui.QLineEdit):
-                patPatInfo.update({kk:unicode(vv.text())})
-            elif isinstance(vv,QtGui.QCheckBox):
-                patPatInfo.update({kk:vv.isChecked()})
-            else:
-                print "qtgui format not recognized"
-    
-        wdi = WriteDiskItem('SubjectInfo','Subject Information format')
-        di = wdi.findValue(write_filters)
-        if di is None:
-            print('Can t generate files')
-            return
-    
-        full_dictio = {'notPathoSpecific':PatInfo,'PathoSpecific':patPatInfo}
-        fout = open(di.fullPath(),'w')
-        fout.write(json.dumps(full_dictio, ensure_ascii=False))
-        #fout.write(json.dumps({'PathoSpecific':patPatInfo}))
-        fout.close()
-    
-        neuroHierarchy.databases.insertDiskItem(di, update=True )
-    
-        #update patientinfo list si une nouvelle entree a ete ajoutée dans les choices list
-        wdi_global = WriteDiskItem('PatientInfoTemplate','Patient Template format')
-        di_global = wdi_global.findValue(write_filters)
-    
-        for ii in range(len(patListToCheck)):
-            if len(PatInfo[patListToCheck[ii]])>0:
-                previous_lists_not_path.update({patListToCheck[ii]:PatInfo[patListToCheck[ii]]})
-    
-        if self.currentProtocol in patpatListToCheck:
-            for jj in range(len(patpatListToCheck[self.currentProtocol])):
-                if len(patPatInfo[patpatListToCheck[self.currentProtocol][jj]])>0:
-                    previous_lists_path_protocol.update({patpatListToCheck[self.currentProtocol][jj]:patPatInfo[patpatListToCheck[self.currentProtocol][jj]]})
-    
-        previous_lists_path_full.update({self.currentProtocol:previous_lists_path_protocol})
-        full_dictio_inter = {'notPathoSpecific':previous_lists_not_path,'PathoSpecific':previous_lists_path_full}
-    
-        fout = open(di_global.fullPath(),'w')
-        fout.write(json.dumps(full_dictio_inter,ensure_ascii=False))
-        fout.close()
-        neuroHierarchy.databases.insertDiskItem(di_global, update=True )
-
-
-    def enable_disable_gadooption(self):
-
-        if str(self.ui.niftiSeqType.currentText()) == 'T1':
-            self.ui.radioButtonGado.setEnabled(True)
-            self.ui.radioButtonNoGado.setEnabled(True)
-        else:
-            self.ui.radioButtonGado.setEnabled(False)
-            self.ui.radioButtonNoGado.setEnabled(False)
 
 
 # =============================================================================
