@@ -5,13 +5,14 @@
 #
 # License GNU GPL v3
 
-import os, subprocess, pickle, shutil, tempfile, json, numpy
+import os, subprocess, pickle, shutil, tempfile, json, numpy, csv
 from scipy import ndimage
 from shutil import copyfile
 
 from soma import aims
 from brainvisa import axon, anatomist
 from brainvisa.configuration import neuroConfig
+from __builtin__ import True
 neuroConfig.gui = True
 from brainvisa.configuration.qt4gui import neuroConfigGUI
 from brainvisa.data import neuroHierarchy
@@ -342,6 +343,7 @@ class ImageImport (QtGui.QDialog):
         self.connect(self.ui.patSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
         self.connect(self.ui.patInfoValidate,QtCore.SIGNAL('clicked()'),self.ValidatePatInfo)
         # TAB4: Import to BrainVisa
+        self.connect(self.ui.chooseNiftiButton, QtCore.SIGNAL('clicked()'), self.chooseNifti)
         self.connect(self.ui.niftiImportButton, QtCore.SIGNAL('clicked()'), self.importNifti)
         self.connect(self.ui.niftiSetBraincenterButton, QtCore.SIGNAL('clicked()'), self.setBrainCenter)
         self.connect(self.ui.ImportFSoutputspushButton, QtCore.SIGNAL('clicked()'),self.importFSoutput)
@@ -444,17 +446,12 @@ class ImageImport (QtGui.QDialog):
         self.ui.guideLabel.setText(text)
 
     def setTabGuide(self, tabId):
-        helpTab = [u'Look for images in BrainVisa database. Double click to load an images in anatomist windows on the side',\
-                   u'Add a new patient in the Database (perform an anonymization as well)',\
-                   u'Precise patient information (general and pathology specific)',\
-                   u'Import images (format: Nifti/GIS/Analyse/(mgz in some case). Select the file and fill information needed',\
+        helpTab = [u'BrainVISA database: Double click to display an image.',\
+                   u'Add a new patient in the database',\
+                   u'...',\
+                   u'Import images for selected patient',\
                    u'Coregister all images to the 3DT1 before electrode implantation. Normalize this 3DTI to the MNI, perform grey/white matter segmentation, mesh of the cortex, and MarsAtlas parcellation',\
-                   u'Set software preferences',\
-                   u'Import SEEG data' ,\
-                   u'Importez des images depuis un dossier DICOM : Sélectionnez une image, importez et convertissez en Nifti, puis importez-là dans la base',\
-                   u'Importez des images depuis un PACS. Sélectionnez une image, importez et convertissez en Nifti, puis importez-là dans la base',\
-                   u'Importez les schémas d\'implantation scannés',\
-                   ]
+                   u'Software preferences']
         self.setGuide(helpTab[tabId])
         
 
@@ -934,13 +931,13 @@ class ImageImport (QtGui.QDialog):
         for dirSub in dirListSub:
             # Skip all the files that are not subject folder
             pathSub = os.path.join(self.prefs['bids'], dirSub)
-            if not ((len(dirSub) > 4) and (dirSub[:4] == 'sub-') and os.path.isdir(pathSub)):
+            if not ((len(dirSub) >= 8) and (dirSub[:4] == 'sub-') and os.path.isdir(pathSub)):
                 continue
-            # Reset list of images to add for this subject
-            addImg = []
             # List sessions
-            dirListSes = os.listdir(pathSub);
-            for dirSes in dirListSess:
+            dirListSes = sorted(os.listdir(pathSub));
+            for dirSes in dirListSes:
+                # Reset list of images to add for this subject
+                addImg = []
                 # Skip all the files that are not session folders
                 pathSes = os.path.join(pathSub, dirSes)
                 if not ((len(dirSes) > 4) and (dirSes[:4] == 'ses-') and os.path.isdir(pathSes)):
@@ -948,71 +945,119 @@ class ImageImport (QtGui.QDialog):
                 # List modalities
                 dirListMod = os.listdir(pathSes);
                 for dirMod in dirListMod:
-                    # Skip all the files that are not anat or pet subfolders
+                    # Full path
                     pathMod = os.path.join(pathSes, dirMod)
-                    if not (dirMod == "anat") and not (dirMod == "pet"):
-                        continue
-                    # List images to import
-                    dirListImg = os.listdir(pathMod);
-                    for dirImg in dirListImg:
-                        # Look for T1, T2, FLAIR, CT and PET files
-                        pathImg = os.path.join(pathSes, dirImg)
-                        if ('_T1w.nii' in dirImg):
-                            imgMod = 'T1'
-                        elif ('_T2w.nii' in dirImg):
-                            imgMod = 'T2'
-                        elif ('_FLAIR.nii' in dirImg):
-                            imgMod = 'FLAIR'
-                        elif ('_pet.nii' in dirImg):
-                            imgMod = 'PET'
-                        elif ('_CT.nii' in dirImg):
-                            imgMod = 'CT'
-                        else:
-                            continue
-                        # Add images for this subject
-                        addImg.append({'ses', dirSes[4:], 'path', pathImg, 'mod', imgMod})
-            # If there are no images to import in this subject: skip
-            if not addImg:
-                continue
-            # Add subject to list of subjects to import               
-            bidsSub.append(subDir[4:])
-            bidsImg.append(addImg)
+                    # ANAT/PET modality folders
+                    if (dirMod == "anat") or (dirMod == "pet"):
+                        # List images to import
+                        dirListImg = os.listdir(pathMod);
+                        for dirImg in dirListImg:
+                            # Look for T1, T2, FLAIR, CT and PET files
+                            pathImg = os.path.join(pathMod, dirImg)
+                            if ('_T1w.nii' in dirImg):
+                                imgMod = 'T1'
+                            elif ('_T2w.nii' in dirImg):
+                                imgMod = 'T2'
+                            elif ('_FLAIR.nii' in dirImg):
+                                imgMod = 'FLAIR'
+                            elif ('_pet.nii' in dirImg):
+                                imgMod = 'PET'
+                            elif ('_CT.nii' in dirImg):
+                                imgMod = 'CT'
+                            else:
+                                continue
+                            # Look for acquisition: pre, post, postop
+                            if ('_acq-pre_' in dirImg):
+                                imgAcq = 'pre'
+                            elif ('_acq-post_' in dirImg):
+                                imgAcq = 'post'
+                            elif ('_acq-postop_' in dirImg):
+                                imgAcq = 'postOp'
+                            else:
+                                continue
+                            # Look for Gado tag
+                            if ('_ce-GADOLINIUM_' in dirImg):
+                                isGado = True
+                            else:
+                                isGado = False
+                            # Add images for this subject
+                            addImg.append({'sub': dirSub[4:], 'ses': dirSes[4:], 'file': dirImg, 'path': pathImg, 'mod': imgMod, 'acq': imgAcq, 'isGado': isGado})
+                    # BIDS Metadata: scans.tsv
+                    elif '_scans.tsv' in dirMod:
+                        # Open file
+                        tsv_file = open(pathMod)
+                        # Not sure this will always work
+                        try:
+                            tsv_reader = csv.reader(tsv_file, delimiter="\t")
+                            # Read header
+                            tsv_header = tsv_reader.next()
+                            iColFile = tsv_header.index('filename')
+                            iColTime = tsv_header.index('acq_time')
+                            # Read all scans
+                            imgDates = dict()
+                            for line in tsv_reader:
+                                imgDates[os.path.split(line[iColFile].replace('\\','/'))[1]] = line[iColTime]
+                        except:
+                            print("Could not parse scans info: " + pathMod)
+                        # Close file
+                        tsv_file.close()
+                        
+                # If there are no images to import in this session: skip
+                if not addImg:
+                    continue
+                # Add acquisition dates
+                for i in range(len(addImg)):
+                    addImg[i]['date'] = imgDates[addImg[i]['file']]
+                # Add subject to list of subjects to import
+                subName = self.ui.subjectSiteCombo.currentText() + '_' + dirSes[4:] + '_' + dirSub[4:7].upper() + dirSub[7].lower()
+                bidsSub.append(subName)
+                bidsImg.append(addImg)
         if not bidsSub:
             return
+        # Sort alphabetically
+        bidsSub, bidsImg = (list(t) for t in zip(*sorted(zip(bidsSub, bidsImg))))
         
-# ONE SUBECT per SUB OR SUB/SES ??? WAIT PHILIPPE'S ANSWER
-# SUBJECT NAMING 
-
-        # === 
+        # === GET BRAINVISA SUBJECTS ===
         # Get list of subjects in BrainVISA database
         rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':str(self.ui.bvProtocolCombo.currentText())} )
-        subBvFiles = list(rdi._findValues( {}, None, False))
-        if subBvFiles:
-            subBv = [os.path.split(s.attributes()['subject'])[1] for s in subBvFiles]
+        bvFiles = list(rdi._findValues( {}, None, False))
+        if bvFiles:
+            bvSub = [os.path.split(s.attributes()['subject'])[1] for s in bvFiles]
             # Difference between two lists
-            subMissing = list(set(subBids) - set(subBv))
+            subNew = list(set(bidsSub) - set(bvSub))
         else:
-            subMissing = subBids
+            subNew = bidsSub
         # No subjects to import
-        if not subMissing:
+        if not subNew:
             QtGui.QMessageBox.warning(self, "Error", u"All BIDS subjects are already imported in the IntrAnat database.")
         # Ask user to select which ones to import
-        dialog = DialogCheckbox.DialogCheckbox(subMissing, "Import BIDS", "Select the patients to import:")
+        dialog = DialogCheckbox.DialogCheckbox(subNew, "Import BIDS", "Select the patients to import:")
         selSub = dialog.exec_()
+        # Get selected BIDS subjects
+        iSubImport = [bidsSub.index(subNew[i]) for i in range(len(subNew)) if selSub[i]]
         
+        # === IMPORT NEW BIDS SUBJECTS ===
+        # Get current protocol
+        proto = str(self.ui.niftiProtocolCombo.currentText())
         # Loop on patients to import
-        for i in range(len(subMissing)):
-            # Skip ignore subjects
-            if not selSub[i]:
-                continue
+        for iSub in iSubImport:
             # Create patient in database
-            print("Import subject: " + subMissing[i])
-            # Create patient in database
-            if not self.storePatientInDB(subMissing[i]):
+            if not self.storePatientInDB(bidsSub[iSub]):
                 continue
             # Import images
-            
-            importNifti(self, path = None, patient = None, proto=None, modality = None, acq = None)
+            for iImg in range(len(bidsImg[iSub])):
+                img = bidsImg[iSub][iImg]
+                # Acq: eg. T1pre_2016-11-27
+                if len(img['date']) >= 10:
+                    d = img['date'][:10]
+                else:
+                    d = img['ses'] + '-01-01'
+                acq = str(img['mod'] + img['acq'] + '_' + d)
+                # Brain center
+                braincenter = (0,0,0)
+                # Add image to database
+                self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
+    
     
     # ===== ANATOMIST =====    
     def clearAnatomist(self, windows=None):
@@ -1044,98 +1089,138 @@ class ImageImport (QtGui.QDialog):
             self.dispObj.append(im2)
 
     # ===== TAB4: IMPORT =====
+    def chooseNifti(self):
+        self.ui.niftiFileLabel.setText('')
+        path = str(QtGui.QFileDialog.getOpenFileName(self, "Open MRI Image", "", "Images (*.nii *.nii.gz *.ima *.img *.ima.gz *.img.gz *.img.bz2 *ima.bz2 *.nii.bz2 *.mgz)"))
+        if not path:
+            return
+        self.ui.niftiFileLabel.setText(path)
+        # Display the image and remove others
+        print "Loading %s"%path
+        split_path = os.path.splitext(path)
+        if split_path[-1] == ".mgz":
+            try:
+                tmp_nii_path = getTmpFilePath('nii')
+                #on reslice par rapport au t1 pre
+                di = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.currentSubject, 'normalized':'no' } )
+                allT1 = list(di.findValues({},None,False))
+                idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
+                if len(idxT1pre)==0:
+                    print "to import freesurfer images, the T1pre has to be imported because a reslicing is necessary"
+                    return
+
+                #mri_convert -rl /data/brainvisa/Epilepsy/Gre_2015_BESk/t1mri/T1pre_2015-1-1/Gre_2015_BESk.nii /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/aparc.a2009s+aseg.mgz /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/test.nii -rt nearest -ncD
+                self.brainvisaContext.write("mri_convert from freesurfer")
+                launchFreesurferCommand(context, None, 'mri_convert', '-i',path,'-o',tmp_nii_path,'-rl',str(allT1[idxT1pre[0]].fullPath()),'-rt','nearest','-nc')
+                #mriconvert_call ='mri_convert -i {} -o {} -rl {} -rt nearest -nc'.format(path,tmp_nii_path,str(allT1[idxT1pre[0]].fullPath()))
+                #mriconvert_call ='mri_convert -i {} -o {}'.format(path,tmp_nii_path)
+                #runCmd(mriconvert_call.split())
+            except:
+                print "conversion mgz to nii didn't work"
+                return
+        else:
+            mri = self.a.loadObject(path)
+            tmp_nii_path = path
+        # Display images
+        self.displayImage(tmp_nii_path, self.wins)
+        # Reset other components
+        self.brainCenter = None
+        self.ui.brainCenterLabel.setText('')
+        self.ui.niftiFileLabel.setText(tmp_nii_path)
+    
     def setBrainCenter(self):
         brainCenterCoord = list(self.a.linkCursorLastClickedPosition())
         self.ui.brainCenterLabel.setText("%.1f, %.1f, %.1f"%tuple([float(x) for x in brainCenterCoord][:3]))
         self.brainCenter = brainCenterCoord
 
-    def importNifti(self, path = None, patient = None, proto=None, modality = None, acq = None):
+    def importNifti(self, path = None, patient = None, proto=None, modality = None, acq = None, isGado = None, brainCenter = None):
         """ Imports a Nifti file in the BrainVisa database.
         path is the input image, patient is e.g. Dupont_Jean, acq is the acquisition name e.g. 'T1pre_2000-01-01'
         If the parameters are empty, the data is taken from the Nifti Tab in the UI"""
-    
-        if self.brainCenter == None:
-            print "brain center not set"
-            QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
-            return
-        if self.ui.acqDate.date() == self.defaultAcqDate:
-            QtGui.QMessageBox.warning(self, "Error",u"Acquisition date is not valid!")
-            return
         if path is None:
             path = str(self.ui.niftiFileLabel.text())
-        if not path:
-            QtGui.QMessageBox.warning(self, "Error", u"Choose a file to import !")
-            return
-        filename = os.path.split(path)[1]
+            if not path:
+                QtGui.QMessageBox.warning(self, "Error", u"Choose a file to import !")
+                return
         if patient is None:
             patient = str(self.ui.niftiSubjectCombo.currentText())
         if proto is None:
             proto = str(self.ui.niftiProtocolCombo.currentText())
-        if acq is None:
-            d = self.ui.acqDate.date()
-            acq = str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText() + '_'+str(d.year()) + '-' + str(d.month()) + '-' + str(d.day()))
         if modality is None:
-            # Determines the BrainVisa file type (depends on the imaging modality)
             modality = str(self.ui.niftiSeqType.currentText()) # T1 / T2 / CT / PET /fMRI
-    
+        if acq is None:
+            if self.ui.acqDate.date() == self.defaultAcqDate:
+                QtGui.QMessageBox.warning(self, "Error",u"Acquisition date is not valid!")
+                return
+            d = self.ui.acqDate.date()
+            acq = str(modality + self.ui.niftiAcqType.currentText() + '_' + str(d.year()) + '-' + str(d.month()) + '-' + str(d.day()))
+        if isGado is None:
+            if self.ui.radioButtonGado.isChecked():
+                isGado = True
+            else:
+                isGado = False
+        if brainCenter is None:
+            if self.brainCenter is None:
+                print "brain center not set"
+                QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
+                return
+            brainCenter = self.brainCenter
+        # Select patient
+        self.selectBvSubject(patient)
+        # Stat: question
         filetype = {'T1':'Raw T1 MRI', 'T2':'T2 MRI', 'CT':'CT', 'TEP':'PET', 'PET':'PET', 'fMRI':'fMRI-epile', 'Statistics':'Statistic-Data', 'FLAIR':'FLAIR', 'FreesurferAtlas':'FreesurferAtlas', 'FGATIR':'FGATIR'}[modality]
-    
-        write_filters = { 'center': proto, 'acquisition': str(acq), 'subject' : str(patient) }
-    
+        write_filters = { 'center': proto, 'acquisition': str(acq), 'subject' : patient }
         if filetype == 'fMRI-epile' or filetype == 'Statistic-Data':
             text, ok = QtGui.QInputDialog.getText(self, 'Input Dialog', 'Enter the name of the test:')
             if (ok & bool(text)):
                 write_filters.update({'subacquisition':str(text)})
     
-    
+        # Find where to save the file in database
         wdi = WriteDiskItem(filetype, 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
-        print "Finding BV path for acquisition %s and patient %s"%(acq, patient)
         di = wdi.findValue(write_filters)
-    
         if di is None:
             QtGui.QMessageBox.warning(self, "Error", u"Impossible to find a valid path to import the Image in Brainvisa database (%s, %s)"%(patient, acq))
             return
-        # Copy the file : lancer l'importation standard de T1 MRI pour la conversion de format et
+        # Check for existing file
         if os.path.exists(di.fileName()):
             reply = QtGui.QMessageBox.question(self, 'Overwrite', u"This image already exists.\nOverwrite the file ?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.No:
                 return
-        print "Importing file as "+di.fileName()
+        # Check for duplicated file roles
+        if (len(self.bvImages) > 0) and (filetype != 'fMRI-epile') and filetype != ('Statistic-Data') and filetype != 'FreesurferAtlas':
+            imgType = acq.split('_')[0]
+            ImAlreadyHere = [i for i in range(len(self.bvImages)) if str(imgType+'_') in self.bvImages.keys()[i]]
+            if len(ImAlreadyHere):
+                QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before importing a new one."%(imgType))
+                self.setStatus(u"Sequence %s importation not performed (already one equivalent)"%acq)
+                return
     
-        #current images loaded for this patient:
-        self.selectBvSubject(str(patient))
-    
-        if filetype != 'fMRI-epile' and filetype != 'Statistic-Data' and filetype != 'FreesurferAtlas':
-            if len(self.bvImages) > 0:
-                ImAlreadyHere = [i for i in range(len(self.bvImages)) if str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()+'_') in self.bvImages.keys()[i]]
-                if len(ImAlreadyHere):
-                    QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before importing a new one."%str(self.ui.niftiSeqType.currentText() + self.ui.niftiAcqType.currentText()))
-                    self.setStatus(u"Sequence %s importation not performed (already one equivalent)"%acq)
-                    return
-    
-        # Call import in a separate function with a progress bar
-        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, thr), True, self, "Processing...", "Import image", False)
-        # self.importNiftiWorker(di, path, filetype, proto, patient)
+        # Call import function in a separate function with a progress bar
+        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, modality, isGado, thr), True, self, "Processing...", "Import image", False)
+        # self.importNiftiWorker(di, path, filetype, proto, patient, modality, isGado)
         
-        di.setMinf('brainCenter', self.brainCenter)
+        # Set brain center
+        if brainCenter:
+            di.setMinf('brainCenter', brainCenter)
+        # Stat results: Specific questions 
         if filetype == 'Statistic-Data':
             textMNI, okMNI = QtGui.QInputDialog.getItem(self,'MNI or not','Is the statistic image generated in the MNI',['True','False'])
             if (okMNI & bool(textMNI)):
                 di.setMinf('MNI',str(textMNI))
             di.setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+        # Add file to database
         neuroHierarchy.databases.insertDiskItem( di, update=True )
-
+        # Stat results: Set reference space
         if filetype == 'Statistic-Data':
             try:
                 self.StatisticDataMNItoScannerBased(proto, patient, acq)
             except:
                 pass
-
+        # Report status
         self.setStatus(u"Sequence %s importation done"%acq)
         
         
-        
-    def importNiftiWorker(self, di, path, filetype, thr=None):
+    def importNiftiWorker(self, di, path, filetype, modality, isGado, thr=None):
         # Create directories that do not exist yet
         self.createItemDirs(di)
     
@@ -1174,11 +1259,9 @@ class ImageImport (QtGui.QDialog):
             print "Importation error: BrainVisa / AimsFileConvert"
             return
 
-        if str(self.ui.niftiSeqType.currentText()) == 'T1':
-            if self.ui.radioButtonGado.isChecked():
-                di.setMinf('Gado',True)
-            if self.ui.radioButtonNoGado.isChecked():
-                di.setMinf('Gado',False)
+        # Save GADO status
+        if str(modality) == 'T1':
+            di.setMinf('Gado', isGado)
             neuroHierarchy.databases.insertDiskItem( di, update=True )
 
         
@@ -1608,7 +1691,7 @@ class ImageImport (QtGui.QDialog):
             # ===== SPM =====
             elif self.coregMethod == 'spm':
                 print("Coregistration method: SPM")
-                # SPM coregister
+                # SPM coregister+resample
                 if self.ui.regResampleCheck.isChecked():
                     if progressThread:
                         progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
