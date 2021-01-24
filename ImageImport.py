@@ -832,22 +832,27 @@ class ImageImport (QtGui.QDialog):
         Corresponding diskitem is removed from the database if it exists.
         Taken from brainvisa-4.3.0/python/brainvisa/data/qt4gui/hierarchyBrowser.py
         """
+        # Delete database entry
         if db is None:
             try:
                 db=neuroHierarchy.databases.database(neuroHierarchy.databases.getDiskItemFromFileName(file).get("_database"))
             except:
                 pass
-    
-        if os.path.isdir(file):
-            for f in os.listdir(file):
-                self.removeFromDB(os.path.join(file, f), db)
-            os.rmdir(file)
-        else:
-            os.remove(file)
         if db:
             diskItem=db.getDiskItemFromFileName(file, None)
             if diskItem:
                 db.removeDiskItem(diskItem)
+        # Delete folder/file
+        if os.path.isdir(file):
+            for f in os.listdir(file):
+                self.removeFromDB(os.path.join(file, f), db)
+            os.rmdir(file)
+        elif os.path.exists(file):
+            os.remove(file)
+        # Delete .minf
+        if os.path.exists(file + '.minf'):
+            os.remove(file + '.minf')
+
 
     def deleteBvSubject(self):
         protocol = str(self.ui.bvProtocolCombo.currentText())
