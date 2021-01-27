@@ -870,6 +870,7 @@ class ImageImport (QtGui.QDialog):
         dirListSub = os.listdir(self.prefs['bids']);
         bidsSub = []
         bidsImg = []
+        bidsFS = []
         for dirSub in dirListSub:
             # Skip all the files that are not subject folder
             pathSub = os.path.join(self.prefs['bids'], dirSub)
@@ -976,10 +977,24 @@ class ImageImport (QtGui.QDialog):
         # Ask user to select which ones to import
         dialog = DialogCheckbox.DialogCheckbox(subNew, "Import BIDS", "Select the patients to import:")
         selSub = dialog.exec_()
+        if not selSub:
+            return
         # Get selected BIDS subjects
         iSubImport = [bidsSub.index(subNew[i]) for i in range(len(subNew)) if selSub[i]]
         
+        # === ASK IMPORT OPTIONS ===
+        # Ask user to select which ones to import
+        dialog = DialogCheckbox.DialogCheckbox(('Normalize T1pre + Coregister images', 'Reslice images based on T1pre'), "Import BIDS", "Run automatically after importing:", (True, False))
+        selOpt = dialog.exec_()
+        if not selOpt:
+            return
+        isRegister = selOpt[0]
+        isResample = selOpt[1]
+    
         # === IMPORT NEW BIDS SUBJECTS ===
+        # Reset brain center, so a previous definition is not used in the import function
+        self.brainCenter = None
+        self.ui.brainCenterLabel.setText('')
         # Get current protocol
         proto = str(self.ui.bvProtocolCombo.currentText())
         # Loop on patients to import
@@ -1004,6 +1019,17 @@ class ImageImport (QtGui.QDialog):
                 self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
                 # Update list of images
                 self.selectBvSubject(bidsSub[iSub])
+    
+        # === NORMALIZE+REGISTER ===
+        if isRegister:
+            # Switch to coreg tab
+            self.ui.tabWidget.setCurrentIndex(3)
+            # Project subjects sequentially
+            for iSub in iSubImport:
+                # Select patient
+                self.selectRegSubject(bidsSub[iSub])
+                # Run normalization + coregistration
+                self.registerNormalizeSubject(proto, bidsSub[iSub], isResample)
     
     
     # ===== ANATOMIST =====    
@@ -1071,9 +1097,11 @@ class ImageImport (QtGui.QDialog):
         # Display images
         self.displayImage(tmp_nii_path, self.wins)
         # Reset other components
-        self.brainCenter = None
-        self.ui.brainCenterLabel.setText('')
         self.ui.niftiFileLabel.setText(tmp_nii_path)
+        # Set brain center by default at the center of the volume
+        self.setBrainCenter()
+        # self.brainCenter = None
+        # self.ui.brainCenterLabel.setText('')
     
     def setBrainCenter(self):
         brainCenterCoord = list(self.a.linkCursorLastClickedPosition())
@@ -1103,12 +1131,6 @@ class ImageImport (QtGui.QDialog):
             proto = str(self.ui.bvProtocolCombo.currentText())
         if modality is None:
             modality = str(self.ui.niftiSeqType.currentText()) # T1 / T2 / CT / PET /fMRI
-        if (brainCenter is None) and (acq is None):
-            if self.brainCenter is None:
-                print "brain center not set"
-                QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
-                return
-            brainCenter = self.brainCenter
         if acq is None:
             if self.ui.acqDate.date() == self.defaultAcqDate:
                 QtGui.QMessageBox.warning(self, "Error",u"Acquisition date is not valid!")
@@ -1120,6 +1142,13 @@ class ImageImport (QtGui.QDialog):
                 isGado = True
             else:
                 isGado = False
+        if brainCenter is None:
+            # Now using the center of the volume by default, instead of cancelling the import
+            # if self.brainCenter is None:
+            #     print "brain center not set"
+            #     QtGui.QMessageBox.warning(self, "Error",u"You haven't selected the BrainCenter !")
+            #     return
+            brainCenter = self.brainCenter
         # Select patient
         self.selectBvSubject(patient)
         # Stat: question
@@ -1142,8 +1171,8 @@ class ImageImport (QtGui.QDialog):
             if reply == QtGui.QMessageBox.No:
                 return
         # Check for duplicated file roles
+        imgType = acq.split('_')[0]
         if (len(self.bvImages) > 0) and (filetype != 'fMRI-epile') and filetype != ('Statistic-Data') and filetype != 'FreesurferAtlas':
-            imgType = acq.split('_')[0]
             ImAlreadyHere = [i for i in range(len(self.bvImages)) if str(imgType+'_') in self.bvImages.keys()[i]]
             if len(ImAlreadyHere):
                 QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before importing a new one."%(imgType))
@@ -1151,7 +1180,7 @@ class ImageImport (QtGui.QDialog):
                 return
     
         # Call import function in a separate function with a progress bar
-        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, modality, isGado, thr), True, self, "Processing...", "Import image", False)
+        res = ProgressDialog.call(lambda thr:self.importNiftiWorker(di, path, filetype, modality, isGado, thr), True, self, "Importing " + patient + " " + imgType + "...", "Import image", False)
         # self.importNiftiWorker(di, path, filetype, proto, patient, modality, isGado)
         
         # Set brain center
@@ -1290,7 +1319,7 @@ class ImageImport (QtGui.QDialog):
                 return
         
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import FreeSurfer output")
         #res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
         
 
@@ -1412,7 +1441,7 @@ class ImageImport (QtGui.QDialog):
                 QtGui.QMessageBox.warning(self, "Error", u"Lausanne2008 file not found:\n" + allFiles[key])
                 return
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importLausanne2008Worker(subject, allFiles, diT1pre, thr), True, self, "Processing...", "Import FreeSurfer output")
+        res = ProgressDialog.call(lambda thr:self.importLausanne2008Worker(subject, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import Lausanne atlas")
 
         
     def importLausanne2008Worker(self, subject, allFiles, diT1pre, thread=None):
@@ -1568,23 +1597,26 @@ class ImageImport (QtGui.QDialog):
         wins[0].moveLinkedCursor(center)
 
 
-    def registerNormalizeSubject(self, progressThread=None):
+    def registerNormalizeSubject(self, proto=None, subj=None, isResample=None):
         """ Registers all images of the subject with SPM, then store the transforms in BrainVisa database, and launch T1pre morphologist analysis (brain segmentation) """
-
-        proto = str(self.ui.bvProtocolCombo.currentText())
-        subj = str(self.ui.regSubjectCombo.currentText())
+        # Get options
+        if not proto:
+            proto = str(self.ui.bvProtocolCombo.currentText())
+        if not subj:
+            subj = str(self.ui.regSubjectCombo.currentText())
+        if not isResample:
+            isResample = self.ui.regResampleCheck.isChecked()
+        # Get all images for selected subject
         images = self.findAllImagesForSubject(proto, subj)
-        
         # Call process in a different thread
-        errMsg = ProgressDialog.call(lambda thr:self.registerNormalizeSubjectWorker(proto, subj, images, thr), True, self, "Processing...", "Coregister and normalize")
+        errMsg = ProgressDialog.call(lambda thr:self.registerNormalizeSubjectWorker(proto, subj, images, isResample, thr), True, self, "Processing " + subj + "...", "Coregister and normalize")
         #errMsg = self.registerNormalizeSubjectWorker(proto, subj, images)
-        
         # Display error messages
         if errMsg:
             QtGui.QMessageBox.critical(self, u'Regitration error', u"Errors occured during the normalization or registration: \n\n" + u"\n".join(errMsg))
 
     
-    def registerNormalizeSubjectWorker(self, proto, subj, images, progressThread=None):
+    def registerNormalizeSubjectWorker(self, proto, subj, images, isResample, progressThread=None):
         # NORMALIZE: Find all images, normalize the T1s, find the T1pre if there is one, read image headers, store their referentials and transformations in the DB
         t1preImage = None
         for image in images:
@@ -1647,7 +1679,7 @@ class ImageImport (QtGui.QDialog):
             elif self.prefs['coregisterMethod'] == 'spm':
                 print("Coregistration method: SPM")
                 # SPM coregister+resample
-                if self.ui.regResampleCheck.isChecked():
+                if isResample:
                     if progressThread:
                         progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
                     # Call SPM coregister+resample
@@ -1676,14 +1708,37 @@ class ImageImport (QtGui.QDialog):
                         if ret < 0:
                             print "Conversion to S16 error: "+repr(registeredPath) #terminal
                             return
-                    # Run registration
-                    if 'brainCenter' not in image.attributes() or 'brainCenter' not in t1preImage.attributes():
-                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
+                    # Get brain centers (by default: center of the volume)
+                    if 'brainCenter' in image.attributes() and image.attributes()['brainCenter']:
+                        brainCenterImg = str(image.attributes()['brainCenter'])
                     else:
-                        call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str(image.attributes()['brainCenter']), str(image.attributes()['SB_Transform']), str(t1preImage.attributes()['brainCenter']), str(t1preImage.attributes()['SB_Transform']), "'"+tmpOutput+"'")
+                        brainCenterImg = "[%f,%f,%f]"%(\
+                            image.attributes()['sizeX'] * image.attributes()['voxel_size'][0] / 2, \
+                            image.attributes()['sizeY'] * image.attributes()['voxel_size'][1] / 2, \
+                            image.attributes()['sizeZ'] * image.attributes()['voxel_size'][2] / 2)
+                    if 'brainCenter' in t1preImage.attributes() and t1preImage.attributes()['brainCenter']:
+                        brainCenterT1pre = str(t1preImage.attributes()['brainCenter'])
+                    else:
+                        brainCenterT1pre = "[%f,%f,%f]"%(\
+                            t1preImage.attributes()['sizeX'] * t1preImage.attributes()['voxel_size'][0] / 2, \
+                            t1preImage.attributes()['sizeY'] * t1preImage.attributes()['voxel_size'][1] / 2, \
+                            t1preImage.attributes()['sizeZ'] * t1preImage.attributes()['voxel_size'][2] / 2)
+                    # Run registration
+                    call = spm_coregister%(\
+                        "'" + str(self.prefs['spm']) + "'", \
+                        "'" + str(imageFileName) + ",1'", \
+                        "'" + str(t1preImage) + ",1'", \
+                        brainCenterImg, \
+                        str(image.attributes()['SB_Transform']), \
+                        brainCenterT1pre, \
+                        str(t1preImage.attributes()['SB_Transform']), \
+                        "'" + tmpOutput + "'")
                     errMsg = matlabRun(call)
                     if errMsg:
                         return errMsg
+                    # Old call with no brain center: not working
+                    # call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
+                    
                     # Register transformation in the database
                     self.insertTransformationToT1pre(tmpOutput, image)
                     if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):

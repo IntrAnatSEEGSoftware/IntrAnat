@@ -708,7 +708,7 @@
         <item>
          <widget class="QCheckBox" name="regResampleCheck">
           <property name="text">
-           <string>Resample images (original images will be lost)</string>
+           <string>Reslice images based on T1pre (original images will be lost)</string>
           </property>
          </widget>
         </item>
