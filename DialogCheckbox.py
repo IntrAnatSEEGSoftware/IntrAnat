@@ -12,24 +12,24 @@ class DialogCheckbox(QMessageBox):
         # Get the Layout of the MessageBox
         layout = self.layout()
         # Create a layout to contain all the checkboxes
-        layoutList = QGridLayout();
-        layout.addLayout(layoutList, 1, 1)
+        self.layoutList = QGridLayout();
+        layout.addLayout(self.layoutList, 1, 1)
         self.checkbox = [None] * len(listOpt);
         # Create all the the checkboxes
         Nrows = 30
-        for i in range(len(listOpt)):
+        for i in range(0, len(listOpt)):
             self.checkbox[i] = QCheckBox()
-            self.checkbox[i].setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
             self.checkbox[i].setText(listOpt[i])
-            layoutList.addWidget(self.checkbox[i], i%Nrows, i/Nrows)
+            self.layoutList.addWidget(self.checkbox[i], i%Nrows, i/Nrows)
             if (defaultSel is not None) and (i <= len(defaultSel)) and (defaultSel[i]):
                 self.checkbox[i].setCheckState(Qt.Checked)
-        # Configure window
+        # Configure dialog window
         self.setWindowTitle(titleWin)
         self.setText(titleList)
-        self.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
+        self.setStandardButtons(QMessageBox.Cancel |QMessageBox.Ok)
         self.setDefaultButton(QMessageBox.Cancel)
-        
+
+
     def exec_(self, *args, **kwargs):
         """
         Override the exec_ method so you can return the value of the checkbox
@@ -49,9 +49,9 @@ class DialogCheckbox(QMessageBox):
 # TEST FUNCTIONS
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-
-    dialog = DialogCheckbox(["XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX", "XXX_XXXX_XXXX"], "Export", "Select options to run:", None)
+    dialog = DialogCheckbox(["XXX_XXXX_XXX1", "XXX_XXXX_XXX2", "XXX_XXXX_XXX3", "XXX_XXXX_XXX4"], "Export", "Select options to run:", [True, True, False, False])
     answer = dialog.exec_()
+
     print answer
 
     app.quit() 
