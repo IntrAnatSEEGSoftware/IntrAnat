@@ -6,23 +6,11 @@ from soma.qt_gui.qt_backend.QtGui import *
 
 class DialogCheckbox(QMessageBox):
 
-    def __init__(self, listOpt, titleWin="", titleList="", defaultSel=None):
+    def __init__(self, listOpt, titleWin="", titleList="", defaultSel=None, boxMinSize=None):
         super(DialogCheckbox, self).__init__()
 
         # Get the Layout of the MessageBox
         layout = self.layout()
-#         # Create a layout to contain all the checkboxes
-#         self.layoutList = QVBoxLayout();
-#         layout.addLayout(self.layoutList, 1, 1)
-#         self.checkbox = [None] * len(listOpt);
-#         # Create all the the checkboxes
-#         for i in range(0, len(listOpt)):
-#             self.checkbox[i] = QCheckBox()
-#             self.checkbox[i].setText(listOpt[i])
-#             self.layoutList.addWidget(self.checkbox[i])
-#             if (defaultSel is not None) and (i <= len(defaultSel)) and (defaultSel[i]):
-#                 self.checkbox[i].setCheckState(Qt.Checked)
-
         # Create a layout to contain all the checkboxes
         self.layoutList = QGridLayout();
         layout.addLayout(self.layoutList, 1, 1)
@@ -33,12 +21,13 @@ class DialogCheckbox(QMessageBox):
             self.checkbox[i].setText(listOpt[i])
             self.layoutList.addWidget(self.checkbox[i], i%20, i/20)
             if (defaultSel is not None) and (i <= len(defaultSel)) and (defaultSel[i]):
-                self.checkbox[i].setCheckState(Qt.Checked)       
-
+                self.checkbox[i].setCheckState(Qt.Checked)
+            if boxMinSize:
+                self.checkbox[i].setMinimumSize(QSize(boxMinSize, 20))
+        # Configure window
         self.setWindowTitle(titleWin)
         self.setText(titleList)
-
-        self.setStandardButtons(QMessageBox.Cancel |QMessageBox.Ok)
+        self.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
         self.setDefaultButton(QMessageBox.Cancel)
 
 
@@ -62,11 +51,8 @@ class DialogCheckbox(QMessageBox):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    #dialog = DialogCheckbox(["Test 1", "Test 2", "Test 3", "Test 4"], "Export", "Select options to run:", [True, True, False, False])
-    dialog = DialogCheckbox(["1", "2", "3", "4", "5", "6", "7", "8", "1", "2", "3", "4", "5", "6", "7", "8", "1", "2", "3", "4", "5", "6", "7", "8", "1", "2", "3", "4", "5", "6", "7", "8", "1", "2", "3", "4", "5", "6", "7", "8", "1", "2", "3", "4", "5", "6", "7", "8"], "Export", "Select options to run:")
+    dialog = DialogCheckbox(["1", "2", "3", "4"], "Export", "Select options to run:", (False,False,True,False), 150)
     answer = dialog.exec_()
-
-    # Example how to handle the response
     print answer
 
     app.quit() 
