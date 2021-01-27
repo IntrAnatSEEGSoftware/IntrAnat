@@ -975,7 +975,7 @@ class ImageImport (QtGui.QDialog):
             QtGui.QMessageBox.warning(self, "Error", u"All BIDS subjects are already imported in the IntrAnat database.")
             return
         # Ask user to select which ones to import
-        dialog = DialogCheckbox.DialogCheckbox(subNew, "Import BIDS", "Select the patients to import:", None, 150)
+        dialog = DialogCheckbox.DialogCheckbox(subNew, "Import BIDS", "Select the patients to import:")
         selSub = dialog.exec_()
         if not selSub:
             return
