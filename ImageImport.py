@@ -870,7 +870,6 @@ class ImageImport (QtGui.QDialog):
         dirListSub = os.listdir(self.prefs['bids']);
         bidsSub = []
         bidsImg = []
-        bidsFS = []
         for dirSub in dirListSub:
             # Skip all the files that are not subject folder
             pathSub = os.path.join(self.prefs['bids'], dirSub)
@@ -1248,22 +1247,30 @@ class ImageImport (QtGui.QDialog):
             di.setMinf('Gado', isGado)
             neuroHierarchy.databases.insertDiskItem( di, update=True )
 
-        
-    def importFSoutput(self,subject=None):
-        # Get current subject
-        if not subject:
-            subject = self.currentSubject
-        # Find T1pre of the subject
+    
+    def findT1pre(self, subject):
         rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
         allT1 = list(rT1BV.findValues({},None,False))
         if not allT1:
-            QtGui.QMessageBox.warning(self, "Error", u"No T1 MRI found for patient: " + subject)
-            return
+            return None
         idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
         if not idxT1pre:
-            QtGui.QMessageBox.warning(self, "Error", u"No T1pre found for this patient: " + subject)
-            return
+            return None
         diT1pre = allT1[idxT1pre[0]]
+        return diT1pre
+    
+        
+    def importFSoutput(self, subject=None, proto=None):
+        # Get current subject
+        if not subject:
+            subject = self.currentSubject
+        if not proto:
+            proto = str(self.ui.bvProtocolCombo.currentText())
+        # Find T1pre of the subject
+        diT1pre = self.findT1pre(subject)
+        if not diT1pre:
+            QtGui.QMessageBox.warning(self, "Error", u"No T1pre MRI found this patient: " + subject)
+            return
 
         # Find FreeSurfer database
         FsSubjDir = None
@@ -1286,13 +1293,8 @@ class ImageImport (QtGui.QDialog):
         allFiles['T1_orig'] =        {'side':None,    'type':'T1 FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig.mgz'}
         allFiles['nu'] =             {'side':None,    'type':'Nu FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/nu.mgz'}
         allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
-        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',  'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
+        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',            'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
         allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
-        allFiles['lausanne33'] =     {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'}
-        allFiles['lausanne60'] =     {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'}
-        allFiles['lausanne125'] =    {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'}
-        allFiles['lausanne250'] =    {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale250.nii.gz'}
-        allFiles['lausanne500'] =    {'side':None,    'type':None,                          'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz'}
         allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
         allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
         allFiles['leftWhite'] =      {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/lh.white'}
@@ -1312,57 +1314,69 @@ class ImageImport (QtGui.QDialog):
         allFiles['rightCurvPial'] =  {'side':'right', 'type':'BaseFreesurferType',         'format':'FreesurferCurvPial',         'file':importDir + '/surf/rh.curv.pial'}
         allFiles['rightGyri'] =      {'side':'right', 'type':'FreesurferGyriTexture',      'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.annot'}
         allFiles['rightSulciGyri'] = {'side':'right', 'type':'FreesurferSulciGyriTexture', 'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.a2009s.annot'}
+        allFiles['DKT'] =            {'side':None,    'type':None,                         'format':None,                         'file':importDir + '/mri/aparc.DKTatlas+aseg.mgz'}
+        allFiles['HCP-MMP1'] =       {'side':None,    'type':None,                         'format':None,                         'file':importDir + '/mri/HCP-MMP1.mgz'}
+        allFiles['Lausanne2008-33'] ={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'}
+        allFiles['Lausanne2008-60'] ={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'}
+        allFiles['Lausanne2008-125']={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'}
+        allFiles['Lausanne2008-250']={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale250.nii.gz'}
+        allFiles['Lausanne2008-500']={'side':None,    'type':None,                         'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz'}
         # Check that all the files exist (skip the lausanne files)
         for key in allFiles:
-            if (not 'lausanne' in key) and (not os.path.isfile(allFiles[key]['file'])):
+            if (not 'Lausanne' in key) and (not 'DKT' in key) and (not 'HCP-MMP1' in key) and (not os.path.isfile(allFiles[key]['file'])):
                 QtGui.QMessageBox.warning(self, "Error", u"FreeSurfer file not found:\n" + allFiles[key]['file'])
                 return
         
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import FreeSurfer output")
-        #res = self.importFSoutputWorker(FsSubjDir, subject, allFiles, diT1pre)
+        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(subject, proto, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import FreeSurfer output")
+        #res = self.importFSoutputWorker(subject, proto, allFiles, diT1pre)
         
 
-    def importFSoutputWorker(self, FsSubjDir, subject, allFiles, diT1pre, thread=None):
+    def importFSoutputWorker(self, subject, proto, allFiles, diT1pre, thread=None):
         # Where to copy the new files
         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
-        write_filters = { 'center': str(self.ui.bvProtocolCombo.currentText()), 'acquisition': str(acq), 'subject' : subject }
-        # Progress bar
-        if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying files to freesurfer database...")
+        write_filters = { 'center': proto, 'acquisition': str(acq), 'subject' : subject }
         # Add all the files to the local freesurfer database
         for key in allFiles:
-            # Skip files that do not have a format or placeholder in the freesurfer ontology
-            if not allFiles[key]['type']:
+            # Skip if file doesn't exist
+            if (not os.path.isfile(allFiles[key]['file'])):
                 continue
-            # Get target into the local FreeSurfer database
-            if allFiles[key]['side']:
-                wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer', 'side':allFiles[key]['side']})
+            # Progress bar
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying " + subject + "/" + key + "...")
+            # Files with proper FreeSurfer ontology description
+            if allFiles[key]['type']:
+                # Get target into the local FreeSurfer database
+                if allFiles[key]['side']:
+                    wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer', 'side':allFiles[key]['side']})
+                else:
+                    wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+                # Type 'T1 FreesurferAnat' returns both nu.mgz and orig.mgz: need to filter the list
+                if (key == 'T1_orig'):
+                    di = wdi.findValues(write_filters, None, True)
+                    allT1 = list(di)
+                    idxT1orig = [i for i in range(len(allT1)) if 'orig.mgz' in str(allT1[i])]
+                    di = allT1[idxT1orig[0]]
+                else:
+                    di = wdi.findValue(write_filters)
+                # If there is an error while finding where to save the file
+                if not di:
+                    print("Error: Cannot import file: " + allFiles[key]['file'])
+                    return
+                # Create target folder
+                self.createItemDirs(di)
+                # Copy file into the local FS datbase
+                print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
+                copyfile(allFiles[key]['file'], di.fullPath())
+                # Add reference in the database (creates .minf)
+                neuroHierarchy.databases.insertDiskItem(di, update=True)
+            # Files that do not have a format or placeholder in the freesurfer ontology
             else:
-                wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-            # Type 'T1 FreesurferAnat' returns both nu.mgz and orig.mgz: need to filter the list
-            if (key == 'T1_orig'):
-                di = wdi.findValues(write_filters, None, True)
-                allT1 = list(di)
-                idxT1orig = [i for i in range(len(allT1)) if 'orig.mgz' in str(allT1[i])]
-                di = allT1[idxT1orig[0]]
-            else:
-                di = wdi.findValue(write_filters)
-            # If there is an error while finding where to save the file
-            if not di:
-                print("Error: Cannot import file: " + allFiles[key]['file'])
-                return
-            # Create target folder
-            self.createItemDirs(di)
-            # Copy file into the local FS datbase
-            print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
-            copyfile(allFiles[key]['file'], di.fullPath())
-            # Add reference in the database (creates .minf)
-            neuroHierarchy.databases.insertDiskItem(di, update=True)
+                self.importFsAtlas(subject, proto, key, str(allFiles[key]['file']), diT1pre)
        
         # Progress bar
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Converting Destrieux atlas...")
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying " + subject + "/Destrieux...")
         # Importing Destrieux atlas to BrainVISA database
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
@@ -1374,100 +1388,78 @@ class ImageImport (QtGui.QDialog):
         ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o', str(diFSDestrieux.fullPath()), '-t', 'S16'])
         # Add reference in the database (creates .minf)
         neuroHierarchy.databases.insertDiskItem(diFSDestrieux, update=True)
-
-        # Importing all the Lausanne2008 parcellations to BrainVISA database
-        for n in [33, 60, 125, 250, 500]:
-            # File reference
-            key = 'lausanne{}'.format(n)
-            # Skip if file doesn't exist
-            if (not os.path.isfile(allFiles[key]['file'])):
-                continue
-            # Progress bar
-            if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Importing Lausanne2008-{} parcellation...".format(n))
-            # Where to copy the new files
-            acqLaus = str(diT1pre.attributes()['acquisition']).replace('T1','Lausanne2008-{}-'.format(n))
-            # Importing Destrieux atlas to BrainVISA database
-            wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
-            diLaus = wdi.findValue({'center' : write_filters['center'], 'acquisition' : acqLaus, 'subject' : subject})
-            # Create the folder if doesn't exist
-            self.createItemDirs(diLaus)
-
-            # NEW VERSION: 25-Oct-2018
-            # Lausanne2008 atlases are not resliced on the original T1 anymore, and stay in FreeSurfer format (256x256x256)
-            # They are resliced on the T1pre at the moment of their importation in the IntrAnat/BrainVISA database,
-            # just like the FreeSurfer/Destrieux atlas (previous section of this function)
-            
-            # Reslice volume to match T1pre
-            launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles[key]['file']),'-o',str(diLaus.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
-            # Convert to AIMS
-            ret = subprocess.call(['AimsFileConvert', '-i', str(diLaus.fullPath()), '-o', str(diLaus.fullPath()), '-t', 'S16'])
-            # Add reference in the database (creates .minf)
-            neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
         
         # Generate amygdala and hippocampus meshes
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippcampus and amygdala meshes...")
-        self.generateAmygdalaHippoMesh(str(self.ui.bvProtocolCombo.currentText()), subject, acq, diFSDestrieux)
+            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippocampus and amygdala meshes...")
+        self.generateAmygdalaHippoMesh(proto, subject, acq, diFSDestrieux)
+
+
+    # Import extra FreeSurfer parcellation (all in FreeSurfer space, similar to T1.mgz)
+    def importFsAtlas(self, subject, proto, imgName, imgPath, diT1pre=None):
+        # If external call: Find T1pre of the subject
+        if not diT1pre:
+            diT1pre = self.findT1pre(subject)
+            if not diT1pre:
+                return
+        # Where to copy the new files
+        acq = str(diT1pre.attributes()['acquisition']).replace('T1', imgName + "-")
+        # Importing Destrieux atlas to BrainVISA database
+        wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
+        di = wdi.findValue({'center' : proto, 'acquisition' : acq, 'subject' : subject})
+        # Create the folder if doesn't exist
+        self.createItemDirs(di)
+        # Reslice volume to match T1pre
+        launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i', imgPath,'-o',str(di.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+        # Convert to AIMS
+        ret = subprocess.call(['AimsFileConvert', '-i', str(di.fullPath()), '-o', str(di.fullPath()), '-t', 'S16'])
+        # Add reference in the database (creates .minf)
+        neuroHierarchy.databases.insertDiskItem(di, update=True)
 
 
     # Sub-selection of the operations done when importing the full FreeSurfer segmentation
-    # Added only for O.David to add the Lausanne 2008 parcellation to patients for which FreeSurfer was already imported
-    def importLausanne2008(self):
+    # Added only for O.David to add the Lausanne 2008 to patients for which FreeSurfer was already imported
+    def importLausanne2008(self, subject=None, proto=None):
         # Get current subject
-        subject = self.currentSubject
+        if not subject:
+            subject = self.currentSubject
+        if not proto:
+            proto = str(self.ui.bvProtocolCombo.currentText())
         # Find T1pre of the subject
-        rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats',requiredAttributes={'subject':subject})
-        allT1 = list(rT1BV.findValues({},None,False))
-        idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
-        if not idxT1pre:
-            QtGui.QMessageBox.warning(self, "Error", u"No T1pre found for this patient: " + subject)
+        diT1pre = self.findT1pre(subject)
+        if not diT1pre:
+            QtGui.QMessageBox.warning(self, "Error", u"No T1pre MRI found this patient: " + subject)
             return
-        diT1pre = allT1[idxT1pre[0]]
-
         # Ask input folder
         importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Lausanne2008 folder", "", QtGui.QFileDialog.ShowDirsOnly))
         if not importDir:
             return
         # Get files of interest in the input folder
-        allFiles = {'lausanne33'  : importDir + '/ROIv_HR_th_scale33.nii.gz',\
-                    'lausanne60'  : importDir + '/ROIv_HR_th_scale60.nii.gz',\
-                    'lausanne125' : importDir + '/ROIv_HR_th_scale125.nii.gz',\
-                    'lausanne250' : importDir + '/ROIv_HR_th_scale250.nii.gz',\
-                    'lausanne500' : importDir + '/ROIv_HR_th_scale500.nii.gz'}
+        allFiles = {'Lausanne2008-33'  : importDir + '/ROIv_HR_th_scale33.nii.gz',\
+                    'Lausanne2008-60'  : importDir + '/ROIv_HR_th_scale60.nii.gz',\
+                    'Lausanne2008-125' : importDir + '/ROIv_HR_th_scale125.nii.gz',\
+                    'Lausanne2008-250' : importDir + '/ROIv_HR_th_scale250.nii.gz',\
+                    'Lausanne2008-500' : importDir + '/ROIv_HR_th_scale500.nii.gz'}
         # Check that all the files exist (skip the lausanne files)
         for key in allFiles:
             if not os.path.isfile(allFiles[key]):
                 QtGui.QMessageBox.warning(self, "Error", u"Lausanne2008 file not found:\n" + allFiles[key])
                 return
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importLausanne2008Worker(subject, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import Lausanne atlas")
+        res = ProgressDialog.call(lambda thr:self.importLausanne2008Worker(subject, proto, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import Lausanne atlas")
 
         
-    def importLausanne2008Worker(self, subject, allFiles, diT1pre, thread=None):
+    def importLausanne2008Worker(self, subject, proto, allFiles, diT1pre, thread=None):
         # Importing all the Lausanne2008 parcellations to BrainVISA database
-        for n in [33, 60, 125, 250, 500]:
-            # File reference
-            key = 'lausanne{}'.format(n)
+        for key in allFiles:
             # Skip if file doesn't exist
             if (not os.path.isfile(allFiles[key])):
                 continue
             # Progress bar
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Importing Lausanne2008-{} parcellation...".format(n))
-            # Where to copy the new files
-            acqLaus = str(diT1pre.attributes()['acquisition']).replace('T1','Lausanne2008-{}-'.format(n))
-            # Importing Destrieux atlas to BrainVISA database
-            wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
-            diLaus = wdi.findValue({'center' : str(self.ui.bvProtocolCombo.currentText()), 'acquisition' : acqLaus, 'subject' : subject})
-            # Create the folder if doesn't exist
-            self.createItemDirs(diLaus)
-            # Reslice volume to match T1pre
-            launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles[key]),'-o',str(diLaus.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
-            # Convert to AIMS
-            ret = subprocess.call(['AimsFileConvert', '-i', str(diLaus.fullPath()), '-o', str(diLaus.fullPath()), '-t', 'S16'])
-            # Add reference in the database (creates .minf)
-            neuroHierarchy.databases.insertDiskItem(diLaus, update=True)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Importing " + key + "...")
+            # Import file
+            self.importFsAtlas(subject, proto, key, allFiles[key], diT1pre)
 
 
     #******************************** Add New Subject
