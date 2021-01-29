@@ -236,14 +236,14 @@ quit;"""
 
 
 #################### READ ATLAS LABELS #########################################
-# FreeSurfer labels (Destrieux)
-lausanne_parcel_names = [None] * 5
-(freesurfer_parcel_names, freesurfer_colormap) = readFreesurferLabelFile('freesurfer_label.txt', 14175)
-(lausanne_parcel_names[0], lausanne33_colormap) = readFreesurferLabelFile('lausanne33_labels.txt', 83)
-(lausanne_parcel_names[1], lausanne60_colormap) = readFreesurferLabelFile('lausanne60_labels.txt', 129)
-(lausanne_parcel_names[2], lausanne125_colormap) = readFreesurferLabelFile('lausanne125_labels.txt', 234)
-(lausanne_parcel_names[3], lausanne250_colormap) = readFreesurferLabelFile('lausanne250_labels.txt', 463)
-(lausanne_parcel_names[4], lausanne500_colormap) = readFreesurferLabelFile('lausanne500_labels.txt', 1015)
+(freesurfer_labels, freesurfer_colormap) = readFreesurferLabelFile('labels/freesurfer_labels.txt', 14175)
+(hcp_labels, hcp_colormap) = readFreesurferLabelFile('labels/hcp_l0r200_labels.txt', 14175)
+lausanne_labels = [None] * 5
+(lausanne_labels[0], lausanne33_colormap) = readFreesurferLabelFile('labels/lausanne33_labels.txt', 83)
+(lausanne_labels[1], lausanne60_colormap) = readFreesurferLabelFile('labels/lausanne60_labels.txt', 129)
+(lausanne_labels[2], lausanne125_colormap) = readFreesurferLabelFile('labels/lausanne125_labels.txt', 234)
+(lausanne_labels[3], lausanne250_colormap) = readFreesurferLabelFile('labels/lausanne250_labels.txt', 463)
+(lausanne_labels[4], lausanne500_colormap) = readFreesurferLabelFile('labels/lausanne500_labels.txt', 1015)
 
 
 # Functions to sort the contacts A1,A2...,A10 and not A1, A10, A2..
@@ -370,12 +370,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.ui = uic.loadUi("locateElectrodes.ui", self)
             self.setWindowTitle('Localisation des electrodes - NOT FOR MEDICAL USE')
             self.app = app
-            # Widget 0 (buttons panel) will be at minimum size (stretch factor 0), the windows will fill up the rest
-            #self.splitter_2.setStretchFactor(0,0)
-            #self.splitter_2.setStretchFactor(1,1)
-            # Equal size for both views
-            #self.splitter.setStretchFactor(0,1)
-            #self.splitter.setStretchFactor(1,1)
         self.nameEdit.setText('A')
     
         # Load the list of protocols, patients and electrode models from BrainVisa
@@ -881,6 +875,8 @@ class LocateElectrodes(QtGui.QDialog):
         objAtlas = []
         refT1pre = None
         self.vol_destrieux = []
+        self.vol_dkt = []
+        self.vol_hcp = []
         for t in volumes:
             if "skull_stripped" in t.fullName():
                 continue
@@ -977,6 +973,14 @@ class LocateElectrodes(QtGui.QDialog):
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'FreeSurfer Atlas (Destrieux)':['FreesurferAtlaspre', 'electrodes']})
                 self.vol_destrieux = aims.read(str(t))
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('DKT' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'DKT Atlas':['DKT', 'electrodes']})
+                self.vol_dkt = aims.read(str(t))
+                na = 'DKT'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('HCP-MMP1' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'HCP-MMP1 Atlas':['HCP-MMP1', 'electrodes']})
+                self.vol_hcp = aims.read(str(t))
+                na = 'HCP-MMP1'
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-33' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'Lausanne2008-33 Atlas':['Lausanne2008-33', 'electrodes']})
                 na = 'Lausanne2008-33'
@@ -1083,11 +1087,15 @@ class LocateElectrodes(QtGui.QDialog):
                 # Load all related transformations
                 self.loadVolTransformations(t)
                 
-            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na):
+            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na) or ('DKT' in na) or ('HCP-MMP1' in na):
                 objAtlas.append(obj)
                 # Create palette adapted to the volume
                 if (na == 'FreesurferAtlaspre'):
                     colors = freesurfer_colormap
+                elif (na == 'DKT'):
+                    colors = freesurfer_colormap
+                elif (na == 'HCP-MMP1'):
+                    colors = hcp_colormap
                 elif (na == 'Lausanne2008-33'):
                     colors = lausanne33_colormap
                 elif (na == 'Lausanne2008-60'):
@@ -1180,7 +1188,6 @@ class LocateElectrodes(QtGui.QDialog):
         if objAtlas and refT1pre:
             for obj in objAtlas:
                 obj.assignReferential(refT1pre)
-        
         # Update interface
         if isGui:
             # Update list of available items in the combo boxes
@@ -1270,13 +1277,19 @@ class LocateElectrodes(QtGui.QDialog):
                 return
 
             # Labels
-            if (self.coordsDisplayRef == "FreeSurfer/Destrieux"):
+            if (self.coordsDisplayRef == "Destrieux") or (self.coordsDisplayRef == "DKT") or (self.coordsDisplayRef == "HCP-MMP1"):
                 info_image = self.diskItems['T1pre'].attributes()
                 plot_pos_pix_indi = [round(pT1Pre[i]/info_image['voxel_size'][i]) for i in range(3)]
                 plot_pos_pixFS = plot_pos_pix_indi
-                fsIndex = self.vol_destrieux.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
-                label_freesurfer_name = freesurfer_parcel_names[str(fsIndex)][0]
-                self.positionLabel.setText(label_freesurfer_name + " (" + str(fsIndex) + ")")
+                if (self.coordsDisplayRef == "Destrieux"):
+                    fsIndex = self.vol_destrieux.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
+                    self.positionLabel.setText(freesurfer_labels[str(fsIndex)])
+                elif (self.coordsDisplayRef == "DKT"):
+                    fsIndex = self.vol_dkt.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
+                    self.positionLabel.setText(freesurfer_labels[str(fsIndex)])
+                elif (self.coordsDisplayRef == "HCP-MMP1"):
+                    fsIndex = self.vol_hcp.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
+                    self.positionLabel.setText(hcp_labels[str(fsIndex)])
             # Coordinates
             else:
                 if self.coordsDisplayRef == 'Natif':
@@ -1398,9 +1411,12 @@ class LocateElectrodes(QtGui.QDialog):
         self.referentialCombo.addItems(refs)
         # Add available atlases
         if ('FreesurferAtlaspre' in self.dispObj.keys()):
-            self.referentialCombo.addItems(["FreeSurfer/Destrieux"])
+            self.referentialCombo.addItems(["Destrieux"])
             self.referentialCombo.setCurrentIndex( self.referentialCombo.count() - 1 )
-        
+        if ('DKT' in self.dispObj.keys()):
+            self.referentialCombo.addItems(["DKT"])
+        if ('HCP-MMP1' in self.dispObj.keys()):
+            self.referentialCombo.addItems(["HCP-MMP1"])
         print self.dispObj.keys()
 
     def updateCoordsDisplay(self, text):
@@ -2177,7 +2193,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Ask which options needed to be executed before the export
         dialog = DialogCheckbox([\
             "Compute MNI coordinates for all contacts",\
-            "Compute MarsAtlas contacts positions",\
+            "Compute parcels for all contacts",\
             "Compute MarsAtlas resection position",\
             "Compute parcel metrics",\
             "Save contact coordinates (.pts/.txt files)",\
@@ -2865,7 +2881,7 @@ class LocateElectrodes(QtGui.QDialog):
         diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
         
         #take the parcels names in one list
-        parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
+        MarsAtlas_labels = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
         
         try:
             #transform the images to matrices
@@ -2883,7 +2899,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         print 'verif done'
         #calculate the total volume of the parcels
-        for key, value in parcels_names.items():
+        for key, value in MarsAtlas_labels.items():
             if value[0].lower()=='l':
                 parcel1 = numpy.where(npleftMarsAtlas == key)
             else:
@@ -2895,7 +2911,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         t=1
         #we do the computations for each parcel
-        for key, value in parcels_names.items():
+        for key, value in MarsAtlas_labels.items():
             print 'doing parcel ' ,value ,t
             t+=1
             par=0
@@ -3099,11 +3115,9 @@ class LocateElectrodes(QtGui.QDialog):
                 # Write file header
                 writer = csv.writer(fout, delimiter='\t')
                 writer.writerow([u'Contacts Positions'])
-                # writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer'],'HippoSubfieldFreesurfer',info_label_elec['Template']['HippocampalSubfield Freesurfer']])
                 writer.writerow([u'Use of MNI Template', 'MarsAtlas', info_label_elec['Template']['MarsAtlas'], 'Freesurfer', info_label_elec['Template']['Freesurfer'], 'InitialSegmentation', InitialSegmentation])
                 
                 # Add list of column names
-                # colNames = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
                 colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate', 'JulichBrain']
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
                 diff_list = list(list_to_write.difference(set(colNames)))
@@ -3132,7 +3146,6 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['MarsAtlas'][1])
                     listwrite.append(vv['MarsAtlasFull'])
                     listwrite.append(vv['Freesurfer'][1])
-                    #listwrite.append(vv['Hippocampal Subfield'][1])
                     listwrite.append(vv['GreyWhite'][1])
                     listwrite.append(vv['AAL'][1])
                     listwrite.append(vv['AALDilate'][1])
@@ -3173,7 +3186,6 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['MarsAtlas'][1])
                     listwrite.append(vv['MarsAtlasFull'])
                     listwrite.append(vv['Freesurfer'][1])
-                    #listwrite.append(vv['Hippocampal Subfield'][1])
                     listwrite.append(vv['GreyWhite'][1])
                     listwrite.append(vv['AAL'][1])
                     listwrite.append(vv['AALDilate'][1])
@@ -3258,18 +3270,15 @@ class LocateElectrodes(QtGui.QDialog):
 
         if diMaskleft is None:
             print('left gyri volume failed, perform export mars atlas export contact first')
-            #return []
         else:
             vol_left = aims.read(diMaskleft.fileName())
         
         if diMaskright is None:
             print('right gyri volume failed, perform export mars atlas export contact first')
-            #return []
         else:
             vol_right = aims.read(diMaskright.fileName())
         
         Vol_resec = aims.read(di_resec[0].fileName())
-        
         
         Vox_size_resection = Vol_resec.getVoxelSize().arraydata()
         Vol_resection_mm = Vol_resec.arraydata().sum()*Vox_size_resection.prod() #choppe les trois premiers
@@ -3285,12 +3294,11 @@ class LocateElectrodes(QtGui.QDialog):
             percent_resec_mars_atlas = numpy.divide(label_resec_mars_atlas[0],total_label_mars_atlas[0],dtype=float)*100
             non_zero_inter = numpy.add(numpy.nonzero(label_resec_mars_atlas[0][1:-1]),1)
             
-            parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
+            MarsAtlas_labels = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
             
-            #list1 = [parcels_names[label_resec_mars_atlas[1][x]] for x in non_zero_inter.tolist()[0]]
+            #list1 = [MarsAtlas_labels[label_resec_mars_atlas[1][x]] for x in non_zero_inter.tolist()[0]]
             #list2 = [(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]]
-            #resection_mars_atlas_info = dict(zip(list1,list2)) #{parcels_names[label_resec_mars_atlas[1][x]]:(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]}
-        
+            #resection_mars_atlas_info = dict(zip(list1,list2)) #{MarsAtlas_labels[label_resec_mars_atlas[1][x]]:(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]}
         #else:
             #resection_mars_atlas_info = {"MarsAtlas not calculated":[0,0]}
         
@@ -3303,11 +3311,9 @@ class LocateElectrodes(QtGui.QDialog):
             #we keep only value between 1 and 100 to not display the thousands freesurfer parcels...
             interesting_percent_resec_FS = numpy.where((percent_resec_FS >1) & (percent_resec_FS < 100))
 
-            #list1 = [freesurfer_parcel_names[unicode(x)][0] for x in interesting_percent_resec_FS[0]]
+            #list1 = [freesurfer_labels[unicode(x)] for x in interesting_percent_resec_FS[0]]
             #list2 = [(float(x),percent_resec_FS[x]) for x in interesting_percent_resec_FS[0]]
-            
             #resection_freesurfer_info = dict(zip(list1,list2))
-
         #else:
             #resection_freesurfer_info = {"Freesurfer not calculated": [0,0]}
         
@@ -3367,38 +3373,12 @@ class LocateElectrodes(QtGui.QDialog):
         else:
             TemplateFreeSurfer = False
         
-#         # Check Hippo subfield freesurfer data
-#         HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-#         rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-#         if len(rdi_HippoSubfield)  == 0:
-#             print('Error: No hippo subfield atlas found')
-#             TemplateHippoSubfieldFreesurfer = True
-#         else:
-#             TemplateHippoSubfieldFreesurfer = False
-#         TemplateHippoSubfieldFreesurfer = False
-        
         # Get MNI coordinates for all the plots
         dict_plotsMNI = self.getAllPlotsCentersMNIRef()
         if dict_plotsMNI is None:
             errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
             return [newFiles, errMsg]
 
-        ######################
-        # Asynchronous process
-        ######################
-        #pour que lorsque le thread Brainvisa ça appelle parcellationdone ET les autres export si il y a besoin
-        #if Callback is not None:
-        #    Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.exportParcels2(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
-        #else:
-        #    Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.exportParcels2(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
-        #try:
-        #    self.brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
-        #except:
-        #    Callback2()
-            
-        ######################
-        # Synchronous process
-        ######################
         # Generate 3D version of the MarsAtlas surface-based atlas
         if LeftGyri:
             try:
@@ -3411,7 +3391,6 @@ class LocateElectrodes(QtGui.QDialog):
             acq = self.diskItems['T1pre']['acquisition']
         print "===== ACQ: " + acq
         # Continue export
-        # newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
         newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, acq)
         # Call additional function at the end
         if Callback is not None:
@@ -3420,7 +3399,6 @@ class LocateElectrodes(QtGui.QDialog):
         
 
     # ===== EXPORT PARCELS: PART II =====
-    # def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False, plot_dict_MNI=None):
     def exportParcels2(self, useTemplateMarsAtlas, useTemplateFreeSurfer, plot_dict_MNI, acq, fileEleclabel=None):
 
         print "export electrode start"
@@ -3458,8 +3436,6 @@ class LocateElectrodes(QtGui.QDialog):
             vol_left = aims.read(diMaskleft.fileName())
             vol_right = aims.read(diMaskright.fileName())
         else:
-            # vol_left = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_L_gyriVolume.nii.gz')
-            # vol_right = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_R_gyriVolume.nii.gz')
             vol_left = aims.read('MNI_Brainvisa/Gre_2016_MNI1_L_gyriVolume.nii.gz')
             vol_right = aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
         
@@ -3503,7 +3479,6 @@ class LocateElectrodes(QtGui.QDialog):
                 useTemplateLausanne = False
             else:
                 vol_lausanne = None
-            # FreeSurfer hippocampus atlas (generated by ImageImport)
             # LEFT
             freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
             difreesurfHippoAntPostleft = list(freesurfHippoAntPostleft.findValues({}, None, False ))
@@ -3536,8 +3511,6 @@ class LocateElectrodes(QtGui.QDialog):
                 vol_hippoanteropost = False
         # MNI template
         else:
-            #vol_hippoanteropostleft = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/leftHippocampusGre_2016_MNI1.nii')
-            #vol_hippoanteropostright = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/rightHippocampusGre_2016_MNI1.nii')
             vol_hippoanteropostleft = aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
             vol_hippoanteropostright = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz')
             vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
@@ -3638,7 +3611,7 @@ class LocateElectrodes(QtGui.QDialog):
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
         vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.nii.gz')
         vol_AICHA = aims.read('MNI_Atlases/AICHA_resliced.nii.gz')
-        vol_JulichBrain = aims.read('MNI_Atlases/JuBrain_Map_icbm_v30_lr_resliced.nii.gz')
+        vol_JulichBrain = aims.read('MNI_Atlases/JuBrain_Map_icbm_v25_lr_reslice.nii.gz')
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plot_dict_MNI_Native = {}
@@ -3648,19 +3621,13 @@ class LocateElectrodes(QtGui.QDialog):
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
             plot_dict_MNI_Native.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
         # Read parcel names
-        parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
-        Hammers_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rHammersSEEG12_labels.txt')
-        AAL_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12_labels.txt')
-        AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
-        HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.txt')
-        AICHA_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/AICHA_resliced_labels.txt')
-        JulichBrain_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/JuBrain_Map_icbm_v30_lr_resliced_labels.txt')
-        # Lausanne2008 parcel names
-        Lausanne33_parcels_names = {i:"{}".format(i) for i in range(1,100)}
-        Lausanne60_parcels_names = {i:"{}".format(i) for i in range(1,150)}
-        Lausanne125_parcels_names = {i:"{}".format(i) for i in range(1,300)}
-        Lausanne250_parcels_names = {i:"{}".format(i) for i in range(1,550)}
-        Lausanne500_parcels_names = {i:"{}".format(i) for i in range(1,1100)}
+        MarsAtlas_labels = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
+        Hammers_labels = readSulcusLabelTranslationFile('MNI_Atlases/rHammersSEEG12_labels.txt')
+        AAL_labels = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12_labels.txt')
+        AALDilate_labels = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
+        HCP_labels = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.txt')
+        AICHA_labels = readSulcusLabelTranslationFile('MNI_Atlases/AICHA_resliced_labels.txt')
+        JulichBrain_labels = readSulcusLabelTranslationFile('MNI_Atlases/JuBrain_Map_icbm_v25_lr_reslice.txt')
         
         # ===== BIPOLAR MONTAGE =====
         # Native coordinates
@@ -3830,8 +3797,8 @@ class LocateElectrodes(QtGui.QDialog):
                 most_common,num_most_common = Counter(voxel_to_keep).most_common(1)[0]
                 full_infoMA = Counter(voxel_to_keep).most_common()
                 label = most_common
-                full_infoMAcomputed = [(parcels_names[iLabel[0]],float(iLabel[1])/len(voxel_within_sphere_left)*100) for iLabel in full_infoMA]
-                label_name = parcels_names[label]
+                full_infoMAcomputed = [(MarsAtlas_labels[iLabel[0]],float(iLabel[1])/len(voxel_within_sphere_left)*100) for iLabel in full_infoMA]
+                label_name = MarsAtlas_labels[label]
             
             # FreeSurfer
             if not voxel_to_keep_FS:
@@ -3848,14 +3815,14 @@ class LocateElectrodes(QtGui.QDialog):
                         label_freesurfer = most_common
                         if label_freesurfer == 3403:
                             raise Exception("?????")
-                        label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                        label_freesurfer_name = freesurfer_labels[str(label_freesurfer)]
                     except:
                         print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
                         label_freesurfer_name = 'ERROR hipp/amyg surfaces not aligned with MRI'
                         label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
                 else:
                     label_freesurfer = most_common
-                    label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                    label_freesurfer_name = freesurfer_labels[str(label_freesurfer)]
             
             # Lausanne2008
             label_lausanne_name = ['N/A'] * 5
@@ -3868,7 +3835,7 @@ class LocateElectrodes(QtGui.QDialog):
                     else:
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
                         label_lausanne[iVol] = most_common
-                        label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
+                        label_lausanne_name[iVol] = lausanne_labels[iVol][str(int(label_lausanne[iVol]))]
 
             if GWAtlas:
                 if not voxelGW_to_keep:
@@ -3886,7 +3853,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAAL).most_common(1)[0]
                 label_AAL = most_common
-                label_AAL_name = AAL_parcels_names[label_AAL]
+                label_AAL_name = AAL_labels[label_AAL]
                 
             if not voxel_to_keepAALDilate:
                 label_AALDilate_name = "not in a AALDilate parcel" 
@@ -3894,7 +3861,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAALDilate).most_common(1)[0]
                 label_AALDilate = most_common
-                label_AALDilate_name = AALDilate_parcels_names[label_AALDilate]
+                label_AALDilate_name = AALDilate_labels[label_AALDilate]
             
             if not voxel_to_keepBroadmann:
                 label_Broadmann_name = "not in a Broadmann parcel" 
@@ -3924,7 +3891,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHammers).most_common(1)[0]
                 label_Hammers = most_common
-                label_Hammers_name = Hammers_parcels_names[label_Hammers]
+                label_Hammers_name = Hammers_labels[label_Hammers]
             
             if not voxel_to_keepHCP:
                 label_HCP_name = "not in a HCP-MMP1 parcel" 
@@ -3932,7 +3899,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
                 label_HCP = most_common
-                label_HCP_name = HCP_parcels_names[label_HCP]
+                label_HCP_name = HCP_labels[label_HCP]
                   
             if not voxel_to_keepAICHA:
                 label_AICHA_name = "not in a AICHA parcel" 
@@ -3940,7 +3907,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
                 label_AICHA = most_common
-                label_AICHA_name = AICHA_parcels_names[label_AICHA]
+                label_AICHA_name = AICHA_labels[label_AICHA]
 
             if not voxel_to_keepJulichBrain:
                 label_JulichBrain_name = "not in a JulichBrain parcel"
@@ -3948,7 +3915,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common, num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
                 label_JulichBrain = most_common
-                label_JulichBrain_name = JulichBrain_parcels_names[label_JulichBrain]
+                label_JulichBrain_name = JulichBrain_labels[label_JulichBrain]
 
             if DoResection:
                 most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
@@ -3990,20 +3957,20 @@ class LocateElectrodes(QtGui.QDialog):
             # Add to list of exported plot names
             plot_name += [plot_sorted[pindex][0]]
 
-        plots_by_label = dict([(Lab,[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
-        plots_by_label_FS = dict([(Lab,[p for p in plot_name if plots_label[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
+        plots_by_label = dict([(Lab,[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab]) for Lab in MarsAtlas_labels.values()])
+        plots_by_label_FS = dict([(Lab,[p for p in plot_name if plots_label[p]['Freesurfer'][1]==Lab]) for Lab in freesurfer_labels.values()])
         plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
-        plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
-        plots_by_label_AICHA = dict([(Lab,[p for p in plot_name if plots_label[p]['AICHA'][1]==Lab]) for Lab in AICHA_parcels_names.values()])
-        plots_by_label_JulichBrain = dict([(Lab,[p for p in plot_name if plots_label[p]['JulichBrain'][1]==Lab]) for Lab in JulichBrain_parcels_names.values()])
-        plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
-        plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
-        plots_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
-        plots_by_label_Lausanne60 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-60'][1]==Lab]) for Lab in Lausanne60_parcels_names.values()])
-        plots_by_label_Lausanne125 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-125'][1]==Lab]) for Lab in Lausanne125_parcels_names.values()])
-        plots_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-250'][1]==Lab]) for Lab in Lausanne250_parcels_names.values()])
-        plots_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-500'][1]==Lab]) for Lab in Lausanne500_parcels_names.values()])
+        plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_labels.values()])
+        plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_labels.values()])
+        plots_by_label_AICHA = dict([(Lab,[p for p in plot_name if plots_label[p]['AICHA'][1]==Lab]) for Lab in AICHA_labels.values()])
+        plots_by_label_JulichBrain = dict([(Lab,[p for p in plot_name if plots_label[p]['JulichBrain'][1]==Lab]) for Lab in JulichBrain_labels.values()])
+        plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in AAL_labels.values()])
+        plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_labels.values()])
+        plots_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-33'][1]==Lab]) for Lab in lausanne_labels[0].values()])
+        plots_by_label_Lausanne60 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-60'][1]==Lab]) for Lab in lausanne_labels[1].values()])
+        plots_by_label_Lausanne125 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-125'][1]==Lab]) for Lab in lausanne_labels[2].values()])
+        plots_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-250'][1]==Lab]) for Lab in lausanne_labels[3].values()])
+        plots_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-500'][1]==Lab]) for Lab in lausanne_labels[4].values()])
         
         
         # ===== BIPOLE =====
@@ -4137,8 +4104,8 @@ class LocateElectrodes(QtGui.QDialog):
                 most_common,num_most_common = Counter(voxel_to_keep).most_common(1)[0]
                 label = most_common
                 full_infoMA = Counter(voxel_to_keep).most_common()
-                full_infoMAcomputed = [(parcels_names[iLabel[0]],float(iLabel[1])/len(voxel_within_sphere_left)*100) for iLabel in full_infoMA]
-                label_name = parcels_names[label]
+                full_infoMAcomputed = [(MarsAtlas_labels[iLabel[0]],float(iLabel[1])/len(voxel_within_sphere_left)*100) for iLabel in full_infoMA]
+                label_name = MarsAtlas_labels[label]
             
             # FreeSurfer
             if not voxel_to_keep_FS:
@@ -4153,14 +4120,14 @@ class LocateElectrodes(QtGui.QDialog):
                     try:
                         most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
                         label_freesurfer = most_common
-                        label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                        label_freesurfer_name = freesurfer_labels[str(label_freesurfer)]
                     except:
                         print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
                         label_freesurfer_name = 'ERROR hipp/amyg surfaces not aligned with MRI'
                         label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
                 else:
                     label_freesurfer = most_common
-                    label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
+                    label_freesurfer_name = freesurfer_labels[str(label_freesurfer)]
             
             # Lausanne2008
             label_lausanne_name = ['N/A'] * 5
@@ -4173,7 +4140,7 @@ class LocateElectrodes(QtGui.QDialog):
                     else:
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
                         label_lausanne[iVol] = most_common
-                        label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
+                        label_lausanne_name[iVol] = lausanne_labels[iVol][str(int(label_lausanne[iVol]))]
 
             if GWAtlas:
                 if not voxelGW_to_keep:
@@ -4191,7 +4158,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAAL).most_common(1)[0]
                 label_AAL = most_common
-                label_AAL_name = AAL_parcels_names[label_AAL]
+                label_AAL_name = AAL_labels[label_AAL]
                 
             if not voxel_to_keepAALDilate:
                 label_AALDilate_name = "not in a AALDilate parcel" 
@@ -4199,7 +4166,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAALDilate).most_common(1)[0]
                 label_AALDilate = most_common              
-                label_AALDilate_name = AALDilate_parcels_names[label_AALDilate]
+                label_AALDilate_name = AALDilate_labels[label_AALDilate]
             
             if not voxel_to_keepBroadmann:
                 label_Broadmann_name = "not in a Broadmann parcel" 
@@ -4229,7 +4196,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHammers).most_common(1)[0]
                 label_Hammers = most_common
-                label_Hammers_name = Hammers_parcels_names[label_Hammers]
+                label_Hammers_name = Hammers_labels[label_Hammers]
             
             if not voxel_to_keepHCP:
                 label_HCP_name = "not in a HCP-MMP1 parcel" 
@@ -4237,7 +4204,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
                 label_HCP = most_common
-                label_HCP_name = HCP_parcels_names[label_HCP]
+                label_HCP_name = HCP_labels[label_HCP]
             
             if not voxel_to_keepAICHA:
                 label_AICHA_name = "not in a AICHA parcel" 
@@ -4245,7 +4212,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
                 label_AICHA = most_common
-                label_AICHA_name = AICHA_parcels_names[label_AICHA]
+                label_AICHA_name = AICHA_labels[label_AICHA]
 
             if not voxel_to_keepJulichBrain:
                 label_JulichBrain_name = "not in a JulichBrain parcel"
@@ -4253,7 +4220,7 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 most_common,num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
                 label_JulichBrain = most_common
-                label_JulichBrain_name = JulichBrain_parcels_names[label_JulichBrain]
+                label_JulichBrain_name = JulichBrain_labels[label_JulichBrain]
 
             if DoResection:
                 most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
@@ -4296,21 +4263,21 @@ class LocateElectrodes(QtGui.QDialog):
             # Add to list of exported plot names
             plot_name_bip += [info_plot_bipolaire[pindex][0]]
             
-        plots_bipolar_by_label = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
+        plots_bipolar_by_label = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['MarsAtlas'][1]==Lab]) for Lab in MarsAtlas_labels.values()])
         #do the same for freesurfer, broadmann, hammers, all and alldilate
-        plots_bipolar_by_label_FS = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
+        plots_bipolar_by_label_FS = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Freesurfer'][1]==Lab]) for Lab in freesurfer_labels.values()])
         plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
-        plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
-        plots_bipolar_by_label_AICHA = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AICHA'][1]==Lab]) for Lab in AICHA_parcels_names.values()])
-        plots_bipolar_by_label_JulichBrain = dict([(Lab, [p for p in plot_name_bip if plots_label_bipolar[p]['JulichBrain'][1] == Lab]) for Lab in JulichBrain_parcels_names.values()])
-        plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
-        plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne60 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-60'][1]==Lab]) for Lab in Lausanne60_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne125 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-125'][1]==Lab]) for Lab in Lausanne125_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-250'][1]==Lab]) for Lab in Lausanne250_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-500'][1]==Lab]) for Lab in Lausanne500_parcels_names.values()])
+        plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_labels.values()])
+        plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_labels.values()])
+        plots_bipolar_by_label_AICHA = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AICHA'][1]==Lab]) for Lab in AICHA_labels.values()])
+        plots_bipolar_by_label_JulichBrain = dict([(Lab, [p for p in plot_name_bip if plots_label_bipolar[p]['JulichBrain'][1] == Lab]) for Lab in JulichBrain_labels.values()])
+        plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_labels.values()])
+        plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_labels.values()])
+        plots_bipolar_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-33'][1]==Lab]) for Lab in lausanne_labels[0].values()])
+        plots_bipolar_by_label_Lausanne60 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-60'][1]==Lab]) for Lab in lausanne_labels[1].values()])
+        plots_bipolar_by_label_Lausanne125 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-125'][1]==Lab]) for Lab in lausanne_labels[2].values()])
+        plots_bipolar_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-250'][1]==Lab]) for Lab in lausanne_labels[3].values()])
+        plots_bipolar_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-500'][1]==Lab]) for Lab in lausanne_labels[4].values()])
         
         if acq:
             wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
@@ -4664,7 +4631,7 @@ class LocateElectrodes(QtGui.QDialog):
             items.append(items[iCortex[0]])
             del items[iCortex[0]]
         # Move "FreeSurfer Atlas" at the end
-        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]))]
+        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]) or ('DKT' in items[i]) or ('HCP-MMP1' in items[i]))]
         for i in iFreeSurfer:
             items.append(items[i])
         for i in reversed(iFreeSurfer):
