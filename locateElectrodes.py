@@ -3118,7 +3118,7 @@ class LocateElectrodes(QtGui.QDialog):
                 writer.writerow([u'Use of MNI Template', 'MarsAtlas', info_label_elec['Template']['MarsAtlas'], 'Freesurfer', info_label_elec['Template']['Freesurfer'], 'InitialSegmentation', InitialSegmentation])
                 
                 # Add list of column names
-                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate', 'JulichBrain']
+                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Brodmann','BrodmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate', 'JulichBrain']
                 list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
                 diff_list = list(list_to_write.difference(set(colNames)))
                 full_list = colNames
@@ -3149,8 +3149,8 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['GreyWhite'][1])
                     listwrite.append(vv['AAL'][1])
                     listwrite.append(vv['AALDilate'][1])
-                    listwrite.append(vv['Broadmann'][1])
-                    listwrite.append(vv['BroadmannDilate'][1])            
+                    listwrite.append(vv['Brodmann'][1])
+                    listwrite.append(vv['BrodmannDilate'][1])            
                     listwrite.append(vv['Hammers'][1])
                     listwrite.append(vv['HCP-MMP1'][1])
                     listwrite.append(vv['AICHA'][1])
@@ -3189,8 +3189,8 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append(vv['GreyWhite'][1])
                     listwrite.append(vv['AAL'][1])
                     listwrite.append(vv['AALDilate'][1])
-                    listwrite.append(vv['Broadmann'][1])
-                    listwrite.append(vv['BroadmannDilate'][1])   
+                    listwrite.append(vv['Brodmann'][1])
+                    listwrite.append(vv['BrodmannDilate'][1])   
                     listwrite.append(vv['Hammers'][1])
                     listwrite.append(vv['HCP-MMP1'][1])
                     listwrite.append(vv['AICHA'][1])
@@ -3606,8 +3606,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Chargement des atlas dans le MNI (broadman, aal etc ...)
         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii.gz')
         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii.gz')
-        vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
-        vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii.gz')
+        vol_BrodmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
+        vol_Brodmann = aims.read('MNI_Atlases/rbrodmann.nii.gz')
         vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
         vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.nii.gz')
         vol_AICHA = aims.read('MNI_Atlases/AICHA_resliced.nii.gz')
@@ -3757,12 +3757,12 @@ class LocateElectrodes(QtGui.QDialog):
             # AALDilate
             voxel_within_sphere_AALdilate = [round(vol_AALDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepAALDilate = [x for x in voxel_within_sphere_AALdilate if x != 0 and not math.isnan(x)]
-            # Broadmann
-            voxel_within_sphere_Broadmann = [round(vol_Broadmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmann = [x for x in voxel_within_sphere_Broadmann if x != 0 and not math.isnan(x)]
+            # Brodmann
+            voxel_within_sphere_Brodmann = [round(vol_Brodmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+            voxel_to_keepBrodmann = [x for x in voxel_within_sphere_Brodmann if x != 0 and not math.isnan(x)]
             # Brodmann dilate
-            voxel_within_sphere_Broadmanndilate = [round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmannDilate = [x for x in voxel_within_sphere_Broadmanndilate if x != 0 and not math.isnan(x)]
+            voxel_within_sphere_Brodmanndilate = [round(vol_BrodmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+            voxel_to_keepBrodmannDilate = [x for x in voxel_within_sphere_Brodmanndilate if x != 0 and not math.isnan(x)]
             # Hammers
             voxel_within_sphere_Hammers = [round(vol_Hammers.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepHammers = [x for x in voxel_within_sphere_Hammers if x != 0 and not math.isnan(x)]
@@ -3863,27 +3863,27 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AALDilate = most_common
                 label_AALDilate_name = AALDilate_labels[label_AALDilate]
             
-            if not voxel_to_keepBroadmann:
-                label_Broadmann_name = "not in a Broadmann parcel" 
-                label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
+            if not voxel_to_keepBrodmann:
+                label_Brodmann_name = "not in a Brodmann parcel" 
+                label_Brodmann = round(vol_Brodmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-                label_Broadmann = int(round(most_common))
+                most_common,num_most_common = Counter(voxel_to_keepBrodmann).most_common(1)[0]
+                label_Brodmann = int(round(most_common))
                 if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = "%d" % (label_Broadmann)
+                    label_Brodmann_name = "%d" % (label_Brodmann)
                 else:
-                    label_Broadmann_name = "%d" % (label_Broadmann+100)
+                    label_Brodmann_name = "%d" % (label_Brodmann+100)
                   
-            if not voxel_to_keepBroadmannDilate:
-                label_BroadmannDilate_name = "not in a Broadmann parcel" 
-                label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
+            if not voxel_to_keepBrodmannDilate:
+                label_BrodmannDilate_name = "not in a Brodmann parcel" 
+                label_BrodmannDilate = round(vol_BrodmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = int(round(most_common))     
-                if label_BroadmannDilate>48:
-                    label_BroadmannDilate_name = "%d" % (label_BroadmannDilate-48+100)
+                most_common,num_most_common = Counter(voxel_to_keepBrodmannDilate).most_common(1)[0]
+                label_BrodmannDilate = int(round(most_common))     
+                if label_BrodmannDilate>48:
+                    label_BrodmannDilate_name = "%d" % (label_BrodmannDilate-48+100)
                 else:
-                    label_BroadmannDilate_name = "%d" % (label_BroadmannDilate)
+                    label_BrodmannDilate_name = "%d" % (label_BrodmannDilate)
                 
             if not voxel_to_keepHammers:
                 label_Hammers_name = "not in a Hammers parcel" 
@@ -3936,8 +3936,8 @@ class LocateElectrodes(QtGui.QDialog):
                 'GreyWhite'        : (GW_label, GW_label_name), \
                 'AAL'              : (label_AAL, label_AAL_name), \
                 'AALDilate'        : (label_AALDilate, label_AALDilate_name), \
-                'Broadmann'        : (label_Broadmann, label_Broadmann_name), \
-                'BroadmannDilate'  : (label_BroadmannDilate, label_BroadmannDilate_name), \
+                'Brodmann'        : (label_Brodmann, label_Brodmann_name), \
+                'BrodmannDilate'  : (label_BrodmannDilate, label_BrodmannDilate_name), \
                 'Hammers'          : (label_Hammers, label_Hammers_name), \
                 'HCP-MMP1'         : (label_HCP, label_HCP_name), \
                 'AICHA'            : (label_AICHA, label_AICHA_name), \
@@ -3959,7 +3959,7 @@ class LocateElectrodes(QtGui.QDialog):
 
         plots_by_label = dict([(Lab,[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab]) for Lab in MarsAtlas_labels.values()])
         plots_by_label_FS = dict([(Lab,[p for p in plot_name if plots_label[p]['Freesurfer'][1]==Lab]) for Lab in freesurfer_labels.values()])
-        plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
+        plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Brodmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
         plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_labels.values()])
         plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_labels.values()])
         plots_by_label_AICHA = dict([(Lab,[p for p in plot_name if plots_label[p]['AICHA'][1]==Lab]) for Lab in AICHA_labels.values()])
@@ -4059,13 +4059,13 @@ class LocateElectrodes(QtGui.QDialog):
             voxel_within_sphere_AALdilate = [round(vol_AALDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             voxel_to_keepAALDilate = [x for x in voxel_within_sphere_AALdilate if x != 0 and not math.isnan(x)]
             
-            #Broadmann
-            voxel_within_sphere_Broadmann = [round(vol_Broadmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmann = [x for x in voxel_within_sphere_Broadmann if x != 0 and not math.isnan(x)]
+            #Brodmann
+            voxel_within_sphere_Brodmann = [round(vol_Brodmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+            voxel_to_keepBrodmann = [x for x in voxel_within_sphere_Brodmann if x != 0 and not math.isnan(x)]
             
             #Brodmann dilate
-            voxel_within_sphere_Broadmanndilate = [round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmannDilate = [x for x in voxel_within_sphere_Broadmanndilate if x != 0 and not math.isnan(x)]
+            voxel_within_sphere_Brodmanndilate = [round(vol_BrodmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+            voxel_to_keepBrodmannDilate = [x for x in voxel_within_sphere_Brodmanndilate if x != 0 and not math.isnan(x)]
             
             #Hammers
             voxel_within_sphere_Hammers = [round(vol_Hammers.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
@@ -4168,27 +4168,27 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AALDilate = most_common              
                 label_AALDilate_name = AALDilate_labels[label_AALDilate]
             
-            if not voxel_to_keepBroadmann:
-                label_Broadmann_name = "not in a Broadmann parcel" 
-                label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
+            if not voxel_to_keepBrodmann:
+                label_Brodmann_name = "not in a Brodmann parcel" 
+                label_Brodmann = round(vol_Brodmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-                label_Broadmann = int(round(most_common))
+                most_common,num_most_common = Counter(voxel_to_keepBrodmann).most_common(1)[0]
+                label_Brodmann = int(round(most_common))
                 if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = str(label_Broadmann)
+                    label_Brodmann_name = str(label_Brodmann)
                 else:
-                    label_Broadmann_name = str(label_Broadmann+100)
+                    label_Brodmann_name = str(label_Brodmann+100)
 
-            if not voxel_to_keepBroadmannDilate:
-                label_BroadmannDilate_name = "not in a Broadmann parcel" 
-                label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
+            if not voxel_to_keepBrodmannDilate:
+                label_BrodmannDilate_name = "not in a Brodmann parcel" 
+                label_BrodmannDilate = round(vol_BrodmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = int(round(most_common))
-                if label_BroadmannDilate>48:
-                    label_BroadmannDilate_name = str(label_BroadmannDilate-48+100)
+                most_common,num_most_common = Counter(voxel_to_keepBrodmannDilate).most_common(1)[0]
+                label_BrodmannDilate = int(round(most_common))
+                if label_BrodmannDilate>48:
+                    label_BrodmannDilate_name = str(label_BrodmannDilate-48+100)
                 else:
-                    label_BroadmannDilate_name = str(label_BroadmannDilate)
+                    label_BrodmannDilate_name = str(label_BrodmannDilate)
             
             if not voxel_to_keepHammers:
                 label_Hammers_name = "not in a Hammers parcel" 
@@ -4242,8 +4242,8 @@ class LocateElectrodes(QtGui.QDialog):
                 'GreyWhite'        : (GW_label, GW_label_name), \
                 'AAL'              : (label_AAL, label_AAL_name), \
                 'AALDilate'        : (label_AALDilate, label_AALDilate_name), \
-                'Broadmann'        : (label_Broadmann, label_Broadmann_name), \
-                'BroadmannDilate'  : (label_BroadmannDilate, label_BroadmannDilate_name), \
+                'Brodmann'        : (label_Brodmann, label_Brodmann_name), \
+                'BrodmannDilate'  : (label_BrodmannDilate, label_BrodmannDilate_name), \
                 'Hammers'          : (label_Hammers, label_Hammers_name), \
                 'HCP-MMP1'         : (label_HCP, label_HCP_name), \
                 'AICHA'            : (label_AICHA, label_AICHA_name), \
@@ -4264,9 +4264,9 @@ class LocateElectrodes(QtGui.QDialog):
             plot_name_bip += [info_plot_bipolaire[pindex][0]]
             
         plots_bipolar_by_label = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['MarsAtlas'][1]==Lab]) for Lab in MarsAtlas_labels.values()])
-        #do the same for freesurfer, broadmann, hammers, all and alldilate
+        #do the same for freesurfer, brodmann, hammers, all and alldilate
         plots_bipolar_by_label_FS = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Freesurfer'][1]==Lab]) for Lab in freesurfer_labels.values()])
-        plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
+        plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Brodmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
         plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_labels.values()])
         plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_labels.values()])
         plots_bipolar_by_label_AICHA = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AICHA'][1]==Lab]) for Lab in AICHA_labels.values()])
