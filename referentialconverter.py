@@ -115,7 +115,7 @@ class ReferentialConverter:
   ############################ AC-PC intra-subject referential (no normalization)
   def loadACPC(self, image):
 	""" Loads the .APC file linked to the provided Image Disk Item and sets AC-PC referential"""
-	print "****refConv**** Loading ACPC referential"
+	# print "****refConv**** Loading ACPC referential"
 	rdi = ReadDiskItem( 'Commissure coordinates', 'Commissure coordinates' )
 	apcfile = rdi.findValue( image )
 	points = apctools.apcRead(apcfile.fullPath())
@@ -164,7 +164,7 @@ class ReferentialConverter:
     talz = cross(talx, taly)
 
     pos = -x*talx + y*taly + z*talz + ac
-    print "     "+repr(pos.tolist()[0])
+    # print "     "+repr(pos.tolist()[0])
     return pos.tolist()[0]
 
   ############################### Anatomist Talairach Referential : bounding box normalizatiokn

@@ -121,7 +121,6 @@ def natural_keys(text):
 def moveElectrode(target, entry, referential, newRef, a, meshes):
     # a is anatomist object
     if entry is None or target is None:
-        print("entry or target is None")
         return
 
     if newRef is None:
@@ -1115,7 +1114,6 @@ class LocateElectrodes(QtGui.QDialog):
         allTransf = list (rdi._findValues( {}, None, False ) )
         for trsf in allTransf:
             if trsf.attributes()['acquisition'].startswith(u'T1pre'):
-                # print repr(trsf.attributes())
                 srcrDiskItem = self.transfoManager.referential( trsf.attributes()['source_referential'] )
                 srcr = self.a.createReferential(srcrDiskItem)
                 dstrDiskItem = self.transfoManager.referential(trsf.attributes()['destination_referential'])
@@ -1183,7 +1181,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.referentialCombo.addItems(["DKT"])
         if ('HCP-MMP1' in self.dispObj.keys()):
             self.referentialCombo.addItems(["HCP-MMP1"])
-        print self.dispObj.keys()
 
     def updateCoordsDisplay(self, text):
         self.coordsDisplayRef = str(text)
@@ -1295,7 +1292,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.configureColors()
     
         if mode == self.dispMode and params == self.dispParams:
-            print "already using the right display mode"
             return
         self.updateElectrodeMeshes(clear=True)
         for elec in self.electrodes:
@@ -1314,7 +1310,6 @@ class LocateElectrodes(QtGui.QDialog):
         if clear:
             if 'electrodes' not in self.dispObj.keys():
                 return
-            print "UPDATE CLEAR -> remove electrodes from windows and delete them"
             self.a.removeObjects(self.dispObj['electrodes'], self.wins)
             self.dispObj['electrodes'] = []
             return
@@ -1432,7 +1427,6 @@ class LocateElectrodes(QtGui.QDialog):
 
     def currentElectrode(self):
         idx = self.electrodeList.currentRow()
-        print "Electrode %i is selected"%idx
         if idx < 0:
           return None
         return self.electrodes[idx]
@@ -1616,7 +1610,6 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 transf = self.a.getTransformation(el['ref'], self.wins[0].getReferential())
                 xyz = transf.transform(xyz)
-                # print "Warning : Current window referential is not T1pre referential ! Cannot set the linkedCursor on the selected electrode contact..."
             self.wins[0].moveLinkedCursor(xyz)
         except:
             print "Error moving the cursor to the contact"
@@ -1867,7 +1860,6 @@ class LocateElectrodes(QtGui.QDialog):
         els = [dict((k,el[k]) for k in ['name', 'target', 'entry', 'model']) for el in self.electrodes]
         # Save Referential UID which is the base of electrode coordinates
         refId = self.preReferential().uuid()
-        print 'Sauvegarde electrodes'+repr(els)+"\nReferential UUID : "+refId
         path = None
         di = None
         if self.brainvisaPatientAttributes is not None:
@@ -2099,7 +2091,7 @@ class LocateElectrodes(QtGui.QDialog):
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
-            res = self.computeParcels()
+            res = self.computeParcels(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Compute MarsAtlas resection
@@ -2605,7 +2597,6 @@ class LocateElectrodes(QtGui.QDialog):
         volume = aims.read(str(self.diskItems['T1pre']))
         sizeT1=volume.getVoxelSize()
         
-        print 'verif done'
         #calculate the total volume of the parcels
         for key, value in MarsAtlas_labels.items():
             if value[0].lower()=='l':
@@ -2925,7 +2916,7 @@ class LocateElectrodes(QtGui.QDialog):
             if useDatabase:
                 neuroHierarchy.databases.insertDiskItem(di, update=True)
             # Return new file names
-            print "export csv done"
+            print "Export csv done"
             newFiles += [fileCsv]
         return [newFiles, errMsg]
     
@@ -3003,82 +2994,55 @@ class LocateElectrodes(QtGui.QDialog):
         return [di.fullPath()]
 
 
-    # ===== EXPORT PARCELS: PART I =====
-    def computeParcels(self, Callback = None):
+    # ===== COMPUTE PARCELS =====
+    def computeParcels(self, diT1pre):
         from datetime import datetime
-        
-        newFiles = []
         errMsg = []
-        # Check marsatlas
-        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={ 'side': 'left' ,'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'parcellation_type':'marsAtlas' })
-        LeftGyri = list(LeftGyri.findValues(self.diskItems['T1pre'], None, False))
+        
+        # === GET MNI COORDINATES ===
+        plot_dict_MNI = self.getAllPlotsCentersMNIRef()
+        if plot_dict_MNI is None:
+            errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
+            return [[], errMsg]
+
+        # === GET MARSATLAS ===
+        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={'side': 'left' ,'subject':diT1pre['subject'], 'center':diT1pre['center'], 'parcellation_type':'marsAtlas' })
+        LeftGyri = list(LeftGyri.findValues(diT1pre, None, False))
         if not LeftGyri:
-            print('Error: No hemisphere parcellation texture found')
             errMsg += ["Export CSV: MarsAtlas not found"]
-            TemplateMarsAtlas = True
+            useTemplateMarsAtlas = True
+            acq = diT1pre['acquisition']
         else:
             # If there are multiple files, use the most recent one
             if (len(LeftGyri) > 1):
-                # Get file creation dates
-                fileTimes = [os.path.getmtime(str(f)) for f in LeftGyri]
-                # Display warning
-                print("Warning: Multiple marsAtlas segmentation folders for the same subject, using the most recent one:")
-                for i in range(len(LeftGyri)):
-                    print("    " + str(LeftGyri[i]) + "  (" + datetime.utcfromtimestamp(fileTimes[i]).strftime('%Y-%m-%d %H:%M:%S') +  ")")
-                # Select newest file 
-                iMax = numpy.array(fileTimes).argmax()
-                LeftGyri = LeftGyri[1]
-            else:
-                LeftGyri = LeftGyri[0]
-            TemplateMarsAtlas = False
-
-        # Check freesurfer
-        rdi_freesurfer = self.getFreeSurferAtlas()
-        if not rdi_freesurfer or len(rdi_freesurfer) == 0:
-            print('Error: No freesurfer atlas found')
-            errMsg += ["Export CSV: FreeSurfer atlas not found"]
-            TemplateFreeSurfer = True
-        else:
-            TemplateFreeSurfer = False
-        
-        # Get MNI coordinates for all the plots
-        dict_plotsMNI = self.getAllPlotsCentersMNIRef()
-        if dict_plotsMNI is None:
-            errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
-            return [newFiles, errMsg]
-
-        # Generate 3D version of the MarsAtlas surface-based atlas
-        if LeftGyri:
+                errMsg += ["Export CSV: Multiple MarsAtlas segmentations found: using the first one."]
+            LeftGyri = LeftGyri[0]
+            useTemplateMarsAtlas = False
+            # Generate 3D version of the MarsAtlas surface-based atlas
             try:
                 self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
                 acq = LeftGyri.attributes()['acquisition']
             except Exception, e:
-                errMsg += "Could not interpolate MarsAtlas in 3D: " + repr(e)
-                acq = self.diskItems['T1pre']['acquisition']
+                errMsg += ["Could not interpolate MarsAtlas in 3D: " + repr(e)]
+                acq = diT1pre['acquisition']
+        # Required attributes for files within this acquisition
+        acqAttr = {'subject':diT1pre['subject'], 'center':diT1pre['center'], 'acquisition':acq}
+                
+        # Check freesurfer
+        rdi_freesurfer = self.getFreeSurferAtlas()
+        if not rdi_freesurfer or len(rdi_freesurfer) == 0:
+            errMsg += ["Export CSV: FreeSurfer atlas not found"]
+            useTemplateFreeSurfer = True
         else:
-            acq = self.diskItems['T1pre']['acquisition']
-        print "===== ACQ: " + acq
-        # Continue export
-        newFiles += self.computeParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, acq)
-        # Call additional function at the end
-        if Callback is not None:
-            Callback()
-        return [newFiles, errMsg]
-        
+            useTemplateFreeSurfer = False
 
-    # ===== EXPORT PARCELS: PART II =====
-    def computeParcels2(self, useTemplateMarsAtlas, useTemplateFreeSurfer, plot_dict_MNI, acq, fileEleclabel=None):
-
-        print "export electrode start"
-        timestamp = time.time()
-                    
         # ===== READ: MARS ATLAS =====
         # Get left hemisphere
         if not useTemplateMarsAtlas:
-            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
+            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes=acqAttr)
+            diMaskleft = Mask_left.findValue(diT1pre)
             if diMaskleft is None:
-                print('Error: left gyri conversion surface to volume failed')
+                errMsg += ['Left gyri conversion surface to volume failed']
                 useTemplateMarsAtlas = True
                 initSegmentation = "N/A"
                 item_segment = 'T1pre'
@@ -3094,10 +3058,10 @@ class LocateElectrodes(QtGui.QDialog):
             item_segment = 'T1pre'
         # Get right hemisphere
         if not useTemplateMarsAtlas:
-            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
+            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes=acqAttr)
             diMaskright = Mask_right.findValue(self.diskItems[item_segment])
             if diMaskright is None:
-                print('right gyri conversion surface to volume failed')
+                errMsg += ['Left gyri conversion surface to volume failed']
                 useTemplateMarsAtlas = True
         # Read volumes
         if not useTemplateMarsAtlas:
@@ -3108,28 +3072,23 @@ class LocateElectrodes(QtGui.QDialog):
             vol_right = aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
         
         # ===== READ: GREY/WHITE =====
-        if acq:
-            GWAtlas = True
-            # Left hemisphere
-            MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskGW_left = MaskGW_left.findValue(self.diskItems[item_segment])
-            if diMaskGW_left is None:
-                print('Error: Left grey/white mask not found')
-                GWAtlas = False
-            else:
-                volGW_left = aims.read(diMaskGW_left.fileName())
-            # Right hemisphere
-            MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskGW_right = MaskGW_right.findValue(self.diskItems[item_segment])
-            if diMaskGW_right is None:
-                print('Error: Right grey/white mask not found')
-                GWAtlas = False
-            else:
-                volGW_right = aims.read(diMaskGW_right.fileName())
+        GWAtlas = True
+        # Left hemisphere
+        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes=acqAttr)
+        diMaskGW_left = MaskGW_left.findValue(self.diskItems[item_segment])
+        if diMaskGW_left is None:
+            errMsg += ['Left grey/white mask not found']
+            GWAtlas = False
         else:
-            GWAtlas = True
-            volGW_left = aims.read('MNI_Brainvisa/Lgrey_white_Gre_2016_MNI1.nii.gz')
-            volGW_right = aims.read('MNI_Brainvisa/Rgrey_white_Gre_2016_MNI1.nii.gz')
+            volGW_left = aims.read(diMaskGW_left.fileName())
+        # Right hemisphere
+        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes=acqAttr)
+        diMaskGW_right = MaskGW_right.findValue(self.diskItems[item_segment])
+        if diMaskGW_right is None:
+            errMsg += ['Right grey/white mask not found']
+            GWAtlas = False
+        else:
+            volGW_right = aims.read(diMaskGW_right.fileName())
         
         # ===== READ: FREESURFER =====
         useTemplateLausanne = True
@@ -3148,19 +3107,19 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 vol_lausanne = None
             # LEFT
-            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
+            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes=acqAttr)
             difreesurfHippoAntPostleft = list(freesurfHippoAntPostleft.findValues({}, None, False ))
             if not difreesurfHippoAntPostleft:
                 # If file is not properly registered in DB, try to search volume by filename directly
-                lhippoFile = os.path.dirname(str(self.diskItems['T1pre'])) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'leftHippocampus' + os.path.basename(str(self.diskItems['T1pre']))
+                lhippoFile = os.path.dirname(str(diT1pre)) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'leftHippocampus' + os.path.basename(str(diT1pre))
                 if os.path.isfile(lhippoFile):
                     difreesurfHippoAntPostleft = [lhippoFile]
             # RIGHT
-            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
+            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes=acqAttr)
             difreesurfHippoAntPostright = list(freesurfHippoAntPostright.findValues({}, None, False ))
             if not difreesurfHippoAntPostright:
                 # If file is not properly registered in DB, try to search volume by filename directly
-                rhippoFile = os.path.dirname(str(self.diskItems['T1pre'])) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'rightHippocampus' + os.path.basename(str(self.diskItems['T1pre']))
+                rhippoFile = os.path.dirname(str(diT1pre)) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'rightHippocampus' + os.path.basename(str(diT1pre))
                 if os.path.isfile(rhippoFile):
                     difreesurfHippoAntPostright = [rhippoFile]
             # Merge multiple volumes
@@ -3182,47 +3141,26 @@ class LocateElectrodes(QtGui.QDialog):
             vol_hippoanteropostleft = aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
             vol_hippoanteropostright = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz')
             vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
-            #vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
             vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii.gz')
             vol_lausanne = None
         # Read template lausanne2008 volumes
         if not vol_lausanne:
-            if os.path.exists('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'):
-                vol_lausanne = [aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale250.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz')]
-            else:
-                print("ERROR: Missing Lausanne2008 in MNI_Freesurfer folder - Update the MNI templates.")
+            vol_lausanne = [aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'), \
+                            aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'), \
+                            aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'), \
+                            aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale250.nii.gz'), \
+                            aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz')]
 
         # ===== READ: RESECTION =====
-        if acq:
-            wdi_resec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'center':self.brainvisaPatientAttributes['center'], 'subject':self.brainvisaPatientAttributes['subject'] })
-            di_resec = list(wdi_resec.findValues({}, None, False ))
-            #careful, if we use templates, the resection has to be deformed in the mni template
-            if len(di_resec)==0:
-                print('Warning: No resection image found')
-                DoResection = False
-            else:
-                DoResection = True
-                vol_resec = aims.read(di_resec[0].fileName())
-        else:
+        wdi_resec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes=acqAttr)
+        di_resec = list(wdi_resec.findValues({}, None, False ))
+        #careful, if we use templates, the resection has to be deformed in the mni template
+        if len(di_resec)==0:
+            print('Warning: No resection image found')
             DoResection = False
-        
-        # ===== READ: STATISTICS =====
-        if acq:
-            # Is there any statistic-Data
-            wdi_stat = ReadDiskItem('Statistic-Data','NIFTI-1 image',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
-            di_stat = list(wdi_stat.findValues({}, None, False ))
-            # Different subacquisition
-            subacq_existing = [di_stat[i].attributes()['subacquisition'] for i in range(len(di_stat))]
-            if len(subacq_existing) >0:
-                subacq_stat=[]
-                for i_subacq in range(len(subacq_existing)):
-                    subacq_stat.append(aims.read(di_stat[i_subacq].fileName()))
         else:
-            subacq_existing = []
+            DoResection = True
+            vol_resec = aims.read(di_resec[0].fileName())
         
         # ===== GET: CONTACT COORDINATES =====
         info_fs = None
@@ -3230,8 +3168,7 @@ class LocateElectrodes(QtGui.QDialog):
         if acq:
             plots = self.getAllPlotsCentersT1preRef()
             if len(plots)==0:
-                print("no contact found")
-                return []
+                return [[], 'No contact found']
             # Sort by contact names
             info_plot = []
             for k,v in plots.iteritems():
@@ -3329,7 +3266,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         # ===== VOXEL COORDINATES =====
         if acq:
-            info_image = self.diskItems['T1pre'].attributes()
+            info_image = diT1pre.attributes()
         else:
             info_image = {'voxel_size':[1,1,1]}
         if not info_fs:
@@ -3346,7 +3283,6 @@ class LocateElectrodes(QtGui.QDialog):
         
         
         # ===== PROCESS ALL CONTACTS ===== 
-        print("start contact estimation")
         plots_label = {}
         plot_name = []
         for pindex in range(len(plot_sorted)):
@@ -3447,18 +3383,12 @@ class LocateElectrodes(QtGui.QDialog):
             if DoResection:
                 voxel_resec = [vol_resec.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
             
-            if len(subacq_existing)>0:
-                voxel_substat=[]
-                for i_substat in range(len(subacq_stat)):
-                    voxel_substat_all = [subacq_stat[i_substat].value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere_stat[2],nb_voxel_sphere_stat[2]+1) for vox_j in range(-nb_voxel_sphere_stat[1],nb_voxel_sphere_stat[1]+1) for vox_i in range(-nb_voxel_sphere_stat[0],nb_voxel_sphere_stat[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_stat]
-                    voxel_substat.append(numpy.mean([x for x in voxel_substat_all if abs(x) >= 0.1]))
-            
             #prendre le label qui revient le plus en dehors de zero (au cas où il y en ait plusieurs)
             from collections import Counter
             
             # MarsAtlas
             if not voxel_to_keep:
-                label_name = 'not in a mars atlas parcel'
+                label_name = 'N/A'
                 label = max(vol_left.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]), vol_right.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]))
                 full_infoMAcomputed = []
             else:
@@ -3470,7 +3400,7 @@ class LocateElectrodes(QtGui.QDialog):
             
             # FreeSurfer
             if not voxel_to_keep_FS:
-                label_freesurfer_name = 'not in a freesurfer parcel'
+                label_freesurfer_name = 'N/A'
                 label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
             else:
                 most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
@@ -3498,7 +3428,7 @@ class LocateElectrodes(QtGui.QDialog):
             if vol_lausanne:
                 for iVol in range(5):
                     if not voxel_to_keep_Laus[iVol]:
-                        label_lausanne_name[iVol] = 'not in a lausanne2008 parcel'
+                        label_lausanne_name[iVol] = 'N/A'
                         label_lausanne[iVol] = vol_lausanne[iVol].value(plot_pos_pixLAU[0],plot_pos_pixLAU[1],plot_pos_pixLAU[2])
                     else:
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
@@ -3516,7 +3446,7 @@ class LocateElectrodes(QtGui.QDialog):
                     GW_label = most_common2
                 
             if not voxel_to_keepAAL:
-                label_AAL_name = "not in a AAL parcel" 
+                label_AAL_name = "N/A" 
                 label_AAL = round(vol_AAL.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAAL).most_common(1)[0]
@@ -3524,7 +3454,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AAL_name = AAL_labels[label_AAL]
                 
             if not voxel_to_keepAALDilate:
-                label_AALDilate_name = "not in a AALDilate parcel" 
+                label_AALDilate_name = "N/A" 
                 label_AALDilate = round(vol_AALDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAALDilate).most_common(1)[0]
@@ -3532,7 +3462,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AALDilate_name = AALDilate_labels[label_AALDilate]
             
             if not voxel_to_keepBrodmann:
-                label_Brodmann_name = "not in a Brodmann parcel" 
+                label_Brodmann_name = "N/A" 
                 label_Brodmann = round(vol_Brodmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBrodmann).most_common(1)[0]
@@ -3543,7 +3473,7 @@ class LocateElectrodes(QtGui.QDialog):
                     label_Brodmann_name = "%d" % (label_Brodmann+100)
                   
             if not voxel_to_keepBrodmannDilate:
-                label_BrodmannDilate_name = "not in a Brodmann parcel" 
+                label_BrodmannDilate_name = "N/A" 
                 label_BrodmannDilate = round(vol_BrodmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBrodmannDilate).most_common(1)[0]
@@ -3554,7 +3484,7 @@ class LocateElectrodes(QtGui.QDialog):
                     label_BrodmannDilate_name = "%d" % (label_BrodmannDilate)
                 
             if not voxel_to_keepHammers:
-                label_Hammers_name = "not in a Hammers parcel" 
+                label_Hammers_name = "N/A" 
                 label_Hammers = round(vol_Hammers.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHammers).most_common(1)[0]
@@ -3562,7 +3492,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Hammers_name = Hammers_labels[label_Hammers]
             
             if not voxel_to_keepHCP:
-                label_HCP_name = "not in a HCP-MMP1 parcel" 
+                label_HCP_name = "N/A" 
                 label_HCP = round(vol_HCP.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
@@ -3570,7 +3500,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_HCP_name = HCP_labels[label_HCP]
                   
             if not voxel_to_keepAICHA:
-                label_AICHA_name = "not in a AICHA parcel" 
+                label_AICHA_name = "N/A" 
                 label_AICHA = round(vol_AICHA.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
@@ -3578,7 +3508,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AICHA_name = AICHA_labels[label_AICHA]
 
             if not voxel_to_keepJulichBrain:
-                label_JulichBrain_name = "not in a JulichBrain parcel"
+                label_JulichBrain_name = "N/A"
                 label_JulichBrain = round(vol_JulichBrain.value(plot_pos_pix_MNI[0], plot_pos_pix_MNI[1], plot_pos_pix_MNI[2]))
             else:
                 most_common, num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
@@ -3618,10 +3548,6 @@ class LocateElectrodes(QtGui.QDialog):
                 'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
                 }
             
-            # add subacq_stat dictionnaries
-            if len(subacq_existing)>0:
-                for i_substat in range(len(subacq_stat)):
-                    plots_label[plot_sorted[pindex][0]].update({di_stat[i_substat].attributes()['subacquisition']:float(format( voxel_substat[i_substat],'.3f'))})
             # Add to list of exported plot names
             plot_name += [plot_sorted[pindex][0]]
 
@@ -3642,7 +3568,6 @@ class LocateElectrodes(QtGui.QDialog):
         
         
         # ===== BIPOLE =====
-        print("Start bipole estimation")
         #conversion x mm en nombre de voxel:
         sphere_size_bipole = 5
         nb_voxel_sphere = [int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
@@ -3753,19 +3678,13 @@ class LocateElectrodes(QtGui.QDialog):
 
             if DoResection:
                 voxel_resec = [vol_resec.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-            
-            if len(subacq_existing)>0:
-                voxel_substat=[]
-                for i_substat in range(len(subacq_stat)):
-                    voxel_substat_all = [subacq_stat[i_substat].value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere_stat[2],nb_voxel_sphere_stat[2]+1) for vox_j in range(-nb_voxel_sphere_stat[1],nb_voxel_sphere_stat[1]+1) for vox_i in range(-nb_voxel_sphere_stat[0],nb_voxel_sphere_stat[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_stat]
-                    voxel_substat.append(numpy.mean([x for x in voxel_substat_all if abs(x) >= 0.1]))
-            
+
             #prendre le label qui revient le plus en dehors de zero (au cas où il y en ait plusieurs)
             from collections import Counter
             
             # MarsAtlas
             if not voxel_to_keep:
-                label_name = 'not in a mars atlas parcel'
+                label_name = 'N/A'
                 label = max(vol_left.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]), vol_right.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]))
                 full_infoMAcomputed = []
             else:
@@ -3777,7 +3696,7 @@ class LocateElectrodes(QtGui.QDialog):
             
             # FreeSurfer
             if not voxel_to_keep_FS:
-                label_freesurfer_name = 'not in a freesurfer parcel'
+                label_freesurfer_name = 'N/A'
                 label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
             else:
                 most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
@@ -3803,7 +3722,7 @@ class LocateElectrodes(QtGui.QDialog):
             if vol_lausanne:
                 for iVol in range(5):
                     if not voxel_to_keep_Laus[iVol]:
-                        label_lausanne_name[iVol] = 'not in a lausanne2008 parcel'
+                        label_lausanne_name[iVol] = 'N/A'
                         label_lausanne[iVol] = vol_lausanne[iVol].value(plot_pos_pixLAU[0],plot_pos_pixLAU[1],plot_pos_pixLAU[2])
                     else:
                         most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
@@ -3821,7 +3740,7 @@ class LocateElectrodes(QtGui.QDialog):
                     GW_label = most_common2
             
             if not voxel_to_keepAAL:
-                label_AAL_name = "not in a AAL parcel" 
+                label_AAL_name = "N/A" 
                 label_AAL = round(vol_AAL.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAAL).most_common(1)[0]
@@ -3829,7 +3748,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AAL_name = AAL_labels[label_AAL]
                 
             if not voxel_to_keepAALDilate:
-                label_AALDilate_name = "not in a AALDilate parcel" 
+                label_AALDilate_name = "N/A" 
                 label_AALDilate = round(vol_AALDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepAALDilate).most_common(1)[0]
@@ -3837,7 +3756,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AALDilate_name = AALDilate_labels[label_AALDilate]
             
             if not voxel_to_keepBrodmann:
-                label_Brodmann_name = "not in a Brodmann parcel" 
+                label_Brodmann_name = "N/A" 
                 label_Brodmann = round(vol_Brodmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBrodmann).most_common(1)[0]
@@ -3848,7 +3767,7 @@ class LocateElectrodes(QtGui.QDialog):
                     label_Brodmann_name = str(label_Brodmann+100)
 
             if not voxel_to_keepBrodmannDilate:
-                label_BrodmannDilate_name = "not in a Brodmann parcel" 
+                label_BrodmannDilate_name = "N/A" 
                 label_BrodmannDilate = round(vol_BrodmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepBrodmannDilate).most_common(1)[0]
@@ -3859,7 +3778,7 @@ class LocateElectrodes(QtGui.QDialog):
                     label_BrodmannDilate_name = str(label_BrodmannDilate)
             
             if not voxel_to_keepHammers:
-                label_Hammers_name = "not in a Hammers parcel" 
+                label_Hammers_name = "N/A" 
                 label_Hammers = round(vol_Hammers.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHammers).most_common(1)[0]
@@ -3867,7 +3786,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_Hammers_name = Hammers_labels[label_Hammers]
             
             if not voxel_to_keepHCP:
-                label_HCP_name = "not in a HCP-MMP1 parcel" 
+                label_HCP_name = "N/A" 
                 label_HCP = round(vol_HCP.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
@@ -3875,7 +3794,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_HCP_name = HCP_labels[label_HCP]
             
             if not voxel_to_keepAICHA:
-                label_AICHA_name = "not in a AICHA parcel" 
+                label_AICHA_name = "N/A"
                 label_AICHA = round(vol_AICHA.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:    
                 most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
@@ -3883,7 +3802,7 @@ class LocateElectrodes(QtGui.QDialog):
                 label_AICHA_name = AICHA_labels[label_AICHA]
 
             if not voxel_to_keepJulichBrain:
-                label_JulichBrain_name = "not in a JulichBrain parcel"
+                label_JulichBrain_name = "N/A"
                 label_JulichBrain = round(vol_JulichBrain.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
             else:
                 most_common,num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
@@ -3924,10 +3843,6 @@ class LocateElectrodes(QtGui.QDialog):
                 'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
                 }
             
-            # add subacq_stat dictionnaries
-            if len(subacq_existing)>0:
-                for i_substat in range(len(subacq_stat)):
-                    plots_label_bipolar[info_plot_bipolaire[pindex][0]].update({di_stat[i_substat].attributes()['subacquisition']:float(format( voxel_substat[i_substat],'.3f'))})
             # Add to list of exported plot names
             plot_name_bip += [info_plot_bipolaire[pindex][0]]
             
@@ -3947,13 +3862,13 @@ class LocateElectrodes(QtGui.QDialog):
         plots_bipolar_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-250'][1]==Lab]) for Lab in lausanne_labels[3].values()])
         plots_bipolar_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-500'][1]==Lab]) for Lab in lausanne_labels[4].values()])
         
-        if acq:
-            wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
-            di = wdi.findValue(self.diskItems['T1pre'])
-            if di is None:
-                print('Can t generate files')
-                return []
-            fileEleclabel = di.fullPath()
+        # ===== SAVE ELEC FILE =====
+        # Get electrodes label file
+        wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
+        di = wdi.findValue(diT1pre)
+        if di is None:
+            return [None, "Could not find where to save file .eleclabel"]
+        fileEleclabel = di.fullPath()
         
         UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer, 'InitialSegmentation':initSegmentation}
         
@@ -3992,12 +3907,9 @@ class LocateElectrodes(QtGui.QDialog):
             'plots_bipolar_by_label_JulichBrain': plots_bipolar_by_label_JulichBrain, \
             }))
         fout.close()
-        
-        if acq:
-            neuroHierarchy.databases.insertDiskItem(di, update=True )
-            
-        print "Export electrode done"
-        return [fileEleclabel]
+        # Refernce file in database
+        neuroHierarchy.databases.insertDiskItem(di, update=True )
+        return [[fileEleclabel], errMsg]
         
 
     def getAllPlotsCentersT1preRef(self):
@@ -4039,7 +3951,6 @@ class LocateElectrodes(QtGui.QDialog):
             filein.close()
         # Return existing coordinates
         if 'plotsMNI' in dic_impl.keys():
-            print "MNI position already estimated, ok"
             dict_fileMNI = dict(dic_impl['plotsMNI'])
             # Convert keys to long plot names: eg. "A01" => "A-$&_&$-Plot1"
             if not isShortName:
@@ -4242,10 +4153,8 @@ class LocateElectrodes(QtGui.QDialog):
                          (not isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj].getWindows()))
             
             if (obj in self.windowContent[key]):
-                # print "Adding %s"%obj
                 w.addObjects(self.dispObj[obj])
             else:
-                # print "Removing %s"%obj
                 w.removeObjects(self.dispObj[obj])#CURRENT
         # Redraw figure
         if isUpdateOrient:
@@ -4359,10 +4268,8 @@ class LocateElectrodes(QtGui.QDialog):
     def clippingUpdate(self):
         for i in range(3):
             if self.Clipping_checkbox.isChecked():
-                print "clipping activated"
                 self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=2,clip_distance=5.)
             else:
-                print "clipping not activated"
                 self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=0)
 
   
@@ -4379,7 +4286,6 @@ class LocateElectrodes(QtGui.QDialog):
                 obj2 = obj
         
         if 'obj1' in locals() and 'obj2' in locals():
-            print "do the fusion"
             fusion_obj = self.a.fusionObjects((self.dispObj[obj1], self.dispObj[obj2]), method='Fusion2DMethod')
             self.a.addObjects(fusion_obj, self.wins[1])
             # Add the fusion in the disObj and the windowCombo
