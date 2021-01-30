@@ -31,59 +31,17 @@ from readSulcusLabelTranslationFile import readSulcusLabelTranslationFile
 from readFreesurferLabelFile import readFreesurferLabelFile
 from TimerMessageBox import *
 from generate_contact_colors import *
+from electrode import ElectrodeModel
 from bipoleSEEGColors import bipoleSEEGColors
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
+from ImageImport import createItemDirs
+
 
 # =============================================================================
 # ===== SPM CALLS =============================================================
 # =============================================================================
-# Convert SPM normalization _sn.mat to vector field
-spm_SnToField8 = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-    FileNameSN = '%s';
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.space{1}=['%s' ',1'];
-    matlabbatch{1}.spm.util.defs.ofname='%s';
-    matlabbatch{1}.spm.util.defs.fnames='';
-    matlabbatch{1}.spm.util.defs.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
-    matlabbatch{1}.spm.util.defs.interp=1;
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED'; 
-end
-quit;""" 
-# %(FileNameSN, FileSource, ofname) -> '_sn.mat' file and source image FileSource (normalized with the _sn). 
-# For the Database, we want y_<subject>_inverse.nii, so we need ofname = '<subject>_inverse' --> 
-# Maybe should provide also the output dir ? Right now, same as _sn.mat
-
-# API changed in SPM12...
-spm_SnToField12 = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-    FileNameSN = '%s';
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {'%s'};
-    matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = '%s';
-    matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
-
-#spm_SnToField = spm_SnToField12
-
-spm_inverse_y_field12 = """try
+spm12_inverse_y = """try
     addpath(genpath(%s));
     spm('defaults', 'FMRI');
     spm_jobman('initcfg');
@@ -98,10 +56,9 @@ catch
 end
 quit;"""
 
-
-# Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
+# Read deformation field y_<subject>_inverse.nii, apply the vectorf field to scanner-based coordinates of electrodes
 # FT 24-Feb-2019: NEW OPTIMIZED VERSION WITHOUT LOOPS
-spm_normalizePoints = """try
+spm12_normalizePoints = """try
     fprintf('Reading inverse MNI transformation... ');
     addpath(genpath(%s));
     P='%s';
@@ -142,99 +99,6 @@ end
 quit;"""
 
 
-#coregister and reslice and segmentation (for resection estimation)
-spm_resection_estimation = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-
-    final_directory = %s;
-    if isdir(final_directory) == 0
-       mkdir(final_directory)
-    end
-    matlabbatch{1}.spm.spatial.coreg.estwrite.ref = %s;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.source = %s;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.other = {''};
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.cost_fun = 'nmi';
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.sep = [4 2];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.fwhm = [7 7];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 4;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';
-    matlabbatch{2}.spm.spatial.preproc.channel.vols = %s;
-    matlabbatch{2}.spm.spatial.preproc.channel.biasreg = 0.001;
-    matlabbatch{2}.spm.spatial.preproc.channel.biasfwhm = 60;
-    matlabbatch{2}.spm.spatial.preproc.channel.write = [0 0];
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).tpm = %s;
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).ngaus = 2;
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).native = [1 0];
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).warped = [0 0];
-    matlabbatch{2}.spm.spatial.preproc.warp.mrf = 1;
-    matlabbatch{2}.spm.spatial.preproc.warp.cleanup = 1;
-    matlabbatch{2}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-    matlabbatch{2}.spm.spatial.preproc.warp.affreg = 'mni';
-    matlabbatch{2}.spm.spatial.preproc.warp.fwhm = 0;
-    matlabbatch{2}.spm.spatial.preproc.warp.samp = 3;
-    matlabbatch{2}.spm.spatial.preproc.warp.write = [0 0];
-    matlabbatch{3}.spm.spatial.preproc.channel.vols = %s;
-    matlabbatch{3}.spm.spatial.preproc.channel.biasreg = 0.001;
-    matlabbatch{3}.spm.spatial.preproc.channel.biasfwhm = 60;
-    matlabbatch{3}.spm.spatial.preproc.channel.write = [0 0];
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).tpm = %s;
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).ngaus = 2;
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).native = [1 0];
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).warped = [0 0];
-    matlabbatch{3}.spm.spatial.preproc.warp.mrf = 1;
-    matlabbatch{3}.spm.spatial.preproc.warp.cleanup = 1;
-    matlabbatch{3}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-    matlabbatch{3}.spm.spatial.preproc.warp.affreg = 'mni';
-    matlabbatch{3}.spm.spatial.preproc.warp.fwhm = 0;
-    matlabbatch{3}.spm.spatial.preproc.warp.samp = 3;
-    matlabbatch{3}.spm.spatial.preproc.warp.write = [0 0];
-    matlabbatch{4}.spm.util.imcalc.input = {
-                                            %s
-                                            %s
-                                            };
-    matlabbatch{4}.spm.util.imcalc.output = %s;
-    matlabbatch{4}.spm.util.imcalc.outdir = %s;
-    matlabbatch{4}.spm.util.imcalc.expression = 'i1-i2';
-    matlabbatch{4}.spm.util.imcalc.var = struct('name', {}, 'value', {});
-    matlabbatch{4}.spm.util.imcalc.options.dmtx = 0;
-    matlabbatch{4}.spm.util.imcalc.options.mask = 0;
-    matlabbatch{4}.spm.util.imcalc.options.interp = 1;
-    matlabbatch{4}.spm.util.imcalc.options.dtype = 4;
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED'; 
-end
-quit;"""
-
-
-region_grow="""try
-    addpath(genpath(%s));
-    imgresec = %s;
-    iSeed = %s;
-    reseccenter = %s;
-    f_orient = %s;
-    f_orient = reshape(f_orient,4,4)';
-    centermatF = eye(4);
-    centermatF(:,4) = f_orient*[reseccenter 1]';
-    VF = spm_vol(imgresec);
-    reseccenter_pix = inv(VF.mat)*centermatF(:,4);
-    mat_to_grow=spm_read_vols(VF);
-    new_image = regiongrowing(mat_to_grow,iSeed,reseccenter_pix(1:3));
-    VF.fname = %s;
-    VF.private.mat0 = VF.mat;
-    spm_write_vol(VF,new_image);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
-
-
 #################### READ ATLAS LABELS #########################################
 (freesurfer_labels, freesurfer_colormap) = readFreesurferLabelFile('labels/freesurfer_labels.txt', 14175)
 (hcp_labels, hcp_colormap) = readFreesurferLabelFile('labels/hcp_l0r200_labels.txt', 14175)
@@ -245,7 +109,6 @@ lausanne_labels = [None] * 5
 (lausanne_labels[3], lausanne250_colormap) = readFreesurferLabelFile('labels/lausanne250_labels.txt', 463)
 (lausanne_labels[4], lausanne500_colormap) = readFreesurferLabelFile('labels/lausanne500_labels.txt', 1015)
 
-
 # Functions to sort the contacts A1,A2...,A10 and not A1, A10, A2..
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -253,10 +116,8 @@ def natural_keys(text):
     """alist.sort(key=natural_keys) sorts in human order"""
     return [ atoi(c) for c in re.split('(\d+)', text) ]
 
-##################### Electrode functions (to be exported in another file FIXME needs natural_keys function ##################################
 
-from electrode import ElectrodeModel
-
+##################### Electrode functions ##################################
 def moveElectrode(target, entry, referential, newRef, a, meshes):
     # a is anatomist object
     if entry is None or target is None:
@@ -303,7 +164,6 @@ def createElectrode(target, entry, referential, ana=None, windows=None, model = 
 
 
 def createBipole(target, entry, referential, ana=None, windows=None, model = None, dispMode=None, dispParams=None):
-  
     elecModel = ElectrodeModel(ana)
     elecModel.open(str(model),dispMode, dispParams)
     #elecModel.setDisplayReferential(newRef)
@@ -326,35 +186,10 @@ def getPlotsNames(elecModel):
     plots = [n for n in cyls if cyls[n]['type'] == 'Plot']
     return sorted(plots, key=natural_keys)
 
-
 # Récupération des coordonnées des centres des plots dans le référentiel électrode
 def getPlotsCenters(elecModel):
     plots = getPlots(elecModel)
     return dict((p, plots[p]['center']) for p in plots)
-
-
-############################### Useful functions
-
-def createItemDirs(item):
-    """ Create the directories containing the provided WriteDiskItem and insert them in the BrainVisa database """
-    # Copied from brainvisa.processes, in ExecutionContext._processExecution()
-    dirname = os.path.dirname( item.fullPath() )
-    dir=dirname
-    dirs = []
-    while not os.path.exists( dir ):
-        dirs.append(dir)
-        dir=os.path.dirname(dir)
-    if dirs:
-        try:
-            os.makedirs( dirname )
-        except OSError, e:
-            if not e.errno == errno.EEXIST:
-                # filter out 'File exists' exception, if the same dir has
-                # been created concurrently by another instance of BrainVisa or another thread
-                raise e
-        for d in dirs:
-            dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
-
 
 
 # ==========================================================================
@@ -390,7 +225,6 @@ class LocateElectrodes(QtGui.QDialog):
         self.referentialCombo.addItems(['Natif',])
         self.dispMode = 'real'
         self.dispParams = None
-        self.t1preMniFieldPath = None
         self.t1pre2ScannerBasedId = None
         self.electrodes = []# {Les objets electrodes avec les coordonnées, les meshes
         self.bipoles = [] #{Les objects bipoles}
@@ -459,8 +293,6 @@ class LocateElectrodes(QtGui.QDialog):
             # self.connect(self.validateROIresection,QtCore.SIGNAL('clicked()'),self.ROIResectiontoNiftiResection)
             self.connect(self.deleteMarsAtlasfiles,QtCore.SIGNAL('clicked()'),self.DeleteMarsAtlasFiles)
             # Electrodes
-            # self.connect(self.ImportTheoriticalImplantation,QtCore.SIGNAL('clicked()'),self.importRosaImplantation)
-            # self.connect(self.approximateButton,QtCore.SIGNAL('clicked()'),self.approximateElectrode)
             self.connect(self.addElectrodeButton, QtCore.SIGNAL('clicked()'), self.addElectrode)
             self.connect(self.removeElectrodeButton, QtCore.SIGNAL('clicked()'), self.removeElectrode)
             self.connect(self.nameEdit, QtCore.SIGNAL('editingFinished()'), self.editElectrodeName)
@@ -700,95 +532,42 @@ class LocateElectrodes(QtGui.QDialog):
             
             
     def getT1preMniTransform(self):
-        """Returns the path of the transformation to MNI (vector field) and compute it if necessary (from _sn.mat)"""
-    
-        if self.t1preMniFieldPath is not None:
-            return self.t1preMniFieldPath
-    
-        if 'T1pre' not in self.dispObj:
+        """Returns the path of the MNI transformation and compute it if necessary"""
+        # If not T1pre: error
+        if 'T1pre' not in self.diskItems:
             print "No T1pre loaded : cannot get MNI transform from it"
             return None
-    
-        #look for a y_file_inverse first
-        rdi_inv_read = ReadDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
+        # Look for an existing y inverse file
+        rdi_inv_read = ReadDiskItem('SPM normalization inverse deformation field', 'NIFTI-1 image')
         di_inv_read = rdi_inv_read.findValue(self.diskItems['T1pre'])
-    
-        if di_inv_read is None:
-            print "No inverse deformation field found in database"
-        else:
-            print "inverse deformation field found and used"
-            self.t1preMniFieldPath = di_inv_read.fileName()
-            return self.t1preMniFieldPath
-    
-        #look for a y_file second
+        if di_inv_read:
+            return di_inv_read.fileName()
+        # Look for a y file
         rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image')
         di_y = rdi_y.findValue(self.diskItems['T1pre'])
-        if di_y is None:
-            print "No deformation field found in database"
+        if not di_y:
+            print "SPM MNI deformation field not found: Recompute MNI normalization from ImageImport."
+            return None
+        # Compute y inverse
         else:
-            print "deformation field found and used"
+            # Get y_inverse file path
             wdi_inverse = WriteDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
             dir_yinv_split = str(di_y.fileName()).split('/')
             name_yinverse = dir_yinv_split.pop()[2:]
-            #name_yinverse.replace('.nii','_inverse.nii')
             dir_yinverse = "/".join(dir_yinv_split)
-            di_inverse = wdi_inverse.findValue(di_y)
-            #on fait l'inversion de la deformation
-            #pour le moment ce bout de code ne marche qu'avec spm12
-            errMsg = matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+            di_inv_write = wdi_inverse.findValue(di_y)
+            # Compute inverse deformation with SPM12
+            errMsg = matlabRun(spm12_inverse_y%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
             if errMsg:
                 print errMsg
                 return None
-
-            self.t1preMniFieldPath = di_inverse.fileName()
-            neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
-            return self.t1preMniFieldPath
-    
-        #look for a _sn.mat if no y_file
-        rdi = ReadDiskItem( 'SPM2 normalization matrix', 'Matlab file' )
-        di = rdi.findValue(self.diskItems['T1pre'])
-        if di is None:
-            print "SPM deformation _sn.mat not found in database"
-            return None
-    
-        # Convert to field
-        wdi = WriteDiskItem( 'SPM normalization inverse deformation field', 'NIFTI-1 image' )
-        diField = wdi.findValue(di)
-        if diField is None:
-            print "Cannot find path to save MNI vector field in the DB"
-            return None
-        #For a file /database/y_SubjectName_inverse.nii, get SubjectName_inverse
-        ofname = os.path.basename(diField.fullPath()).lstrip('y_').rsplit('.',1)[0]
-    
-        if spm_version == '(SPM12)':
-            print 'SPM12 used'
-            errMsg = matlabRun(spm_SnToField12%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
-            if errMsg:
-                print errMsg
+            # Check that output file exists
+            if os.path.exists(di_inv_write.fileName()):
+                neuroHierarchy.databases.insertDiskItem(di_inv_write, update=True)
+                return di_inv_write.fileName()
+            else:
+                print "Error: Could not compute SPM MNI inverse deformation field"
                 return None
-        if spm_version == '(SPM8)':
-            print 'SPM8 used'
-            errMsg = matlabRun(spm_SnToField8%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
-            if errMsg:
-                print errMsg
-                return None
-            
-        if os.path.exists(diField.fullPath()):
-            self.t1preMniFieldPath = diField.fullPath()
-            return self.t1preMniFieldPath
-        else:
-            print "Matlab did not convert the MNI transform to vector field !"
-            return None
-
-
-    def clearT1preMniTransform(self):
-        """Reset MNI transform field if it was generated"""
-        if self.t1preMniFieldPath is not None:
-            try:
-                os.remove(self.t1preMniFieldPath) #to change with: self.removeDiskItems(di,eraseFiles=True)
-            except:
-                pass
-            self.t1preMniFieldPath = None
 
 
     def changePatient(self):
@@ -799,21 +578,16 @@ class LocateElectrodes(QtGui.QDialog):
             w.setEnabled(False)
         # Delete all the graphical objects
         self.a.removeObjects(self.a.getObjects(), self.wins)
-        # self.a.config()[ 'linkedCursor' ] = 0
         # Remove unused referentials
         referentials = self.a.getReferentials()
         for element in referentials:
             if element.getInfos() and (element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist')):
                 self.a.deleteElements(element)
-               
+        # Re-initialize the entire window
         self.electrodeList.clear()
         self.contactList.clear()
-        self.currentWindowRef = None
-        self.electrodes = []
         self.currentElectrodes = []
         self.currentContacts = []
-        self.dispObj = {}
-        self.objtokeep = {}
         self.__init__(loadAll=False, isGui=True)
   
   
@@ -851,14 +625,11 @@ class LocateElectrodes(QtGui.QDialog):
                        "If the images and electrodes are still not aligned correctly, you may need to delete the patient and start over."]
             QtGui.QMessageBox.warning(self, u'Database error', "\n".join(errMsg))
     
-        
-  
+
     def loadPatientWorker(self, patient, thread=None, isGui=True):
         errMsg = []
 
         self.t1pre2ScannerBasedTransform = None
-        self.clearT1preMniTransform()
-    
         pre_select_1 = self.windowCombo1.currentText()
         pre_select_2 = self.windowCombo2.currentText()
         pre_select_3 = self.windowCombo3.currentText()
@@ -1025,7 +796,6 @@ class LocateElectrodes(QtGui.QDialog):
                 if (len(volReferential) == 1):
                     t.setMinf('referential', volReferential[0].uuid())
                     neuroHierarchy.databases.insertDiskItem(t, update=True)
-            
             if ((na == 'preNorm') or (na == 'postOpNorm')) and (not 'referential' in t.attributes().keys()):
                 print "*** DATABASE FIX: Adding the referential "
                 # Look for referential file for this volume
@@ -1035,7 +805,6 @@ class LocateElectrodes(QtGui.QDialog):
                 if (len(volReferential) == 1):
                     t.setMinf('referential', volReferential[0].uuid())
                     neuroHierarchy.databases.insertDiskItem(t, update=True)
-                    
             # Load volume in anatomist
             obj = self.loadAndDisplayObject(t, na)
             
@@ -1205,7 +974,8 @@ class LocateElectrodes(QtGui.QDialog):
             # Center view on AC
             self.centerCursor()
         return errMsg
-            
+
+
     # Chargement d'un objet (MRI, mesh...) dans Anatomist et mise à jour de l'affichage
     def loadAndDisplayObject(self, diskitem, name = None, color=None, palette=None, texture_item = None):
 
@@ -1267,15 +1037,10 @@ class LocateElectrodes(QtGui.QDialog):
         if params:
             self.lastClickedPos = params['position']
             self.lastClickedRef = params['window'].getReferential()
-
-        coords = [0.0,0.0,0.0]
-
-        if 'T1pre' in self.dispObj:
-            # pT1Pre = self.a.linkCursorLastClickedPosition(self.dispObj['T1pre'].getReferential()).items()
+        if not 'T1pre' in self.dispObj:
             pT1Pre = self.positionPreRef()
             if not pT1Pre:
                 return
-
             # Labels
             if (self.coordsDisplayRef == "Destrieux") or (self.coordsDisplayRef == "DKT") or (self.coordsDisplayRef == "HCP-MMP1"):
                 info_image = self.diskItems['T1pre'].attributes()
@@ -1315,6 +1080,7 @@ class LocateElectrodes(QtGui.QDialog):
             return self.dispObj['T1pre'].getReferential()
         else:
             return None
+  
   
     def positionPreRef(self):
         # MAY 2018: Not using linkCursorLastClickedPosition anymore because of a bug in BrainVISA 4.6
@@ -1479,15 +1245,11 @@ class LocateElectrodes(QtGui.QDialog):
                     fout = open(str(di_seeg),'w')
                     fout.write(json.dumps({'title':new_label['title'],'contacts':new_label['contacts']}))
                     fout.close()                
-                    
                     neuroHierarchy.databases.insertDiskItem(di_seeg, update=True )
                     
                 elif os.path.basename(str(fichierseegLabel)).split('.')[-1] == 'xlsx':
-                    
                     contact_label_class = generate_contact_colors()
-                    
                     inter_label = contact_label_class.from_excel_files(str(fichierseegLabel))
-                    
                     #write the json and include it in the database
                     try:
                         os.mkdir(os.path.dirname(str(di_seeg)))
@@ -1496,7 +1258,6 @@ class LocateElectrodes(QtGui.QDialog):
                     fout = open(str(di_seeg),'w')
                     fout.write(json.dumps({'title':inter_label[0],'contacts':inter_label[1]}))
                     fout.close() 
-                    
                     neuroHierarchy.databases.insertDiskItem(di_seeg, update=True )
                     new_label = {'title':inter_label[0],'contacts':inter_label[1]}
               
@@ -1511,7 +1272,7 @@ class LocateElectrodes(QtGui.QDialog):
             for k,v in plotsT1preRef.iteritems():
                 plot_name_split = k.split('-$&_&$-')
                 info_plotsT1Ref.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v.list()))
-    
+                
             plotsT1Ref_sorted = dict(sorted(info_plotsT1Ref, key=lambda plot_number: plot_number[0]))
               
             #remplir self.bipole
@@ -1563,7 +1324,6 @@ class LocateElectrodes(QtGui.QDialog):
         elif bipole:
             self.dispObj['electrodes'] = [mesh for elec in self.bipoles for mesh in elec['elecModel'].getAnatomistObjects() if mesh is not None]
             self.setBipoleMeshesNames()
-#        self.updateAllWindows()
 
 
     # Add an electrode from a template
@@ -1604,7 +1364,6 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate and isGui:
             self.updateElectrodeMeshes()
-            #self.updateAllWindows(True)
             self.updateAllWindows(False)
         
 
@@ -1959,36 +1718,6 @@ class LocateElectrodes(QtGui.QDialog):
         return str(combo.currentText())
 
 
-    def loadPTSbasic(self, path):
-        """Load a PTS file, creating an 'electrode model' for each contact (VERY slow with > 50 contacts) """
-        refId = self.preReferential().uuid()
-        els = []
-        elecs = {}
-        try:
-            f = open(path, 'r')
-            lines = f.readlines()
-            f.close()
-            lines.reverse()
-            if not lines.pop().startswith('ptsfile'):
-                print 'This is not a valid PTS file !'
-                return (refId, [])
-            lines.pop() # Useless line 1 1 1
-            nb = int(lines.pop()) # Number of contacts
-            for i in range(nb):
-                l = lines.pop().rstrip().split("\t") # name x y z 0 0 0 2 2.0 (last ones may be contact length/diameter ?)
-                name = ''.join(e for e in l[0] if not e.isdigit())
-                if name not in elecs:
-                  elecs[name]=[]
-                plot = int(''.join(e for e in l[0] if e.isdigit()))
-                coords = list(self.refConv.anyRef2Real([float(l[1]), float(l[2]),float(l[3])], 'Scanner-based'))
-                nameplot = l[0]
-                elecs[name].append ( [plot,] + coords)
-                els.append( {'name':nameplot, 'model':'plot2mmD1mmCentered', 'target': coords, 'entry':coords[0:2]+[coords[2]+1.0,]} )
-        except:
-          print "Error reading PTS file %s"%path
-        return (refId, els)
-
-
     def loadPTS(self, path):
         """Load a PTS file (tries to find a suitable electrode model in the available templates)  """
         refId = self.preReferential().uuid()
@@ -2218,8 +1947,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            # res = self.exportAllWorker(selOptions)
+            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -2268,7 +1997,7 @@ class LocateElectrodes(QtGui.QDialog):
 
         # Get options from selection
         isComputeMni = selOptions[0]
-        isMarsatlasContacts = selOptions[1]
+        isComputeParcels = selOptions[1]
         isMarsatlasResection = selOptions[2]
         isParcelMetrics = selOptions[3]
         isSavePts = selOptions[4]
@@ -2365,12 +2094,12 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 
         # ===== MARS ATLAS =====
-        # Compute MarsAtlas parcels 
-        if isMarsatlasContacts:
+        # Compute parcels 
+        if isComputeParcels:
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
-            res = self.exportParcels()
+            res = self.computeParcels()
             newFiles += res[0]
             errMsg += res[1]
         # Compute MarsAtlas resection
@@ -2378,13 +2107,13 @@ class LocateElectrodes(QtGui.QDialog):
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing resection parcels...")
-            newFiles += self.marsatlasExportResection()
-        # Compute MarsAtlas parcel metrics
+            newFiles += self.computeMarsatlasResection()
+        # Compute parcel metrics
         if isParcelMetrics:
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing parcel metrics...")
-            newFiles += self.calculParcel()
+            newFiles += self.computeParcelMetrics()
             
         # ===== OTHER EXPORTS =====
         # Save CSV
@@ -2683,8 +2412,7 @@ class LocateElectrodes(QtGui.QDialog):
             line1 = runCmd(cmd1)
             neuroHierarchy.databases.insertDiskItem(di, update=True )
             newFiles.append(di.fullPath())
-            
-        #mpegConfig.mpegFormats[3]    
+
         #Mars Atlas GIF
         #Check if all the volumes are available.
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
@@ -2772,28 +2500,18 @@ class LocateElectrodes(QtGui.QDialog):
             new_list_image = []
             j=0
             while j<350:
-                #print 'j', j
                 images = map(Image.open,[os.path.join(getTmpDir(),"gifL%03i.png"%(j)), os.path.join(getTmpDir(),"gifR%03i.png"%(j))])
-                
                 widths, heights = zip(*(i.size for i in images))
-          
                 total_width = sum(widths)
                 max_height = max(heights)
-          
                 new_im = Image.new('RGB', (total_width, max_height))
-
                 x_offset = 0
                 for im in images:
                     new_im.paste(im, (x_offset,0))
                     x_offset += im.size[0]
-                
                 new_im.save(os.path.join(getTmpDir(),'gifF%03i.jpg'%(j)), quality=70)
                 new_list_image.append(os.path.join(getTmpDir(), 'gifF%03i.jpg'%(j)))
-                
                 j+=1    
-            #cmd1 = ['convert','-delay', '50', '-loop','0','/tmp/gif*.png','/home/gin11_stage/animation.gif']
-            #os.system('convert -delay 50 -loop 0 /tmp/gif*.png /tmp/animation.gif')
-            #line1 = runCmd(cmd1)
             
             self.brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),'animationMA.mp4'),images = new_list_image,encoding='h264',quality=50,passes=1)
             wdi = WriteDiskItem('MP4 of Mars Atlas','MP4 film')
@@ -2822,25 +2540,19 @@ class LocateElectrodes(QtGui.QDialog):
     
 
     def fitvolumebyellipse(self,volumeposition):
-
-        #cut the hippocampus in two:
         # from https://github.com/minillinim/ellipsoid/blob/master/ellipsoid.py
         tolerance = 0.025
         if len(volumeposition)>16000:
             volumeposition = [volumeposition[x] for x in range(len(volumeposition)) if x & 1 ==0]
-
         volumeposition=numpy.array(volumeposition)
         (N, dd) = numpy.shape(volumeposition)
         dd = float(dd)
-
         # Q will be our working array
         Q = numpy.vstack([numpy.copy(volumeposition.T), numpy.ones(N)])
         QT = Q.T
-
         # initializations
         err = 1.0 + tolerance
         u = (1.0 / N) * numpy.ones(N)
-
         # Khachiyan Algorithm
         while err > tolerance:
             V = numpy.dot(Q, numpy.dot(numpy.diag(u), QT))
@@ -2852,21 +2564,17 @@ class LocateElectrodes(QtGui.QDialog):
             new_u[j] += step_size
             err = numpy.linalg.norm(new_u - u)
             u = new_u
-
         # center of the ellipse
         center = numpy.dot(volumeposition.T, u)
-
         # the A matrix for the ellipse
         AA = numpy.linalg.inv(numpy.dot(volumeposition.T, numpy.dot(numpy.diag(u), volumeposition)) - numpy.array([[a * b for b in center] for a in center])) / dd
-
         # Get the values we'd like to return
         UU, ss, rotation = numpy.linalg.svd(AA)
         radii = 1.0/numpy.sqrt(ss)
-
-        return radii   #UU, ss, rotation, center, 
+        return radii
    
           
-    def calculParcel(self):
+    def computeParcelMetrics(self):
         import copy
         
         infos={}
@@ -2989,8 +2697,7 @@ class LocateElectrodes(QtGui.QDialog):
         tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
-        errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
-        # errMsg = self.normalizePoints(field, points)
+        errMsg = matlabRun(spm1212_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
         if errMsg:
             print errMsg
             return []
@@ -3015,17 +2722,6 @@ class LocateElectrodes(QtGui.QDialog):
         
         print "parcel metrics done"
         return [di.fullPath()]
-    
-    
-    def normalizePoints(self, mniInvFile, points):
-        # Initialize returned value
-        mniPoints = []
-        # Load inverse MNI transformation
-        mniInv = aims.read(mniInvFile)
-        # Get voxel-world transformation
-        T = mniInv.header()["transformations"][0].arraydata().reshape(4,4)
-        # Invert this transformation
-        Tinv = linalg.inv(T)
     
 
     # ===== EXPORT CSV FILES =====
@@ -3249,37 +2945,29 @@ class LocateElectrodes(QtGui.QDialog):
         return contacts_sorted
     
 
-    def marsatlasExportResection(self):
-            
+    def computeMarsatlasResection(self):
         wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         di_resec = list(wdi_resec.findValues({}, None, False ))
-        
         if len(di_resec)==0:
             print('Warning: No resection image found')
             return []
-        
+        print "TODO: computeMarsatlasResection: Use the FreeSurfer segmentation when available"
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
-        print "TODO: marsatlasExportResection: Use the FreeSurfer segmentation when available"
-        
         Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
         
         # Get FreeSurfer atlas
         diFreesurferMask = self.getFreeSurferAtlas()
-
         if diMaskleft is None:
             print('left gyri volume failed, perform export mars atlas export contact first')
         else:
             vol_left = aims.read(diMaskleft.fileName())
-        
         if diMaskright is None:
             print('right gyri volume failed, perform export mars atlas export contact first')
         else:
             vol_right = aims.read(diMaskright.fileName())
-        
         Vol_resec = aims.read(di_resec[0].fileName())
-        
         Vox_size_resection = Vol_resec.getVoxelSize().arraydata()
         Vol_resection_mm = Vol_resec.arraydata().sum()*Vox_size_resection.prod() #choppe les trois premiers
         
@@ -3287,21 +2975,12 @@ class LocateElectrodes(QtGui.QDialog):
         if diMaskleft is not None and diMaskright is not None:
             Vol_mask_tot = vol_left.arraydata()+vol_right.arraydata()
             Vol_resec_rsz = numpy.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
-            
             inter_resec_mars_atlas = numpy.multiply(Vol_resec_rsz, Vol_mask_tot)
             label_resec_mars_atlas = numpy.histogram(inter_resec_mars_atlas,bins = 255, range = (0,255))
             total_label_mars_atlas = numpy.histogram(Vol_mask_tot,bins = 255)
             percent_resec_mars_atlas = numpy.divide(label_resec_mars_atlas[0],total_label_mars_atlas[0],dtype=float)*100
             non_zero_inter = numpy.add(numpy.nonzero(label_resec_mars_atlas[0][1:-1]),1)
-            
             MarsAtlas_labels = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
-            
-            #list1 = [MarsAtlas_labels[label_resec_mars_atlas[1][x]] for x in non_zero_inter.tolist()[0]]
-            #list2 = [(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]]
-            #resection_mars_atlas_info = dict(zip(list1,list2)) #{MarsAtlas_labels[label_resec_mars_atlas[1][x]]:(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]}
-        #else:
-            #resection_mars_atlas_info = {"MarsAtlas not calculated":[0,0]}
-        
         if len(diFreesurferMask)>0:
             vol_FS = aims.read(diFreesurferMask[0].fileName())
             inter_resec_FS = numpy.multiply(Vol_resec.arraydata(),vol_FS.arraydata())
@@ -3310,33 +2989,22 @@ class LocateElectrodes(QtGui.QDialog):
             percent_resec_FS = numpy.divide(label_resec_FS[0],total_label_FS[0],dtype=float)*100
             #we keep only value between 1 and 100 to not display the thousands freesurfer parcels...
             interesting_percent_resec_FS = numpy.where((percent_resec_FS >1) & (percent_resec_FS < 100))
-
-            #list1 = [freesurfer_labels[unicode(x)] for x in interesting_percent_resec_FS[0]]
-            #list2 = [(float(x),percent_resec_FS[x]) for x in interesting_percent_resec_FS[0]]
-            #resection_freesurfer_info = dict(zip(list1,list2))
-        #else:
-            #resection_freesurfer_info = {"Freesurfer not calculated": [0,0]}
-        
-        #write into database
+        # Write into database
         wdi = WriteDiskItem('Resection Description','Resection json')
         di = wdi.findValue(self.diskItems['Resection'])
         if di is None:
             print("Can't generate files")
             return []
-        
         fout = open(di.fullPath(),'w')
-        #fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info,'Volume resection (mm3): ':Vol_resection_mm,'Freesurfer':resection_freesurfer_info})) #ici il faut ajouter l'ajout de la key volume mais je sais pas pourquoi des fois ca fait planter l'export en csv
         fout.write(json.dumps({'Volume resection (mm3): ': Vol_resection_mm}))
-        fout.close()
-        
+        fout.close() 
         neuroHierarchy.databases.insertDiskItem(di, update=True )
-        
         print "export resection info done"
         return [di.fullPath()]
 
 
     # ===== EXPORT PARCELS: PART I =====
-    def exportParcels(self, Callback = None):
+    def computeParcels(self, Callback = None):
         from datetime import datetime
         
         newFiles = []
@@ -3391,7 +3059,7 @@ class LocateElectrodes(QtGui.QDialog):
             acq = self.diskItems['T1pre']['acquisition']
         print "===== ACQ: " + acq
         # Continue export
-        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, acq)
+        newFiles += self.computeParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, acq)
         # Call additional function at the end
         if Callback is not None:
             Callback()
@@ -3399,7 +3067,7 @@ class LocateElectrodes(QtGui.QDialog):
         
 
     # ===== EXPORT PARCELS: PART II =====
-    def exportParcels2(self, useTemplateMarsAtlas, useTemplateFreeSurfer, plot_dict_MNI, acq, fileEleclabel=None):
+    def computeParcels2(self, useTemplateMarsAtlas, useTemplateFreeSurfer, plot_dict_MNI, acq, fileEleclabel=None):
 
         print "export electrode start"
         timestamp = time.time()
@@ -4242,8 +3910,8 @@ class LocateElectrodes(QtGui.QDialog):
                 'GreyWhite'        : (GW_label, GW_label_name), \
                 'AAL'              : (label_AAL, label_AAL_name), \
                 'AALDilate'        : (label_AALDilate, label_AALDilate_name), \
-                'Brodmann'        : (label_Brodmann, label_Brodmann_name), \
-                'BrodmannDilate'  : (label_BrodmannDilate, label_BrodmannDilate_name), \
+                'Brodmann'         : (label_Brodmann, label_Brodmann_name), \
+                'BrodmannDilate'   : (label_BrodmannDilate, label_BrodmannDilate_name), \
                 'Hammers'          : (label_Hammers, label_Hammers_name), \
                 'HCP-MMP1'         : (label_HCP, label_HCP_name), \
                 'AICHA'            : (label_AICHA, label_AICHA_name), \
@@ -4408,7 +4076,7 @@ class LocateElectrodes(QtGui.QDialog):
         arr = numpy.asarray(coords)
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         # Run SPM normalization
-        errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
+        errMsg = matlabRun(spm12_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
         if errMsg:
             print errMsg
             return [None,[]]
@@ -4582,7 +4250,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw figure
         if isUpdateOrient:
             self.updateWindowOrient(w)
-                
+   
     # Update window orient
     def updateWindowOrient(self, w):
             viewType = w.getInternalRep().viewType()
@@ -4683,7 +4351,6 @@ class LocateElectrodes(QtGui.QDialog):
             if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
                 el = self.currentElectrode()
                 self.electrodeGo(electrode = el)
-
         # Update window orientation (to force redraw)
         for i in range(4):
             self.updateWindowOrient(self.wins[i])
@@ -4707,7 +4374,6 @@ class LocateElectrodes(QtGui.QDialog):
         for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win1)][0]:
                 obj1 = obj
-        
         for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win2)][0]:
                 obj2 = obj
@@ -4723,10 +4389,35 @@ class LocateElectrodes(QtGui.QDialog):
             self.updateComboboxes(Text_win1, obj1+'+'+obj2)
             # Update anatomist windows
             self.updateAllWindows()
-        
         else:
             print "one of the image is not recognized"
             return
+
+
+    def DeleteMarsAtlasFiles(self):
+        # No subject loaded
+        if not self.brainvisaPatientAttributes or not self.brainvisaPatientAttributes['subject']:
+            return
+        # Ask for confirmation
+        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        if not (rep == QtGui.QMessageBox.Yes):
+            return
+        # Get files to delete
+        atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false','subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        atlas_di_list = list(atlas_di._findValues({}, None, False ))
+        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskleft = list(Mask_left.findValues({}, None, False ))
+        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskright = list(Mask_right.findValues({}, None, False ))
+        # Delete them
+        if len(atlas_di_list)>0:
+            for i,infoi in enumerate(atlas_di_list):
+                removeFromDB(infoi.fullPath(), neuroHierarchy.databases.database(infoi.get("_database")))
+        if len(diMaskleft)>0:
+            removeFromDB(diMaskleft[0].fullPath(), neuroHierarchy.databases.database(diMaskleft[0].get("_database")))
+        if len(diMaskright)>0:
+            removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
+        print("MarsAtlas files deleted.")
 
 
 #     def generateResection(self):
@@ -4986,37 +4677,10 @@ class LocateElectrodes(QtGui.QDialog):
 #         self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
 
 
-    def DeleteMarsAtlasFiles(self):
-        # No subject loaded
-        if not self.brainvisaPatientAttributes or not self.brainvisaPatientAttributes['subject']:
-            return
-        # Ask for confirmation
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-        if not (rep == QtGui.QMessageBox.Yes):
-            return
-        # Get files to delete
-        atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false','subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        atlas_di_list = list(atlas_di._findValues({}, None, False ))
-        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskleft = list(Mask_left.findValues({}, None, False ))
-        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskright = list(Mask_right.findValues({}, None, False ))
-        # Delete them
-        if len(atlas_di_list)>0:
-            for i,infoi in enumerate(atlas_di_list):
-                removeFromDB(infoi.fullPath(), neuroHierarchy.databases.database(infoi.get("_database")))
-        if len(diMaskleft)>0:
-            removeFromDB(diMaskleft[0].fullPath(), neuroHierarchy.databases.database(diMaskleft[0].get("_database")))
-        if len(diMaskright)>0:
-            removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
-        print("MarsAtlas files deleted.")
-
-
 # =============================================================================
 # MAIN: Main function that starts the interface
 # =============================================================================
 def main(noapp=0):
-    
     # Create application
     app = None
     if noapp == 0:
@@ -5024,21 +4688,15 @@ def main(noapp=0):
             QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
         app = QtGui.QApplication(sys.argv)
         axon.initializeProcesses()
-
     # Show main window
     w = LocateElectrodes(app = app)
     w.setWindowFlags(QtCore.Qt.Window)
     w.show()
-    # window.showMaximized()
-    
     # Run the application
     if noapp == 0:
         sys.exit(app.exec_())
 
-
 if __name__ == "__main__":
-    #print "LAUNCHING ELECTRODE LOCATE"
-    #QtCore.pyqtRemoveInputHook()  # Allow pdb to work for debugging !
     main()
 
 

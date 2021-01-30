@@ -28,7 +28,6 @@ from brainvisa.data.writediskitem import WriteDiskItem
 from brainvisa.data import neuroHierarchy
 from readSulcusLabelTranslationFile import *
 from readFreesurferLabelFile import *
-# from externalprocesses import PythonExecutor
 from readFunctionalTractography import *
 from scipy import spatial as sc_sp
 from collections import OrderedDict
@@ -76,8 +75,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.removePlotsLeftSide.clicked.connect(lambda :self.removePlotsLeftRight('Left'))
     self.removePlotsRightSide.clicked.connect(lambda :self.removePlotsLeftRight('Right'))
     self.addAroundButton.clicked.connect(self.selectAround)
-    #self.normalizeButton.clicked.connect(self.normalizeCoords)
-    #self.saveNormalizedButton.clicked.connect(self.saveNormalizedCoords)
     self.selectionList.itemDoubleClicked.connect(self.updatePlotSelected)
     self.generateStatsButton.clicked.connect(self.generateStatisticsContacts)
     
@@ -89,13 +86,9 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.AddMAparcels2SelectioncomboBox.clear()
     self.AddMAparcels2SelectioncomboBox.addItems(loca)
     self.AddMAparcels2SelectioncomboBox.currentIndexChanged.connect(self.AddMAparcels2selection)
-    
     self.radioButtonbothHemi.toggled.connect(self.changeBothRightDisplay)
-    #self.radioButtonAllRight.toggled.connect(self.changeBothRightDisplay)
-    
     self.radioButtonContactDisplay.toggled.connect(self.contactSEEGDisplay)
-    #self.radioButtonsEEGResults.toggled.connect(self.contactSEEGDisplay)
-    
+
     pix = QtGui.QPixmap('/home/b67-belledone/Desktop/epilepsie-manik/Logo-F-TRACT.xpm' )
     anatomist.anatomist.cpp.IconDictionary.instance().addIcon('ftract_control', pix)
     ad = anatomist.anatomist.cpp.ActionDictionary.instance()
@@ -106,8 +99,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     cm = anatomist.anatomist.cpp.ControlManager.instance()   
     cm.addControl('QAGLWidget3D','','ftract_control')
 
-
-    
     # Anatomist windows and objects
     if ana == None:
        self.a = anatomist.Anatomist('-b' )
@@ -118,26 +109,15 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.axWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
     self.axWindow.setParent(self.viewWidget)
     layout.addWidget( self.axWindow.getInternalRep() )
-
     self.sagWindow = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
     self.sagWindow.setParent(self.viewWidget)
     layout.addWidget( self.sagWindow.getInternalRep() )
-
-
     self.axWindow.internalRep.otherwindow = self.sagWindow
     self.windows = [self.axWindow, self.sagWindow]
-    #pdb.set_trace()
-    #self.axWindow.connect()
-
-
 
     self.templates = {'MNI':TemplateMNI(self.a)}
-    #self.templateCombo.clear()
-    #self.templateCombo.addItems(sorted(self.templates.keys()))
     self.setTemplate(self.templates['MNI'])
     self.templReferential = None
-    #self.templateCombo.currentIndexChanged.connect(self.templateChanged)
-
     self.subjectList.itemSelectionChanged.connect(self.subjectSelectionChanged)
     self.electrodeList.itemSelectionChanged.connect(self.electrodeSelectionChanged)
     self.selectionList.itemSelectionChanged.connect(self.selectedSelectionChanged)
@@ -159,18 +139,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.setStatus(u"Tasks in progress : "+str(self.taskCounter))
     return self.taskCounter
 
-#   def startTask(self, taskFunction):
-#     pe = PythonExecutor(taskFunction)
-#     self.tasks.append(pe)
-#     # Remove it from the list of threads when finished
-#     pe.finished.connect(lambda th=pe:self.taskFinished(th))
-#     self.incTaskCounter()
-#     pe.start()
-
-#   def taskFinished(self, thread):
-#     self.tasks.remove(thread)
-#     self.decTaskCounter()
-
   def setTemplate(self, templ):
     """Set the template used as a common referential"""
     # Un nom, des données (IRM ?) un identifiant de référentiel pour le refconv ?
@@ -179,21 +147,10 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       self.a.assignReferential(self.template.referentialAnatomist, self.windows)
     if self.template.volumes:
       self.displayCombo.clear()
-      #self.displayCombo.addItems(["Image "+str(i) for i in range(len(self.template.volumes))])
       self.displayCombo.addItems([os.path.split(im.fullPath())[1] for im in self.template.volumes])
-
-  #def templateChanged(self, tpl):
-    #"""The combo box to select the template was changed"""
-    ## Read combo, setTemplate, remove selection or reset display (no spheres, no images)...
-    #pass
 
   def displayImage(self):
     try:
-      #try:
-        #self.a.removeObjects([self.currentImage,],self.windows) #self.axWindow.removeObjects(self.currentImage)
-        ##self.sagWindow.removeObjects(self.currentImage)
-      #except:
-          #pass
       self.currentImage = self.a.loadObject(self.template.volumes[self.displayCombo.currentIndex()])
       self.a.addObjects([self.currentImage], self.windows)
     except:
@@ -222,9 +179,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
           break
       self.plotList.item(i).setSelected(selec)
 
-  #def plotSelectionChanged(self):
-  #  pass
-
   def selectedSelectionChanged(self):
     """In the selected plots list, the selected items changed -> update the view"""
     # Update Anatomist selection -> select all meshes for the selected plots
@@ -245,45 +199,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     (sub, elecplot) = name.split(' : ')
     (elec, plot) = elecplot.split()
     return (sub, elec, plot)
-
-  #def normalizeCoords(self):
-    #"""Get plot coordinates in the selected template referential and store these coordinates in self.plotData"""
-
-    #def miniFunc(myself, coordsSB, s):
-      #"""Internal mini function to launch in a thread"""
-      #refId = myself.implantations[s]['ReferentialUuid']
-      #normCoords = myself.template.normalizeCoordinates([coordsSB[s][el][p] for el in coordsSB[s] for p in coordsSB[s][el]], refId)
-      ##pdb.set_trace()
-      #idx = 0
-      #if normCoords is None:
-        #print "normCoords is None for subject %s : could not convert coordinates to template referential"%s
-        #return
-      ##import pdb; pdb.set_trace()
-      #for el in coordsSB[s]:
-        #for p in coordsSB[s][el]:
-          #myself.plotsData[s][el][p][myself.template.name] = normCoords[idx]
-          #idx = idx + 1
-    ##fin de la fonction miniFunc
-
-    #print "go back to locateElectrode for now, we don't manage call to normalisation from locateElectrode for now"
-    #return
-    #coordsSB = {}
-    #for s in self.subjects:
-      #coordsSB[s] = {}
-      #for elec, plots in self.plotsData[s].iteritems():
-         #sb = dict([(p,plots[p]['Scanner-based']) for p in plots if self.template.name not in plots[p].keys()])
-         #if len(sb) > 0:
-           #coordsSB[s][elec] = sb
-      ## Compute template coords for this subject
-      #self.startTask(lambda myself=self, cSB=coordsSB, suj=s:miniFunc(myself, cSB, suj))
-
-
-  #def saveNormalizedCoords(self):
-    #"""Should save all computed coordinates of plots in elecimplant file for all subject
-       #with the timestamp of the original data, to avoid recomputation"""
-    #for s,rdi in zip(self.subjects, self.subjItems):
-      #self.saveImplantation(s, rdi)
-    #return
 
   def selectAround(self):
     """Find in the list of selected plots the ones near the linked cursor"""
@@ -399,9 +314,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
               name=name[:len(name)-2]+name[len(name)-1:]
             setattr(data_micromed.analogsignals[i],'name',name)
             noms+=[data_micromed.analogsignals[i].name]
-
-         #re.sub(noms[16],re.findall('\d+',noms[16])[0],subj + " : " + "Plot"+re.findall('\d+',noms[16])[0])
-         #noms_remade= [subj + " : " +  re.findall('\S+(?<![\d_])',noms[x])[0] + " Plot"+re.findall('\d+',noms[x])[0] for x in taille]
          noms_remade= [subj + " : " +  re.findall('\S+(?<![\d_])',noms[x])[0] + " Plot"+re.findall('\d+',noms[x])[0] for x in range(len(noms)) if len(re.findall('\d+',noms[x])) > 0]
          #on remplace les ' par des p dans noms_remade
          [full_list_trc.append(noms_remade[x].replace("'","p")) for x in range(len(noms_remade))]
@@ -422,10 +334,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
          self.selectionList.takeItem(idx)
 
 
-
   def removePlotsLeftRight(self, side):
-
-
      all_items=[str(self.selectionList.item(i).text()) for i in range(self.selectionList.count())]
 
      to_remove = []
@@ -522,8 +431,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     
     return dic
 
-    #print "Exception while reading implantation file for %s"%rdiSuj.attributes()['subject']
-    #return {}
 
   def saveImplantation(self, subj, rdiSubj):
     wdi = WriteDiskItem( 'Electrode implantation', 'Electrode Implantation format')
@@ -547,7 +454,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       print "Exception while writing implantation file for %s"%subj
       traceback.print_exc(file=sys.stdout)
       return
-
 
 
   def getPlotDataFromImplantation(self, subj):
@@ -642,13 +548,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
         fichier = path_fichier
           
       image_mni_ref = self.a.loadObject(self.template.volumes[0])
-      #image_mni_ref.loadReferentialFromHeader()
-      #try:
-          #self.a.removeObjects([self.currentImage,],self.windows)
-      #except:
-          #pass
       self.currentImage = self.a.loadObject(str(fichier))
-      #self.currentImage.loadReferentialFromHeader()
       self.a.execute('LoadReferentialFromHeader', objects=[image_mni_ref,self.currentImage])
       all_trans = self.a.getTransformations()
       trans_from_vols = []
@@ -670,24 +570,14 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
             trans_from_vol[0] = trans_from_vol_filt[0]
           trans_from_vols.append(trans_from_vol)
 
-      #pdb.set_traceI()
       trans_from_vol1, trans_from_vol2 = trans_from_vols
       self.template.volumes.append(str(fichier))
       self.a.execute('LoadTransformation',origin=trans_from_vol1[0].destination(),destination=trans_from_vol2[0].destination(),matrix=[0, 0, 0, 1, 0, 0,  0, 1, 0,  0, 0, 1])
       self.a.addObjects([self.currentImage,], self.windows)
       self.displayCombo.addItems([os.path.split(str(fichier))[1]])
 
+
   def addMNIMeshTexttoList(self):
-      
-      #fichierMesh = QtGui.QFileDialog.getOpenFileName(self, "Opening mesh (surface corresponding to the texture): ", "", "(*.gii)")
-      
-      ##check if the file exist
-      #if not os.path.isfile(fichierMesh):
-          #print("the file doesn't exist")
-          #return
-      
-      #self.addMNIImagetoList(fichierMesh)
-      
       #ask for a texture gii or a functionalTractography file
       texture_info = QtGui.QMessageBox(self)
       texture_info.setText("Choose the type of texture format (gii or csv to generate the gii)")
@@ -732,14 +622,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
             left_MA = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_Lwhite_parcels_marsAtlas.gii')
             right_MA = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_Rwhite_parcels_marsAtlas.gii')
 
-            #for i in range(len(condi_intersect)):
-            #    left_white.vertex(i).assign(left_white.vertex(0))
-            #    left_white.normal(i).assign(left_white.normal(0))
-            #    left_white.polygon(i).assign(left_white.polygon(0))
-            #    right_white.vertex(i).assign(right_white.vertex(0))
-            #    right_white.normal(i).assign(right_white.normal(0))
-            #    right_white.polygon(i).assign(right_white.polygon(0))
-              
             aims.write(left_white,str(path_to_save) + os.path.sep + 'left_white.gii')
             aims.write(right_white,str(path_to_save) + os.path.sep + 'right_white.gii')
 
@@ -804,7 +686,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                                textnowLeft.append(float(full_data[orderTexture[i]][i_parcels_stimulated][actual_marsatlas_parcels[0]]))  
                     except:
                         textnowLeft.append(-4)
-                        #pdb.set_trace()
                         
                   #puis droite #ipsi lateral lorsqu'étude contro_ipsi
                   for iter_vert in range(len(right_white.vertex(0))):
@@ -843,10 +724,8 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                               textnowRight.append(float(full_data[orderTexture[i]][i_parcels_stimulated][actual_marsatlas_parcels[0]]))
                               
                     except:
-                        textnowRight.append(-4)
-                        #pdb.set_trace()                    
-          
-            
+                        textnowRight.append(-4)              
+
                 aims.write(new_TimeSurfTextLeft,str(path_to_save) + os.path.sep + 'Texture' + os.path.sep + ('%s_left.gii')%i_parcels_stimulated)
                 aims.write(new_TimeSurfTextRight,str(path_to_save) + os.path.sep + 'Texture' + os.path.sep + ('%s_right.gii')%i_parcels_stimulated)
               
@@ -887,27 +766,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
             
       print("done")
       pdb.set_trace()
-      #try:
-      #    self.a.removeObjects([self.currentImage,],self.windows)
-      #except:
-      #    pass
 
-         
-      ##self.displayCombo.addItems([os.path.split(str(fichier))[1]])
-      #obj3 = self.a.loadObject(str(path_to_save) + os.path.sep + 'left_white_multipletime.gii')
-      #obj4 = self.a.loadObject(str(path_to_save) + os.path.sep + 'Texture' + os.path.sep + ('%s_left.gii')%i_parcels_stimulated)
-      #obj3.loadReferentialFromHeader()
-      #obj4.setPalette(palette = 'Blue-Red-fusion')
-      #FunctioTracto_fusion_obj = self.a.fusionObjects([obj3,obj4],method='FusionTexSurfMethod')
-      #self.a.addObjects(FunctioTracto_fusion_obj,self.sagWindow)
-          
-          
-
-          
-      #pdb.set_trace()
-      #self.displayCombo.addItems([os.path.split(str(fichier))[1]])
-          
-      #textureContacts = aims.TimeTexture()
       
   def doubleClickedFunctionalTractography(self):
       
@@ -1146,28 +1005,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
               pdb.set_trace()
               self.a.assignReferential(newRef,self.meshes[ii])
               
-      #self.a.assignReferential(newRef,meshesLeft) 
-
-
-     #to_remove = []
-     #for ii in all_items:
-       #MNI_pos = self.plotDataFromFullName(ii)['MNI']
-
-       #if side == 'Left':
-          #if MNI_pos[0] >= 0:
-              #to_remove.append(ii)
-       #elif side == 'Right':
-           #if MNI_pos[0] <=0:
-              #to_remove.append(ii)
-
-     #meshes = [self.meshes[r] for r in to_remove if r in self.meshes]
-     #for r in to_remove:
-       #if r in self.meshes:
-         #del self.meshes[r]
-
-     #self.a.removeObjects(meshes,self.windows)
-     #self.a.deleteObjects(meshes)
-      
       
   def contactSEEGDisplay(self):
       
@@ -1178,37 +1015,12 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
         except:
             pass
         self.a.removeObjects([self.bipolesmeshes[x] for x in self.bipolesmeshes.keys()],self.windows)
-        #current = [str(self.selectionList.item(i).text()) for i in xrange(self.selectionList.count())] # FIXME pas juste les selected ! Tous les items
-        #new = [str(s.text()) for s in self.plotList.selectedItems() if str(s.text()) not in current]
-
-        ## Display the new ones
-        #meshes = []
-        #invalid = set()
-        #for n in new:
-          #if self.template.name in self.plotDataFromFullName(n):
-            #mesh =  self.displaySphereAt(self.plotDataFromFullName(n)[self.template.name], self.plotDiameter(), self.template.referentialAnatomist, color=(0.0,0.9,0.1,1.0),name = n)
-            #self.meshes[n] = mesh
-            #meshes.append(mesh)
-          #else:
-            #invalid.add(n) # If there, coordinates are not available in the right template referential
-        #if len(invalid) > 0:
-          #print "Some plots were not added to the selection, because normalized coordinates were not available for them"
-          #new = list(set(new) - invalid)
-        #self.selectionList.addItems(new)
-        
         self.a.addObjects([self.meshes[x] for x in self.meshes.keys()], self.windows)        
-          
-      
+
       elif self.radioButtonsEEGResults.isChecked():
-   
          meshes = [self.meshes[x] for x in self.meshes.keys()]
-          
-          #for ind_mesh in self.meshes.keys():
-              #del self.meshes[ind_mesh]
          self.a.removeObjects(meshes,self.windows)
-          #self.a.deleteObjects(meshes)
-         
-         
+
          #il faut générer les bipoles
          current = [str(self.selectionList.item(i).text()) for i in xrange(self.selectionList.count())]
          info_contact={}
@@ -1255,7 +1067,6 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                               mni_bipole = ((numpy.array(self.plotsData[subj][current_contact]['Plot'+str(int(current_number))]['MNI']) + numpy.array(self.plotsData[subj][current_contact]['Plot'+str(int(next_number))]['MNI']))/2).tolist()
                               info_bipole[subj].update({bipole_wiht_next:mni_bipole})
 
-                       
          list_to_show = []
          for subj in info_bipole.keys():
            if 'seeg_label_all' in self.testDataSubjects[subj].keys():
@@ -1271,24 +1082,12 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                  mesh.setMaterial(front_face='counterclockwise')
                  self.bipolesmeshes.update({subj + ' : ' + index_bip:mesh})
                list_to_show.append(subj + ' : ' + index_bip)
-           
-           #else:
-             #print "No SEEG stim results"
-             #QtGui.QMessageBox.warning(self, "Error", "Stim report has not been generated for the subject: {}".format(subj))
-             
-         
+
          self.a.addObjects([self.bipolesmeshes[x] for x in list_to_show], self.windows)
          
          self.bipoleSEEGColors=bipoleSEEGColors(self,indv_pat = False, group_subsample = list_to_show)
          self.bipoleSEEGColors.show()
-      #removable = [str(s.text()) for s in self.selectionList.selectedItems()]
-      #meshes = [self.meshes[r] for r in removable if r in self.meshes]
-      #for r in removable:
-        #if r in self.meshes:
-        #del self.meshes[r]
-      #self.a.removeObjects(meshes, self.windows)
-      #self.a.deleteObjects(meshes)
-      
+
 
 if __name__ == "__main__":
   app = QtGui.QApplication(sys.argv)

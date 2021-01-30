@@ -5,9 +5,9 @@
 #
 # License GNU GPL v3
 
-import os, subprocess, pickle, shutil, tempfile, json, numpy, csv
+import os, subprocess, pickle, tempfile, json, numpy, csv
 from scipy import ndimage
-from shutil import copyfile
+from shutil import copyfile, rmtree
 
 from soma import aims
 from brainvisa import axon, anatomist
@@ -31,13 +31,11 @@ from progressbar import ProgressDialog
 import DialogCheckbox
 
 
-#  Matlab code : coregister file1 to file2
-def matlab_cellstr(listOfStrings):
-    """ Converts a list of filenames as a matlab-suitable cell table of strings and adds ',1' at the end of each string (for spm file lists) """
-    return "{'"+",1' '".join([str(stri) for stri in listOfStrings])+",1'}"
-
-# Coregister two files and saves the matrix in an ASCII file (space-separated)
-spm_coregister = """try
+# =============================================================================
+# ===== SPM CALLS =============================================================
+# =============================================================================
+# SPM12 Coregister
+spm12_coregister = """try
     addpath(genpath(%s));
     VF=spm_vol(%s);
     VG=spm_vol(%s);
@@ -69,9 +67,8 @@ catch
 end
 quit;"""
 
-
-# SPM coregistration onto file1 ({'/home/manik/data/epilepsie/IRM-testOD/Pre/3DT1.img,1'}) of file 2 ({'/home/manik/data/epilepsie/IRM-testOD/Post/SagT2.img,1'}) with reslicing
-spm_coregisterReslice = """try
+# SPM12 Coregistration + reslice
+spm12_coregisterReslice = """try
     addpath(genpath(%s));
     spm('defaults', 'FMRI');spm_jobman('initcfg');
     matlabbatch{1}.spm.spatial.coreg.estwrite.ref == %s;
@@ -91,34 +88,7 @@ catch
 end
 quit;"""
 
-spm8_normalise = """try
-    addpath(genpath(%s)); 
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.source = %s;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.wtsrc = '';
-    matlabbatch{1}.spm.spatial.normalise.estwrite.subj.resample = %s;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.template = %s;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.weight = '';
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.smosrc = 8;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.smoref = 0;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.regtype = 'mni';
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.cutoff = 25;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.nits = 16;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.eoptions.reg = 1;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.preserve = 0;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.bb = [-78 -112 -50
-                                                                 78 76 85];
-    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.vox = [1 1 1];
-    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.interp = 1;
-    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.wrap = [0 0 0];
-    matlabbatch{1}.spm.spatial.normalise.estwrite.roptions.prefix = 'w';
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
-
+# SPM12 MNI normalization
 spm12_normalise = """try
     addpath(genpath(%s)); 
     spm('defaults', 'FMRI');
@@ -142,7 +112,8 @@ catch
 end
 quit;"""
 
-matlab_removeGado = """try
+# SPM12 remove gado
+spm12_removeGado = """try
     addpath(genpath(%s));
     spm('defaults', 'FMRI');
     spm_jobman('initcfg');
@@ -207,50 +178,50 @@ catch
 end
 quit;"""
 
-spm_inverse_y_field12 = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {%s};
-    matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = %s;
-    matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr = {%s};
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
+# spm_inverse_y_field12 = """try
+#     addpath(genpath(%s));
+#     spm('defaults', 'FMRI');
+#     spm_jobman('initcfg');
+#     clear matlabbatch;
+#     matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
+#     matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {%s};
+#     matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = %s;
+#     matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr = {%s};
+#     spm_jobman('run',matlabbatch);
+# catch
+#     disp 'AN ERROR OCCURED';
+# end
+# quit;"""
 
-spm_MNItoScannerBased = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-    matlabbatch{1}.spm.spatial.normalise.write.subj.def = {%s};
-    matlabbatch{1}.spm.spatial.normalise.write.subj.resample = {%s};
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-150 -150 -150
-                                                              150 150 150];
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = [1 1 1];
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix = 'tmpMNItoScannerBased';
-    matlabbatch{2}.spm.spatial.realign.write.data = {
-                                                     %s
-                                                     %s
-                                                     };
-    matlabbatch{2}.spm.spatial.realign.write.roptions.which = [2 1];
-    matlabbatch{2}.spm.spatial.realign.write.roptions.interp = 4;
-    matlabbatch{2}.spm.spatial.realign.write.roptions.wrap = [0 0 0];
-    matlabbatch{2}.spm.spatial.realign.write.roptions.mask = 1;
-    matlabbatch{2}.spm.spatial.realign.write.roptions.prefix = '';
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
+# spm_MNItoScannerBased = """try
+#     addpath(genpath(%s));
+#     spm('defaults', 'FMRI');
+#     spm_jobman('initcfg');
+#     clear matlabbatch;
+#     matlabbatch{1}.spm.spatial.normalise.write.subj.def = {%s};
+#     matlabbatch{1}.spm.spatial.normalise.write.subj.resample = {%s};
+#     matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-150 -150 -150
+#                                                               150 150 150];
+#     matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = [1 1 1];
+#     matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
+#     matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix = 'tmpMNItoScannerBased';
+#     matlabbatch{2}.spm.spatial.realign.write.data = {
+#                                                      %s
+#                                                      %s
+#                                                      };
+#     matlabbatch{2}.spm.spatial.realign.write.roptions.which = [2 1];
+#     matlabbatch{2}.spm.spatial.realign.write.roptions.interp = 4;
+#     matlabbatch{2}.spm.spatial.realign.write.roptions.wrap = [0 0 0];
+#     matlabbatch{2}.spm.spatial.realign.write.roptions.mask = 1;
+#     matlabbatch{2}.spm.spatial.realign.write.roptions.prefix = '';
+#     spm_jobman('run',matlabbatch);
+# catch
+#     disp 'AN ERROR OCCURED';
+# end
+# quit;"""
 
-
-class ImageImport (QtGui.QDialog):
+                
+class ImageImport(QtGui.QDialog):
     """ImageImport is the main dialog class of the Image Importer software"""
 
     def __init__ (self, app=None):
@@ -549,27 +520,6 @@ class ImageImport (QtGui.QDialog):
         pickle.dump(self.prefs, fileout)
         fileout.close()
 
-    def createItemDirs(self, item):
-        """ Create the directories containing the provided WriteDiskItem and insert them in the BrainVisa database """
-        # Copied from brainvisa.in ExecutionContext._processExecution()
-        dirname = os.path.dirname( item.fullPath() )
-        dir=dirname
-        dirs = []
-        while not os.path.exists( dir ):
-            dirs.append(dir)
-            dir=os.path.dirname(dir)
-        if dirs:
-            try:
-                os.makedirs( dirname )
-            except OSError, e:
-                if not e.errno == errno.EEXIST:
-                    # filter out 'File exists' exception, if the same dir has
-                    # been created concurrently by another instance of BrainVisa
-                    # or another thread
-                    raise
-            for d in dirs:
-                dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
-
 
     def storeImageReferentialsAndTransforms(self, image):
         """Stores referential and transformation files for an image from its headers -> native, scanner-based, coregistered to"""
@@ -757,34 +707,6 @@ class ImageImport (QtGui.QDialog):
         image = self.bvImages[str(item.text())]
         # Display images
         self.displayImage(image, self.wins)
-            
-
-    def removeFromDB(self, file, db=None):
-        """
-        If the file is a directory, recursive call to remove all its content before removing the directory.
-        Corresponding diskitem is removed from the database if it exists.
-        Taken from brainvisa-4.3.0/python/brainvisa/data/qt4gui/hierarchyBrowser.py
-        """
-        # Delete database entry
-        if db is None:
-            try:
-                db=neuroHierarchy.databases.database(neuroHierarchy.databases.getDiskItemFromFileName(file).get("_database"))
-            except:
-                pass
-        if db:
-            diskItem=db.getDiskItemFromFileName(file, None)
-            if diskItem:
-                db.removeDiskItem(diskItem)
-        # Delete folder/file
-        if os.path.isdir(file):
-            for f in os.listdir(file):
-                self.removeFromDB(os.path.join(file, f), db)
-            os.rmdir(file)
-        elif os.path.exists(file):
-            os.remove(file)
-        # Delete .minf
-        if os.path.exists(file + '.minf'):
-            os.remove(file + '.minf')
 
 
     def addBvSubject(self):
@@ -802,7 +724,7 @@ class ImageImport (QtGui.QDialog):
             if len(di) != 1:
                 print "%s subject(s) found ! Cannot delete if there is more than 1 !"%repr(len(di))
                 return
-            self.removeFromDB(di[0].fullPath(), neuroHierarchy.databases.database(di[0].get("_database")))
+            removeFromDB(di[0].fullPath(), neuroHierarchy.databases.database(di[0].get("_database")))
             self.setStatus(u"Subject %s deleted from the database"%subj)
             # Reset the list of subjects :
             self.selectProtocol(str(self.ui.bvProtocolCombo.currentText()),self.ui.bvSubjectCombo)
@@ -828,7 +750,7 @@ class ImageImport (QtGui.QDialog):
             if "subacquisition" in di.attributes().keys():
                 self.removeDiskItems(di,eraseFiles=True)
             else:
-                self.removeFromDB(acqPath)
+                removeFromDB(acqPath)
             self.setStatus(u"Image %s deleted from the database"%imageName)
             self.selectBvSubject(str(self.ui.bvSubjectCombo.currentText()))
 
@@ -1205,7 +1127,7 @@ class ImageImport (QtGui.QDialog):
         
     def importNiftiWorker(self, di, path, filetype, modality, isGado, thr=None):
         # Create directories that do not exist yet
-        self.createItemDirs(di)
+        createItemDirs(di)
     
         # We check that there is a Scanner based transformation, if not and if both transformations are equal, we rename one as scanner based transformation
         temp_nii = aims.read(path)
@@ -1364,7 +1286,7 @@ class ImageImport (QtGui.QDialog):
                     print("Error: Cannot import file: " + allFiles[key]['file'])
                     return
                 # Create target folder
-                self.createItemDirs(di)
+                createItemDirs(di)
                 # Copy file into the local FS datbase
                 print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
                 copyfile(allFiles[key]['file'], di.fullPath())
@@ -1381,7 +1303,7 @@ class ImageImport (QtGui.QDialog):
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
         # Create the folder if doesn't exist
-        self.createItemDirs(diFSDestrieux)
+        createItemDirs(diFSDestrieux)
         # Reslice volume to match T1pre
         launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',str(allFiles['destrieux']['file']),'-o',str(diFSDestrieux.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
         # Convert to AIMS
@@ -1408,7 +1330,7 @@ class ImageImport (QtGui.QDialog):
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         di = wdi.findValue({'center' : proto, 'acquisition' : acq, 'subject' : subject})
         # Create the folder if doesn't exist
-        self.createItemDirs(di)
+        createItemDirs(di)
         # Reslice volume to match T1pre
         launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i', imgPath,'-o',str(di.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
         # Convert to AIMS
@@ -1504,7 +1426,7 @@ class ImageImport (QtGui.QDialog):
           self.setStatus(u"Subject add failed : the path is not valid")
           return False
         # Create directories that do not exist yet
-        self.createItemDirs(di)
+        createItemDirs(di)
         try:
           os.mkdir(di.fileName())
           neuroHierarchy.databases.insertDiskItem( di, update=True )
@@ -1527,8 +1449,7 @@ class ImageImport (QtGui.QDialog):
         self.ui.regImageList.clear()
         self.ui.regImageList2.clear()
         images = self.findAllImagesForSubject(self.ui.bvProtocolCombo.currentText(), subj)
-        #name = modality + acquisition + subacquisition if exist subacquisition key else modality + acquisition
-    
+
         dict_temporaire1 = {}
         for i in images:
             if 'subacquisition' in i.attributes().keys():
@@ -1675,7 +1596,7 @@ class ImageImport (QtGui.QDialog):
                     if progressThread:
                         progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
                     # Call SPM coregister+resample
-                    call = spm_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(t1preImage)+",1'}", "{'"+str(image.fileName())+",1'}")
+                    call = spm12_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(t1preImage)+",1'}", "{'"+str(image.fileName())+",1'}")
                     spl = os.path.split(image.fileName())
                     registeredPath = os.path.join(spl[0], 'r'+spl[1])
                     errMsg = matlabRun(call)
@@ -1716,7 +1637,7 @@ class ImageImport (QtGui.QDialog):
                             t1preImage.attributes()['sizeY'] * t1preImage.attributes()['voxel_size'][1] / 2, \
                             t1preImage.attributes()['sizeZ'] * t1preImage.attributes()['voxel_size'][2] / 2)
                     # Run registration
-                    call = spm_coregister%(\
+                    call = spm12_coregister%(\
                         "'" + str(self.prefs['spm']) + "'", \
                         "'" + str(imageFileName) + ",1'", \
                         "'" + str(t1preImage) + ",1'", \
@@ -1728,9 +1649,6 @@ class ImageImport (QtGui.QDialog):
                     errMsg = matlabRun(call)
                     if errMsg:
                         return errMsg
-                    # Old call with no brain center: not working
-                    # call = spm_coregister%("'"+str(self.prefs['spm'])+"'","'"+str(imageFileName)+",1'", "'"+str(t1preImage)+",1'", str([0, 0 ,0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]), str([0, 0, 0]), str([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]),"'"+tmpOutput+"'")
-                    
                     # Register transformation in the database
                     self.insertTransformationToT1pre(tmpOutput, image)
                     if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):
@@ -1766,9 +1684,6 @@ class ImageImport (QtGui.QDialog):
             # Delete only the ones in T1pri
             if acq in h.attributes()["acquisition"]:
                 removeFromDB(h.fullPath(), db)
-                # Delete associated .minf
-                if os.path.isfile(h.fullPath() + '.minf'):
-                    os.remove(h.fullPath() + '.minf')
 
 
     def deleteExistingNormalization(self, rdi, acq):
@@ -1789,9 +1704,6 @@ class ImageImport (QtGui.QDialog):
         # Delete all files
         for h in delFiles:
             removeFromDB(h.fullPath(), db)
-            # Delete associated .minf
-            if os.path.isfile(h.fullPath() + '.minf'):
-                os.remove(h.fullPath() + '.minf')
 
 
     def deleteLockFiles(self, subjPath):
@@ -1967,7 +1879,7 @@ class ImageImport (QtGui.QDialog):
         numpy.savetxt(tmp_trm_path,result_mat,delimiter =' ',fmt='%8.8f')
         self.insertTransformationToT1pre(tmp_trm_path,im)
         if 'ANTs_IntrAnat' in tmp_folder:
-            shutil.rmtree(tmp_folder)
+            rmtree(tmp_folder)
 
 
     def enableACPCButtons(self, trueorfalse):
@@ -2074,7 +1986,7 @@ class ImageImport (QtGui.QDialog):
             splittedName[-1]=str("WithoutGado.nii")
             nogadoPre = str('/'.join(splittedName))
             # Run Matlab
-            call = matlab_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
+            call = spm12_removeGado%("'"+str(self.prefs['spm'])+"'","'"+nobiasPre+",1'","'"+str(pathTPMseg)+",1'","'"+str(pathTPMseg)+",2'","'"+str(pathTPMseg)+",3'","'"+str(pathTPMseg)+",4'","'"+str(pathTPMseg)+",5'","'"+str(pathTPMseg)+",6'",\
                    "'"+c1Name+"'","'"+c2Name+"'","'"+c3Name+"'","'"+c4Name+"'","'"+nobiasPre+"'","'"+nogadoPre+"'")
             errMsg = matlabRun(call)
             if errMsg:
@@ -2166,7 +2078,7 @@ class ImageImport (QtGui.QDialog):
             return errMsg
         # Register new files
         self.insertSPMdeformationFile(protocol, patient, acq)
-        self.StatisticDataMNItoScannerBased(protocol, patient, acq)
+        # self.StatisticDataMNItoScannerBased(protocol, patient, acq)
 
 
     def getScannerBasedRef(self, imageDiskItem):
@@ -2252,144 +2164,132 @@ class ImageImport (QtGui.QDialog):
         wdi = WriteDiskItem('SPM normalization deformation field', 'NIFTI-1 image' )
         di = wdi.findValue( { 'center': protocol, 'subject' : patient, 'acquisition':acq } )
         if di is None:
-            #QtGui.QMessageBox.warning(self, "Error", "Impossible to find a valid path to import SPM normalization into BrainVisa")
             print("Error: Impossible to find a valid path to import SPM normalization into BrainVisa")
             return
-    
         wdi_write = WriteDiskItem('T1 SPM resampled in MNI','NIFTI-1 image')
         di_write = wdi_write.findValue({'center': protocol, 'subject' : patient, 'acquisition':acq})
         if not os.path.isfile(di_write.fileName()):
-            #QtGui.QMessageBox.warning(self, "Error", "Impossible dto find a valid path for the T1 coregistered into the MNI")
             print("Error: Impossible to find a valid path for the T1 coregistered into the MNI")
         else:
             print "Declaring T1 registered MNI in BrainVisa DB : " + di_write.fileName()
             neuroHierarchy.databases.insertDiskItem(di_write, update = True)
             self.setNormalizedToT1pre(di_write,di_write.fileName())
-    
         # The file should already be there : if it is not, abort with an error, otherwise declare it in the DB
         if os.path.isfile(di.fileName()):
             print "Declaring SPM normalization in BrainVisa DB : " + di.fileName()
             neuroHierarchy.databases.insertDiskItem( di, update=True )
-            # Compute deformation fields
-            #wdi = WriteDiskItem('SPM normalization inverse deformation field','aims readable volume formats')
-            #di2 = wdi.findValue(di)
-            #neuroHierarchy.databases.insertDiskItem( di2, update=True )
-    
-    
         else:
             print "No SPM normalization file found ! The normalization probably failed..."
-            #QtGui.QMessageBox.warning(self, "Error", u"SPM normalization file %s unfound ! \n Normalization probably failed !"%di.fileName())
             return
 
-    def StatisticDataMNItoScannerBased(self, protocol, patient, acq):
 
-        #is there any statistic data to convert to the Scanner-Based space
-        rdi = ReadDiskItem('Statistic-Data', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(patient) })
-        di=list(rdi.findValues({}, None, False))
-        StatToConvert = [i for i in range(len(di)) if eval(di[i].attributes()['MNI'])]
-
-        if len(StatToConvert)>0:
-
-            diT1 = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient, 'normalized':'no' } )
-            allT1 = list(diT1.findValues({},None,False))
-            idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
-            self.mriAcPc = allT1[idxT1pre[0]]
-
-            for i_stat2conv in range(len(StatToConvert)):
-
-                self.setStatus(u"Start MNI to ScannerBased conversion of %s "%str(di[StatToConvert[i_stat2conv]].fileName()))
-
-                #check if inverse deformation field exist.
-                rdi_defField_read = ReadDiskItem('SPM normalization inverse deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':self.mriAcPc.attributes()['acquisition']})
-                di_defField_read=list(rdi_defField_read.findValues({}, None, False))
-
-
-                tempNameMNI2SB = str(di[StatToConvert[i_stat2conv]].fileName()).split('/')
-                tempNameMNI2SB[-1]= "tmpMNItoScannerBased"+tempNameMNI2SB[-1]
-                tempNameMNI2SB = "/".join(tempNameMNI2SB)
-
-                if len(di_defField_read) > 0:
-                    print "inverse deformation field found and used"
-                    matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_defField_read[0].fileName())+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
-    
-                    cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii.backup"]
-                    line1 = runCmd(cmd1)
-    
-                    rname = tempNameMNI2SB.split('/')
-                    rname[-1]="r"+rname[-1]
-                    rname = "/".join(rname)
-                    cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
-                    line2 = runCmd(cmd2)
-    
-                    os.remove(tempNameMNI2SB)
-                    os.remove(rname)
-                    os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
-    
-                    write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
-                    wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
-                    write_filters.update({'subacquisition':di[StatToConvert[0]].attributes()['subacquisition']})
-    
-                    di_new = wdi_new.findValue(write_filters)
-    
-                    ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
-                    di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
-                    di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-                    neuroHierarchy.databases.insertDiskItem( di_new, update=True )
-                    self.transfoManager.setReferentialTo(di_new, self.mriAcPc)
-
-                else:
-                    #look for a y_file second
-                    rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':self.mriAcPc.attributes()['acquisition'] })
-                    di_y = list(rdi_y.findValues({}, None, False))
-    
-                    if len(di_y) == 0:
-                        print "No deformation field found in database"
-                        self.setStatus(u"MNI to ScannerBased conversion of %s not performed, no deformation field found"%str(di[StatToConvert[i_stat2conv]].fileName()))
-                        return
-                    else:
-                        print "deformation field found and used"
-                        wdi_inverse = WriteDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
-                        dir_yinv_split = str(di_y[0].fileName()).split('/')
-                        name_yinverse = dir_yinv_split.pop()[2:]
-                        #name_yinverse.replace('.nii','_inverse.nii')
-                        dir_yinverse = "/".join(dir_yinv_split)
-                        di_inverse = wdi_inverse.findValue(di_y[0])
-                        #on fait l'inversion de la deformation
-                        #pour le moment ce bout de code ne marche qu'avec spm12
-                        matlabRun(spm_inverse_y_field12%("'"+str(self.prefs['spm'])+"'","'"+str(di_y[0].fileName())+"'","'"+str(self.mriAcPc)+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
-                        neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
-                        matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_inverse)+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
-        
-                        cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii"]
-                        line1 = runCmd(cmd1)
-        
-                        rname = tempNameMNI2SB.split('/')
-                        rname[-1]="r"+rname[-1]
-                        rname = "/".join(rname)
-                        cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
-                        line2 = runCmd(cmd2)
-        
-                        os.remove(tempNameMNI2SB)
-                        os.remove(rname)
-                        os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
-        
-                        write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
-                        wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
-                        write_filters.update({'subacquisition':di[StatToConvert[i_stat2conv]].attributes()['subacquisition']})
-        
-                        di_new = wdi_new.findValue(write_filters)
-        
-                        ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
-                        di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
-                        di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
-                        neuroHierarchy.databases.insertDiskItem( di[StatToConvert[i_stat2conv]], update=True )
-                        self.transfoManager.setReferentialTo(di[StatToConvert[i_stat2conv]], self.mriAcPc)
-    
-                self.setStatus(u"MNI to ScannerBased conversion of %s done"%str(di[StatToConvert[i_stat2conv]].fileName()))
-
-        else:
-            print "no statistic data to convert from MNI to Scanner-Based"
-
+#     def StatisticDataMNItoScannerBased(self, protocol, patient, acq):
+# 
+#         #is there any statistic data to convert to the Scanner-Based space
+#         rdi = ReadDiskItem('Statistic-Data', 'BrainVISA volume formats', requiredAttributes={'center':str(protocol), 'subject':str(patient) })
+#         di=list(rdi.findValues({}, None, False))
+#         StatToConvert = [i for i in range(len(di)) if eval(di[i].attributes()['MNI'])]
+# 
+#         if len(StatToConvert)>0:
+# 
+#             diT1 = ReadDiskItem( 'Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'center':protocol, 'subject':patient, 'normalized':'no' } )
+#             allT1 = list(diT1.findValues({},None,False))
+#             idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
+#             self.mriAcPc = allT1[idxT1pre[0]]
+# 
+#             for i_stat2conv in range(len(StatToConvert)):
+# 
+#                 self.setStatus(u"Start MNI to ScannerBased conversion of %s "%str(di[StatToConvert[i_stat2conv]].fileName()))
+# 
+#                 #check if inverse deformation field exist.
+#                 rdi_defField_read = ReadDiskItem('SPM normalization inverse deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':self.mriAcPc.attributes()['acquisition']})
+#                 di_defField_read=list(rdi_defField_read.findValues({}, None, False))
+# 
+# 
+#                 tempNameMNI2SB = str(di[StatToConvert[i_stat2conv]].fileName()).split('/')
+#                 tempNameMNI2SB[-1]= "tmpMNItoScannerBased"+tempNameMNI2SB[-1]
+#                 tempNameMNI2SB = "/".join(tempNameMNI2SB)
+# 
+#                 if len(di_defField_read) > 0:
+#                     print "inverse deformation field found and used"
+#                     matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_defField_read[0].fileName())+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+#     
+#                     cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii.backup"]
+#                     line1 = runCmd(cmd1)
+#     
+#                     rname = tempNameMNI2SB.split('/')
+#                     rname[-1]="r"+rname[-1]
+#                     rname = "/".join(rname)
+#                     cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
+#                     line2 = runCmd(cmd2)
+#     
+#                     os.remove(tempNameMNI2SB)
+#                     os.remove(rname)
+#                     os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
+#     
+#                     write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
+#                     wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
+#                     write_filters.update({'subacquisition':di[StatToConvert[0]].attributes()['subacquisition']})
+#     
+#                     di_new = wdi_new.findValue(write_filters)
+#     
+#                     ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
+#                     di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
+#                     di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+#                     neuroHierarchy.databases.insertDiskItem( di_new, update=True )
+#                     self.transfoManager.setReferentialTo(di_new, self.mriAcPc)
+# 
+#                 else:
+#                     #look for a y_file second
+#                     rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image',requiredAttributes={'center':str(protocol), 'subject':str(patient),'acquisition':self.mriAcPc.attributes()['acquisition'] })
+#                     di_y = list(rdi_y.findValues({}, None, False))
+#     
+#                     if len(di_y) == 0:
+#                         print "No deformation field found in database"
+#                         self.setStatus(u"MNI to ScannerBased conversion of %s not performed, no deformation field found"%str(di[StatToConvert[i_stat2conv]].fileName()))
+#                         return
+#                     else:
+#                         print "deformation field found and used"
+#                         wdi_inverse = WriteDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
+#                         dir_yinv_split = str(di_y[0].fileName()).split('/')
+#                         name_yinverse = dir_yinv_split.pop()[2:]
+#                         dir_yinverse = "/".join(dir_yinv_split)
+#                         di_inverse = wdi_inverse.findValue(di_y[0])
+#                         #on fait l'inversion de la deformation
+#                         #pour le moment ce bout de code ne marche qu'avec spm12
+#                         matlabRun(spm_inverse_y_field12%("'"+str(self.prefs['spm'])+"'","'"+str(di_y[0].fileName())+"'","'"+str(self.mriAcPc)+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+#                         neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
+#                         matlabRun(spm_MNItoScannerBased%("'"+str(self.prefs['spm'])+"'","'"+str(di_inverse)+"'","'"+str(di[StatToConvert[i_stat2conv]].fileName())+",1'","'"+str(self.mriAcPc)+",1'","'"+tempNameMNI2SB+",1'"))
+#         
+#                         cmd1 = ['mv', str(di[StatToConvert[i_stat2conv]].fileName()), di[StatToConvert[i_stat2conv]].fileName()[:-4]+"_MNI.nii"]
+#                         line1 = runCmd(cmd1)
+#         
+#                         rname = tempNameMNI2SB.split('/')
+#                         rname[-1]="r"+rname[-1]
+#                         rname = "/".join(rname)
+#                         cmd2 = ['cp',rname,  str(di[StatToConvert[i_stat2conv]].fileName())]
+#                         line2 = runCmd(cmd2)
+#         
+#                         os.remove(tempNameMNI2SB)
+#                         os.remove(rname)
+#                         os.remove(str(di[StatToConvert[i_stat2conv]].fileName())+".minf")
+#         
+#                         write_filters = { 'center': protocol, 'acquisition': str(di[StatToConvert[i_stat2conv]].attributes()['acquisition']), 'subject' : str(patient) }
+#                         wdi_new = WriteDiskItem('Statistic-Data', 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
+#                         write_filters.update({'subacquisition':di[StatToConvert[i_stat2conv]].attributes()['subacquisition']})
+#         
+#                         di_new = wdi_new.findValue(write_filters)
+#         
+#                         ret = subprocess.call(['AimsFileConvert', '-i', str(di[StatToConvert[i_stat2conv]].fileName()), '-o', str(di[StatToConvert[i_stat2conv]].fileName())])
+#                         di[StatToConvert[i_stat2conv]].setMinf('MNI','False')
+#                         di[StatToConvert[i_stat2conv]].setMinf('ColorPalette','Yellow-Red-White-Blue-Green')
+#                         neuroHierarchy.databases.insertDiskItem( di[StatToConvert[i_stat2conv]], update=True )
+#                         self.transfoManager.setReferentialTo(di[StatToConvert[i_stat2conv]], self.mriAcPc)
+#     
+#                 self.setStatus(u"MNI to ScannerBased conversion of %s done"%str(di[StatToConvert[i_stat2conv]].fileName()))
+# 
+#         else:
+#             print "no statistic data to convert from MNI to Scanner-Based"
 
 
     def generateAmygdalaHippoMesh(self, protocol, patient, acq, diFS):
@@ -2880,12 +2780,7 @@ def main():
     w = ImageImport(app = app)
     w.setWindowFlags(QtCore.Qt.Window)
     w.show()
-    
-    # Kill application when windows are closed
-    # QtGui.QObject.connect(app, QtCore.SIGNAL('lastWindowClosed()'), app, QtCore.SLOT('quit()'))
-    # Debug -> evite un pb entre ipython, pdb et qt
-    # pyqtRemoveInputHook()
-    
+
     # Run the application
     sys.exit(app.exec_())
 
