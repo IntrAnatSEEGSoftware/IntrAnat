@@ -27,7 +27,6 @@ from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
 from brainvisa.data import neuroHierarchy
 from readLabels import *
-from readFreesurferLabelFile import *
 from readFunctionalTractography import *
 from scipy import spatial as sc_sp
 from collections import OrderedDict
