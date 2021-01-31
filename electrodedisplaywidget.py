@@ -26,7 +26,7 @@ from templatewidget import TemplateMRI, TemplateMNI
 from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
 from brainvisa.data import neuroHierarchy
-from readSulcusLabelTranslationFile import *
+from readLabels import *
 from readFreesurferLabelFile import *
 from readFunctionalTractography import *
 from scipy import spatial as sc_sp
@@ -80,7 +80,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     
     #fill the combo possibility.
     loca = ['*']
-    parcels_namesMA= readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
+    parcels_namesMA= readLabels('labels/marsatlas_labels.txt')
     loca.extend(parcels_namesMA.values())
     loca.sort()
     self.AddMAparcels2SelectioncomboBox.clear()
@@ -643,7 +643,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                     
                   textnowLeft.reserve(len(left_white.vertex(0))) #left_white.vertex(0)))
                   textnowRight.reserve(len(right_white.vertex(0)))
-                  marsatlas_label = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
+                  marsatlas_label = readLabels('labels/marsatlas_labels.txt')
               
                   #gauche #control lateral lorsqu'étude contro/ipsi
                   for iter_vert in range(len(left_white.vertex(0))):
@@ -783,8 +783,8 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       dict_freesurfer = {}
       dict_dispersion_MA = {}
       dict_dispersion_FS = {}
-      parcels_names = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
-      freesurfer_parcel_names = readFreesurferLabelFile('labels/freesurfer_labels.txt')
+      parcels_names = readLabels('labels/marsatlas_labels.txt')
+      freesurfer_parcel_names = readLabels('labels/freesurfer_labels.txt')
       missing_marsatlas = []
       missing_freesurfer = []
       all_patients = []
@@ -952,7 +952,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       print "select contacts according to marsatlas parcels"
       fullPlot_List = [str(self.plotList.item(idx).text()) for idx in range(self.plotList.count())]
       
-      parcels_names = readSulcusLabelTranslationFile('labels/marsatlas_labels.txt')
+      parcels_names = readLabels('labels/marsatlas_labels.txt')
       
       dict_plotMA = {}
       for ii in parcels_names.values():

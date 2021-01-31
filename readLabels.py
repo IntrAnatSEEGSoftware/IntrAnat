@@ -1,4 +1,4 @@
-def readSulcusLabelTranslationFile(sulcus_label_file):
+def readLabels(sulcus_label_file):
     sulc_labels = []
     with open(sulcus_label_file,'r') as inf:
         for line in inf:
