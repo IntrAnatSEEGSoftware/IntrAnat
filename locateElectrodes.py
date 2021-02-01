@@ -43,8 +43,8 @@ from ImageImport import createItemDirs
 # ===== SPM CALLS =============================================================
 # =============================================================================
 spm12_inverse_y = """try
-    addpath(genpath(%s
-    spm('defaults', 'FMRI
+    addpath(genpath(%s));
+    spm('defaults', 'FMRI');
     spm_jobman('initcfg');
     clear matlabbatch;
     matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.def = {%s};
@@ -783,7 +783,7 @@ class LocateElectrodes(QtGui.QDialog):
                 elif t.get('volume_dimension') and t.get('voxel_size'):
                     volSize = t.get('volume_dimension')
                     voxSize = t.get('voxel_size')
-                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/
+                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2]
                 else:
                     self.t1preCenter = [128, 128, 128]
                 try:
@@ -923,7 +923,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Update interface
         if isGui:
             # Update list of available items in the combo boxes
-            self.windowContent = dictionnaire_list_image
+            self.windowContent = dictionnaire_list_images
             self.updateComboboxes(pre_select_1, pre_select_2, pre_select_3, pre_select_4)
             # Display referential informations
             self.setWindowsReferential()
@@ -1048,7 +1048,7 @@ class LocateElectrodes(QtGui.QDialog):
     def positionPreRef(self):
         # MAY 2018: Not using linkCursorLastClickedPosition anymore because of a bug in BrainVISA 4.6
         # that causes linkCursorLastClickedPosition() to return coordinates in the referential currently
-        # selected in the window, instead of the central referential of anatomist and when called with
+        # selected in the window, instead of the central referential of anatomist; and when called with
         # an argument, the function returns something completely random.
 
         #return list(self.a.linkCursorLastClickedPosition(self.preReferential()).items())
