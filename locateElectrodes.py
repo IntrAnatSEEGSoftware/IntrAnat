@@ -2649,7 +2649,7 @@ class LocateElectrodes(QtGui.QDialog):
         tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
-        errMsg = matlabRun(spm1212_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
+        errMsg = matlabRun(spm12_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
         if errMsg:
             print errMsg
             return []
