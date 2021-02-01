@@ -606,7 +606,6 @@ class LocateElectrodes(QtGui.QDialog):
             volumes.extend(list(rdi2._findValues({}, None, False)))
         # Load all volumes
         dictionnaire_list_images = dict()
-        t1pre = None
         objAtlas = []
         refT1pre = None
         self.vol_destrieux = []
@@ -1904,8 +1903,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            res = self.exportAllWorker(selOptions)
+            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            #res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -2096,7 +2095,6 @@ class LocateElectrodes(QtGui.QDialog):
 
         return [newFiles, errMsg]
     
-
 
     def saveScreenshot(self):
         #Check if all the volumes are available.
@@ -2803,7 +2801,7 @@ class LocateElectrodes(QtGui.QDialog):
                 for i in range(len(contact_label)):
                     # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
                     # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
-                    # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+                    # Convention: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
                     # "p" in the .csv files
                     if contact_label[i].isalpha():
                         contact_label[i] = contact_label[i].upper()
@@ -2962,21 +2960,22 @@ class LocateElectrodes(QtGui.QDialog):
 
     # ===== COMPUTE PARCELS =====
     def computeParcels(self, diT1pre):
-        from datetime import datetime
         errMsg = []
-        vol = {}
         
         # ===== GET: NATIVE COORDINATES =====
         # Get contact coordinates in T1pre coordinates
         plots = self.getPlotsT1preRef()
         if len(plots)==0:
-            return [[], 'No contact found']
+            errMsg += ['No contact found']
+            return [[], errMsg]
         # Sort by contact names
         info_plot = []
         for k,v in plots.iteritems():
             plot_name_split = k.split('-$&_&$-')
             info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
         plots = sorted(info_plot, key=lambda plot_number: plot_number[0])
+        # List of loaded volumes
+        vol = {}
         # Get image voxel size
         info_image = diT1pre.attributes()
         # Default freesurfer coordinates
@@ -2984,14 +2983,18 @@ class LocateElectrodes(QtGui.QDialog):
         info_fs = info_image
 
         # === GET: MNI COORDINATES ===
-        plots_MNI_mm = self.getPlotsMNIRef()
-        if plots_MNI_mm is None:
+        plots_MNI_dict = self.getPlotsMNIRef()
+        if plots_MNI_dict is None:
             errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
+            return [[], errMsg]
+        missingMni = list(set([i[0] for i in plots]) - set(plots_MNI_dict.keys()))
+        if missingMni:
+            errMsg += ["Recomputing MNI coordinates is required. Missing contacts: " + " ".join(missingMni)]
             return [[], errMsg]
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plots_MNI = {}
-        for vv,kk in plots_MNI_mm.iteritems():
+        for vv,kk in plots_MNI_dict.iteritems():
             inter_pos = [kk[0], kk[1], kk[2], 1]
             inter_pos = numpy.matrix(inter_pos).reshape([4,1])
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
@@ -3194,7 +3197,8 @@ class LocateElectrodes(QtGui.QDialog):
         wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
         di = wdi.findValue(diT1pre)
         if di is None:
-            return [None, "Could not find where to save file .eleclabel"]
+            errMsg += ["Could not find where to save file .eleclabel"]
+            return [[], errMsg]
         fileEleclabel = di.fullPath()
         # Write file
         fout = open(fileEleclabel,'w')
@@ -3381,10 +3385,12 @@ class LocateElectrodes(QtGui.QDialog):
         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         impl = list(rdi.findValues({},None,False))
         if len(impl) == 0:
-            QtGui.QMessageBox.critical(self, "Error", "Can't find implantation, you have to add electrodes and save your modifications first.")
+            #QtGui.QMessageBox.critical(self, "Error", "Can't find implantation, you have to add electrodes and save your modifications first.")
+            print "ERROR: Can't find implantation, you have to add electrodes and save your modifications first."
             return None
         elif not os.path.exists(str(impl[0])):
-            QtGui.QMessageBox.critical(self, "Error", "Can't find implantation file. Update your BrainVISA database.")
+            #QtGui.QMessageBox.critical(self, "Error", "Can't find implantation file. Update your BrainVISA database.")
+            print "ERROR: Can't find implantation file. Update your BrainVISA database."
             return None
         # Read implantation file
         filein = open(str(impl[0]), 'rb')
