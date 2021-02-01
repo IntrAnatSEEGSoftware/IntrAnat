@@ -51,7 +51,7 @@ def generateCsv(w, subject):
         elif diT1pre.get('volume_dimension') and diT1pre.get('voxel_size'):
             volSize = diT1pre.get('volume_dimension')
             voxSize = diT1pre.get('voxel_size')
-            w.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+            w.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2]
         else:
             w.t1preCenter = [128, 128, 128]
         
@@ -109,7 +109,7 @@ def generateCsv(w, subject):
     
     
 # ===== MAIN =====
-def main(computeMni, start_index, logFilename):
+def main(input_dir, logFilename):
     # Open log file
     log = open(logFilename, 'wb')
     # Start BrainVISA
@@ -124,6 +124,9 @@ def main(computeMni, start_index, logFilename):
     w.subjects = sorted(w.subjects)
     log.write("Number of patients: %d\n\n" % len(w.subjects))
     maxLen = max([len(s) for s in w.subjects])
+    # Find subjects in the input dir
+    dirListSub = os.listdir(self.prefs['bids'])
+    
     # Export options
     if computeMni:
         selOptions = [True, True, False, False, True, True, False, False]
@@ -158,26 +161,17 @@ def main(computeMni, start_index, logFilename):
 if __name__ == "__main__":
     defLog = "log_csv_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H.%M.%S') + ".txt"
     # Test input parameters
-    if (len(sys.argv) < 2) or ((sys.argv[1] != "--mni-skip") and (sys.argv[1] != "--mni-recompute")):
-        print("USAGE: batch_csv.py --mni-skip      [start_index=1] [logfile=$HOME/" + defLog + "]")
-        print("       batch_csv.py --mni-recompute [start_index=1] [logfile=$HOME/" + defLog + "]")
+    if (len(sys.argv) < 2) or not os.path.exists(sys.argv[1]):
+        print("USAGE: batch_importfs.py input_dir [logfile=$HOME/" + defLog + "]")
         sys.exit(2)
-    elif (sys.argv[1] == "--mni-skip"):
-        computeMni = False
-    else:
-        computeMni = True
-    # Start index
-    if (len(sys.argv) == 3):
-        start_index = int(sys.argv[2])
-    else:
-        start_index = 1
+    inputDir = sys.argv[1]
     # Log file
-    if (len(sys.argv) == 4):
-        logFilename = sys.argv[3]
+    if (len(sys.argv) == 3):
+        logFilename = sys.argv[2]
     else:
         logFilename = os.path.join(os.path.expanduser("~"), defLog)
     # Call processing function
-    main(computeMni, start_index, logFilename)
+    main(inputDir, logFilename)
     # Close application
     os._exit(0)
     

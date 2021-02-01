@@ -789,7 +789,7 @@ class ImageImport(QtGui.QDialog):
         
         # === GET BIDS SUBJECTS ===
         # Parse folders to list subjects
-        dirListSub = os.listdir(self.prefs['bids']);
+        dirListSub = os.listdir(self.prefs['bids'])
         bidsSub = []
         bidsImg = []
         for dirSub in dirListSub:
@@ -798,7 +798,7 @@ class ImageImport(QtGui.QDialog):
             if not ((len(dirSub) >= 8) and (dirSub[:4] == 'sub-') and os.path.isdir(pathSub)):
                 continue
             # List sessions
-            dirListSes = sorted(os.listdir(pathSub));
+            dirListSes = sorted(os.listdir(pathSub))
             for dirSes in dirListSes:
                 # Reset list of images to add for this subject
                 addImg = []
@@ -807,14 +807,14 @@ class ImageImport(QtGui.QDialog):
                 if not ((len(dirSes) > 4) and (dirSes[:4] == 'ses-') and os.path.isdir(pathSes)):
                     continue
                 # List modalities
-                dirListMod = os.listdir(pathSes);
+                dirListMod = os.listdir(pathSes)
                 for dirMod in dirListMod:
                     # Full path
                     pathMod = os.path.join(pathSes, dirMod)
                     # ANAT/PET modality folders
                     if (dirMod == "anat") or (dirMod == "pet"):
                         # List images to import
-                        dirListImg = os.listdir(pathMod);
+                        dirListImg = os.listdir(pathMod)
                         for dirImg in dirListImg:
                             # Look for T1, T2, FLAIR, CT and PET files
                             pathImg = os.path.join(pathMod, dirImg)
@@ -1503,7 +1503,7 @@ class ImageImport(QtGui.QDialog):
         if (attr['volume_dimension'] and attr['voxel_size']):
             volSize = attr['volume_dimension']
             voxSize = attr['voxel_size']
-            center = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+            center = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2]
         else:
             center = [128, 128, 128]
         # Center view on center of image
