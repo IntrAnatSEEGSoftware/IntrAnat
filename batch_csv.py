@@ -19,8 +19,7 @@ from brainvisa.data.readdiskitem import ReadDiskItem
 def generateCsv(w, subject):
     errMsg = []
     # Load patient
-    if True:
-#    try:
+    try:
         # Find T1pre for subject
         diT1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats', requiredAttributes={'subject':subject, 'modality':'t1mri', 'normalized':'no'})
         rdiT1 = list(diT1._findValues({}, None, False))
@@ -82,56 +81,31 @@ def generateCsv(w, subject):
         w.loadElectrodes(subject, w.currentProtocol, isGui=False)
         if not w.electrodes:
             return [False, ['No implantation file']]
-#     except:
-#         errMsg += ["Could not load patient"]
-#         return [False, errMsg]
+    except:
+        errMsg += ["Could not load patient"]
+        return [False, errMsg]
       
     # Compute parcels
-#     try:
+    try:
         elecfile, errMsgCompute = w.computeParcels(diT1pre)
         errMsg += errMsgCompute
         if not elecfile:
             return [False, errMsg]
-#     except:
-#         errMsg += ["Could not compute parcels"]
-#         return [False, errMsg]
+    except:
+        errMsg += ["Could not compute parcels"]
+        return [False, errMsg]
       
     # Generate CSV
-#     try:
+    try:
         csvfile, errMsgCsv = w.saveCSV(diT1pre)
         errMsg += errMsgCsv
         if not csvfile:
             return [False, errMsg]
-#     except:
-#         errMsg += ["Could not save CSV"]
-#         return [False, errMsg]
+    except:
+        errMsg += ["Could not save CSV"]
+        return [False, errMsg]
 
     return [True, errMsg]
-
-
-# def saveCsv_load(w, subject):
-#     # Unload previous patient
-#     w.changePatient()
-#     # Load patient  (capture console output)
-#     try:
-#         w.loadPatientWorker(subject, thread=None, isGui=False)
-#     except: 
-#         log.write("ERROR: Could not load patient.\n")
-#         return False
-#     # Skip subjects where nothing was loaded
-#     if not w.dispObj:
-#         log.write("ERROR: No volume loaded.\n")
-#         return False
-#     # Export process  (capture console output)
-#     try:
-#         res = w.exportAllWorker(selOptions)
-#         # Log error message
-#         if res and res[1]:    # errMsg
-#             log.write("ERROR: " + " / ".join(res[1]) + "\n")
-#             return False
-#     except:
-#         log.write("ERROR: Could not export patient.\n")
-#         return False
     
     
 # ===== MAIN =====
