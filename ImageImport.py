@@ -949,8 +949,8 @@ class ImageImport(QtGui.QDialog):
                     braincenter = None
                     # Add image to database
                     self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
-                    # Update list of images
-                    self.selectBvSubject(bidsSub[iSub])
+                # Update list of images
+                self.selectBvSubject(bidsSub[iSub])
                     
         # === NORMALIZE+REGISTER ===
         if isRegister:
