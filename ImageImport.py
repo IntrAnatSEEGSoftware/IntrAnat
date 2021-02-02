@@ -224,7 +224,7 @@ quit;"""
 class ImageImport(QtGui.QDialog):
     """ImageImport is the main dialog class of the Image Importer software"""
 
-    def __init__ (self, app=None):
+    def __init__ (self, app=None, isGui=True):
         QtGui.QWidget.__init__(self)
         self.ui = uic.loadUi("ImageImport.ui", self)
         self.setWindowTitle('Image Import - NOT FOR MEDICAL USE')
@@ -239,7 +239,10 @@ class ImageImport(QtGui.QDialog):
         self.defaultAcqDate = QtCore.QDate(1900,1,1)
         self.ui.acqDate.setDate(self.defaultAcqDate)
         self.modas = {'t1mri':'Raw T1 MRI', 't2mri':'T2 MRI', 'ct': 'CT', 'pet': 'PET','fmri_epile':'fMRI-epile', 'statistic_data':'Statistic-Data', 'flair': 'FLAIR', 'freesurfer_atlas':'FreesurferAtlas', 'fgatir':'FGATIR'}
-
+        self.dispObj = []
+        self.threads = []
+        self.waitingForThreads = {}
+        
         # Allow calling brainvisa
         self.brainvisaContext = defaultContext()
         # Get Transformation Manager
@@ -250,99 +253,98 @@ class ImageImport(QtGui.QDialog):
         self.a.config()['setAutomaticReferential'] = 1
         self.a.config()['commonScannerBasedReferential'] = 1
 
-        layout = QtGui.QVBoxLayout( self.ui.windowContainer1 )
-        layout2 = QtGui.QHBoxLayout( )
-        layout3 = QtGui.QHBoxLayout( )
-        self.axWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
-        self.axWindow2 = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
-        self.axWindow3 = self.a.createWindow( 'Axial' )#, no_decoration=True )
-        self.axWindow4 = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
-        self.wins = [self.axWindow, self.axWindow2, self.axWindow3, self.axWindow4]
-        self.axWindow.setParent(self.ui.windowContainer1)
-        self.axWindow2.setParent(self.ui.windowContainer1)
-        self.axWindow3.setParent(self.ui.windowContainer1)
-        self.axWindow4.setParent(self.ui.windowContainer1)
-        layout2.addWidget( self.axWindow.getInternalRep() )
-        layout2.addWidget( self.axWindow2.getInternalRep() )
-        layout3.addWidget( self.axWindow3.getInternalRep() )
-        layout3.addWidget( self.axWindow4.getInternalRep() )
-        layout.addLayout(layout2)
-        layout.addLayout(layout3)
-        
-        # Hide control window
-        self.a.getControlWindow().setVisible(False)
-        self.dispObj = []
+        # Initialize GUI
         self.initialize()
+        # Prepare interactivity
+        if isGui:
+            layout = QtGui.QVBoxLayout( self.ui.windowContainer1 )
+            layout2 = QtGui.QHBoxLayout( )
+            layout3 = QtGui.QHBoxLayout( )
+            self.axWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
+            self.axWindow2 = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
+            self.axWindow3 = self.a.createWindow( 'Axial' )#, no_decoration=True )
+            self.axWindow4 = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
+            self.wins = [self.axWindow, self.axWindow2, self.axWindow3, self.axWindow4]
+            self.axWindow.setParent(self.ui.windowContainer1)
+            self.axWindow2.setParent(self.ui.windowContainer1)
+            self.axWindow3.setParent(self.ui.windowContainer1)
+            self.axWindow4.setParent(self.ui.windowContainer1)
+            layout2.addWidget( self.axWindow.getInternalRep() )
+            layout2.addWidget( self.axWindow2.getInternalRep() )
+            layout3.addWidget( self.axWindow3.getInternalRep() )
+            layout3.addWidget( self.axWindow4.getInternalRep() )
+            layout.addLayout(layout2)
+            layout.addLayout(layout3)
+            
+            # Hide control window
+            self.a.getControlWindow().setVisible(False)
+    
+            # TABS: Reload at each tab change
+            self.connect(self.ui.tabWidget,  QtCore.SIGNAL('currentChanged(int)'), self.analyseBrainvisaDB)
+            # TAB1: Database
+            self.connect(self.ui.bvProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.bvSubjectCombo))
+            self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectBvSubject)
+            self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
+            self.connect(self.ui.bvImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectBvImage)
+            self.connect(self.ui.bvNewSubjectButton, QtCore.SIGNAL('clicked()'), self.addBvSubject)
+            self.connect(self.ui.bvDeleteImageButton, QtCore.SIGNAL('clicked()'), self.deleteBvImage)
+            self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
+            self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
+            self.connect(self.ui.bvUpdateDb, QtCore.SIGNAL('clicked()'), self.updateBvDb)
+            self.connect(self.ui.bvImportBids, QtCore.SIGNAL('clicked()'), self.importBids)
+            # TAB2: Add subject
+            self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('activated(QString)'), self.updatePatientCode)
+            self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('editTextChanged(QString)'), self.updatePatientCode)
+            self.connect(self.ui.subjectYearSpinbox, QtCore.SIGNAL('valueChanged(int)'), self.updatePatientCode)
+            self.connect(self.ui.subjectPatientName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
+            self.connect(self.ui.subjectPatientFirstName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
+            self.connect(self.ui.subjectAddSubjectButton, QtCore.SIGNAL('clicked()'), self.storePatientInDB)
+            # TAB3: Import to BrainVisa
+            self.connect(self.ui.chooseNiftiButton, QtCore.SIGNAL('clicked()'), self.chooseNifti)
+            self.connect(self.ui.niftiImportButton, QtCore.SIGNAL('clicked()'), self.importNifti)
+            self.connect(self.ui.niftiSetBraincenterButton, QtCore.SIGNAL('clicked()'), self.setBrainCenter)
+            self.connect(self.ui.ImportFSoutputspushButton, QtCore.SIGNAL('clicked()'),self.importFSoutput)
+            self.connect(self.ui.buttonImportLausanne, QtCore.SIGNAL('clicked()'),self.importLausanne2008)
+            self.connect(self.ui.niftiSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
+            self.connect(self.ui.niftiSeqType, QtCore.SIGNAL('currentIndexChanged(QString)'),self.enable_disable_gadooption)
+            # TAB4: Coregistration
+            self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectRegSubject)
+            self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
+            self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
+            self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
+            self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
+            self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
+            self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
+            self.connect(self.ui.runHiphopOnly, QtCore.SIGNAL('clicked()'), self.runProcessHiphop)
+            # TAB5: Preferences
+            self.connect(self.ui.prefSpmTemplateButton, QtCore.SIGNAL('clicked()'), self.setSpmTemplatePath)
+            self.connect(self.ui.prefANTsButton, QtCore.SIGNAL('clicked()'), self.setANTsPath)
+            self.connect(self.ui.prefFreesurferButton, QtCore.SIGNAL('clicked()'), self.setFreesurferPath)
+            self.connect(self.ui.prefBidsButton, QtCore.SIGNAL('clicked()'), self.setBidsPath)
+            self.connect(self.ui.prefANTScheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('ANTS'))
+            self.connect(self.ui.prefSPMcheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('SPM'))
+            self.connect(self.ui.prefProjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.setPrefProject)
+            self.connect(self.ui.prefSaveButton, QtCore.SIGNAL('clicked()'), self.savePreferences)
+    
+            self.warningMEDIC()
 
-        self.threads = []
-        self.waitingForThreads = {}
-
-        # TABS: Reload at each tab change
-        self.connect(self.ui.tabWidget,  QtCore.SIGNAL('currentChanged(int)'), self.analyseBrainvisaDB)
-        # TAB1: Database
-        self.connect(self.ui.bvProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.bvSubjectCombo))
-        self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectBvSubject)
-        self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.bvImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectBvImage)
-        self.connect(self.ui.bvNewSubjectButton, QtCore.SIGNAL('clicked()'), self.addBvSubject)
-        self.connect(self.ui.bvDeleteImageButton, QtCore.SIGNAL('clicked()'), self.deleteBvImage)
-        self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
-        self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
-        self.connect(self.ui.bvUpdateDb, QtCore.SIGNAL('clicked()'), self.updateBvDb)
-        self.connect(self.ui.bvImportBids, QtCore.SIGNAL('clicked()'), self.importBids)
-        # TAB2: Add subject
-        self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('activated(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('editTextChanged(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectYearSpinbox, QtCore.SIGNAL('valueChanged(int)'), self.updatePatientCode)
-        self.connect(self.ui.subjectPatientName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectPatientFirstName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectAddSubjectButton, QtCore.SIGNAL('clicked()'), self.storePatientInDB)
-        # TAB3: Import to BrainVisa
-        self.connect(self.ui.chooseNiftiButton, QtCore.SIGNAL('clicked()'), self.chooseNifti)
-        self.connect(self.ui.niftiImportButton, QtCore.SIGNAL('clicked()'), self.importNifti)
-        self.connect(self.ui.niftiSetBraincenterButton, QtCore.SIGNAL('clicked()'), self.setBrainCenter)
-        self.connect(self.ui.ImportFSoutputspushButton, QtCore.SIGNAL('clicked()'),self.importFSoutput)
-        self.connect(self.ui.buttonImportLausanne, QtCore.SIGNAL('clicked()'),self.importLausanne2008)
-        self.connect(self.ui.niftiSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.niftiSeqType, QtCore.SIGNAL('currentIndexChanged(QString)'),self.enable_disable_gadooption)
-        # TAB4: Coregistration
-        self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectRegSubject)
-        self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
-        self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
-        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
-        self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
-        self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
-        self.connect(self.ui.runHiphopOnly, QtCore.SIGNAL('clicked()'), self.runProcessHiphop)
-        # TAB5: Preferences
-        self.connect(self.ui.prefSpmTemplateButton, QtCore.SIGNAL('clicked()'), self.setSpmTemplatePath)
-        self.connect(self.ui.prefANTsButton, QtCore.SIGNAL('clicked()'), self.setANTsPath)
-        self.connect(self.ui.prefFreesurferButton, QtCore.SIGNAL('clicked()'), self.setFreesurferPath)
-        self.connect(self.ui.prefBidsButton, QtCore.SIGNAL('clicked()'), self.setBidsPath)
-        self.connect(self.ui.prefANTScheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('ANTS'))
-        self.connect(self.ui.prefSPMcheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('SPM'))
-        self.connect(self.ui.prefProjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.setPrefProject)
-        self.connect(self.ui.prefSaveButton, QtCore.SIGNAL('clicked()'), self.savePreferences)
-
-        self.warningMEDIC()
-
-        # Rest of the interface
-        def setDictValue(d, k, v,button):
-            d[k]=v
-            button.setStyleSheet("background-color: rgb(90, 255, 95);")
-        self.connect(self.ui.regAcButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'AC',list(self.a.linkCursorLastClickedPosition()),self.ui.regAcButton))
-        self.connect(self.ui.regPcButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'PC',list(self.a.linkCursorLastClickedPosition()),self.ui.regPcButton))
-        self.connect(self.ui.regIhButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'IH',list(self.a.linkCursorLastClickedPosition()),self.ui.regIhButton))
-        self.connect(self.ui.regLhButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'LH',list(self.a.linkCursorLastClickedPosition()),self.ui.regLhButton))
-        self.connect(self.ui.regAcPcValidateButton, QtCore.SIGNAL('clicked()'), self.validateAcPc)
-        
-        # Finds the available protocols in brainvisa database and fills the comboboxes
-        self.analyseBrainvisaDB()
-        self.enableACPCButtons(False)
-        # Show anatomist
-        self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
-        self.showAnatomist.setIconSize(QtGui.QSize(24, 24))
-        self.connect(self.showAnatomist, QtCore.SIGNAL('clicked()'), self.toggleAnatomistWindow)
+            # Rest of the interface
+            def setDictValue(d, k, v,button):
+                d[k]=v
+                button.setStyleSheet("background-color: rgb(90, 255, 95);")
+            self.connect(self.ui.regAcButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'AC',list(self.a.linkCursorLastClickedPosition()),self.ui.regAcButton))
+            self.connect(self.ui.regPcButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'PC',list(self.a.linkCursorLastClickedPosition()),self.ui.regPcButton))
+            self.connect(self.ui.regIhButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'IH',list(self.a.linkCursorLastClickedPosition()),self.ui.regIhButton))
+            self.connect(self.ui.regLhButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'LH',list(self.a.linkCursorLastClickedPosition()),self.ui.regLhButton))
+            self.connect(self.ui.regAcPcValidateButton, QtCore.SIGNAL('clicked()'), self.validateAcPc)
+            
+            # Finds the available protocols in brainvisa database and fills the comboboxes
+            self.analyseBrainvisaDB()
+            self.enableACPCButtons(False)
+            # Show anatomist
+            self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
+            self.showAnatomist.setIconSize(QtGui.QSize(24, 24))
+            self.connect(self.showAnatomist, QtCore.SIGNAL('clicked()'), self.toggleAnatomistWindow)
 
 
     def __del__ (self):
@@ -1182,7 +1184,7 @@ class ImageImport(QtGui.QDialog):
         return diT1pre
     
         
-    def importFSoutput(self, subject=None, proto=None):
+    def importFSoutput(self, subject=None, proto=None, importDir=None, FsSubjDir=None, isGui=True, isOverwriteHip=True):
         # Get current subject
         if not subject:
             subject = self.currentSubject
@@ -1191,23 +1193,29 @@ class ImageImport(QtGui.QDialog):
         # Find T1pre of the subject
         diT1pre = self.findT1pre(subject)
         if not diT1pre:
-            QtGui.QMessageBox.warning(self, "Error", u"No T1pre MRI found this patient: " + subject)
-            return
+            errMsg = "No T1pre found"
+            if isGui:
+                QtGui.QMessageBox.warning(self, "Error", subject + + ": " + errMsg)
+            return [False, [errMsg]]
 
         # Find FreeSurfer database
-        FsSubjDir = None
-        for db in neuroHierarchy.databases.iterDatabases():
-            if db.directory.lower().find("freesurfer") != -1:
-                FsSubjDir = db.directory
-                print("FreeSurfer database folder: " + FsSubjDir)
-                break
         if not FsSubjDir:
-            QtGui.QMessageBox.warning(self, "Error", u"No local FreeSurfer database found.")
-            return
+            FsSubjDir = None
+            for db in neuroHierarchy.databases.iterDatabases():
+                if db.directory.lower().find("freesurfer") != -1:
+                    FsSubjDir = db.directory
+                    print("FreeSurfer database folder: " + FsSubjDir)
+                    break
+            if not FsSubjDir:
+                errMsg = "No local FreeSurfer database found."
+                if isGui:
+                    QtGui.QMessageBox.warning(self, "Error", errMsg)
+                return [False, [errMsg]]
         # Ask file name
-        importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select FreeSurfer folder", "", QtGui.QFileDialog.ShowDirsOnly))
         if not importDir:
-            return
+            importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select FreeSurfer folder", "", QtGui.QFileDialog.ShowDirsOnly))
+            if not importDir:
+                return [False, ["No input folder selected"]]
         
         # Get all the filenames expected in the FreeSurfer output folder
         allFiles = dict()
@@ -1246,15 +1254,24 @@ class ImageImport(QtGui.QDialog):
         # Check that all the files exist (skip the lausanne files)
         for key in allFiles:
             if (not 'Lausanne' in key) and (not 'DKT' in key) and (not 'HCP-MMP1' in key) and (not os.path.isfile(allFiles[key]['file'])):
-                QtGui.QMessageBox.warning(self, "Error", u"FreeSurfer file not found:\n" + allFiles[key]['file'])
-                return
+                errMsg = "File not found: " + allFiles[key]['file']
+                if isGui:
+                    QtGui.QMessageBox.warning(self, "Error", errMsg)
+                return [False, [errMsg]]
         
         # Run copy and conversion in a separate thread
-        res = ProgressDialog.call(lambda thr:self.importFSoutputWorker(subject, proto, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import FreeSurfer output")
-        #res = self.importFSoutputWorker(subject, proto, allFiles, diT1pre)
-        
+        isOk, errMsg = ProgressDialog.call(lambda thr:self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip, thr), True, self, "Processing " + subject + "...", "Import FreeSurfer output")
+        #iOk, errMsg = self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip)
+        if isGui and errMsg:
+            if isOk:
+                QtGui.QMessageBox.warning(self, "Warning", u"\n".join(errMsg))
+            else:
+                QtGui.QMessageBox.warning(self, "Error", u"\n".errMsg)
+        return [isOk, errMsg]
 
-    def importFSoutputWorker(self, subject, proto, allFiles, diT1pre, thread=None):
+
+    def importFSoutputWorker(self, subject, proto, allFiles, diT1pre, isOverwriteHip, thread=None):
+        errMsg = []
         # Where to copy the new files
         acq =  str(diT1pre.attributes()['acquisition']).replace('T1','FreesurferAtlas')
         write_filters = { 'center': proto, 'acquisition': str(acq), 'subject' : subject }
@@ -1283,8 +1300,8 @@ class ImageImport(QtGui.QDialog):
                     di = wdi.findValue(write_filters)
                 # If there is an error while finding where to save the file
                 if not di:
-                    print("Error: Cannot import file: " + allFiles[key]['file'])
-                    return
+                    errMsg += "Cannot import file: " + allFiles[key]['file']
+                    return [False, errMsg]
                 # Create target folder
                 createItemDirs(di)
                 # Copy file into the local FS datbase
@@ -1294,7 +1311,9 @@ class ImageImport(QtGui.QDialog):
                 neuroHierarchy.databases.insertDiskItem(di, update=True)
             # Files that do not have a format or placeholder in the freesurfer ontology
             else:
-                self.importFsAtlas(subject, proto, key, str(allFiles[key]['file']), diT1pre)
+                isOkAtlas, errMsgAtlas = self.importFsAtlas(subject, proto, key, str(allFiles[key]['file']), diT1pre)
+                if errMsgAtlas:
+                    errMsg += errMsgAtlas
        
         # Progress bar
         if thread:
@@ -1311,11 +1330,22 @@ class ImageImport(QtGui.QDialog):
         # Add reference in the database (creates .minf)
         neuroHierarchy.databases.insertDiskItem(diFSDestrieux, update=True)
         
+        # If not overwriting of amygdala/hippocampus: skip this step if files already exist
+        if not isOverwriteHip:
+            # Get left/right hippocampus volumes
+            diHipLeft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center': proto, 'acquisition': diT1pre.attributes()['acquisition'], 'subject': subject})
+            rdiHipLeft = list(diHipLeft.findValues({}, None, False ))
+            diHipRight = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center': proto, 'acquisition': diT1pre.attributes()['acquisition'], 'subject': subject})
+            rdiHipRight = list(diHipRight.findValues({}, None, False ))
+            if rdiHipLeft and rdiHipRight:
+                errMsg += ['Skipped hippocampus mesh']
+                return [True, errMsg]
         # Generate amygdala and hippocampus meshes
         if thread:
             thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippocampus and amygdala meshes...")
         self.generateAmygdalaHippoMesh(proto, subject, acq, diFSDestrieux)
-
+        return [True, errMsg]
+    
 
     # Import extra FreeSurfer parcellation (all in FreeSurfer space, similar to T1.mgz)
     def importFsAtlas(self, subject, proto, imgName, imgPath, diT1pre=None):
@@ -1323,7 +1353,7 @@ class ImageImport(QtGui.QDialog):
         if not diT1pre:
             diT1pre = self.findT1pre(subject)
             if not diT1pre:
-                return
+                return [False, ['No T1pre found']]
         # Where to copy the new files
         acq = str(diT1pre.attributes()['acquisition']).replace('T1', imgName + "-")
         # Importing Destrieux atlas to BrainVISA database
@@ -1337,7 +1367,7 @@ class ImageImport(QtGui.QDialog):
         ret = subprocess.call(['AimsFileConvert', '-i', str(di.fullPath()), '-o', str(di.fullPath()), '-t', 'S16'])
         # Add reference in the database (creates .minf)
         neuroHierarchy.databases.insertDiskItem(di, update=True)
-
+        return [True, []]
 
     # Sub-selection of the operations done when importing the full FreeSurfer segmentation
     # Added only for O.David to add the Lausanne 2008 to patients for which FreeSurfer was already imported
