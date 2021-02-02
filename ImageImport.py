@@ -874,6 +874,10 @@ class ImageImport(QtGui.QDialog):
                 # Add acquisition dates
                 for i in range(len(addImg)):
                     addImg[i]['date'] = imgDates[addImg[i]['file']]
+                # Add FreeSurfer for this session
+                pathFs = os.path.join(self.prefs['bids'], 'derivatives', 'freesurfer', dirSub + '_' + dirSes)
+                if os.path.exists(os.path.join(pathFs, 'mri', 'aparc.a2009s+aseg.mgz')):
+                    addImg.append({'sub': dirSub[4:], 'ses': dirSes[4:], 'file':'freesurfer', 'path':pathFs})
                 # Add subject to list of subjects to import
                 subName = self.ui.subjectSiteCombo.currentText() + '_' + dirSes[4:] + '_' + dirSub[4:7].upper() + dirSub[7].lower()
                 bidsSub.append(subName)
@@ -915,6 +919,7 @@ class ImageImport(QtGui.QDialog):
         isResample = selOpt[1]
     
         # === IMPORT NEW BIDS SUBJECTS ===
+        errMsg = []
         # Reset brain center, so a previous definition is not used in the import function
         self.brainCenter = None
         self.ui.brainCenterLabel.setText('')
@@ -930,19 +935,23 @@ class ImageImport(QtGui.QDialog):
             # Import images
             for iImg in range(len(bidsImg[iSub])):
                 img = bidsImg[iSub][iImg]
-                # Acq: eg. T1pre_2016-11-27
-                if len(img['date']) >= 10:
-                    d = img['date'][:10]
+                # Import FreeSurfer folder
+                if img['file'] == 'freesurfer':
+                    self.importFSoutput(bidsSub[iSub], proto, img['path'], None, False, True)
                 else:
-                    d = img['ses'] + '-01-01'
-                acq = str(img['mod'] + img['acq'] + '_' + d)
-                # Brain center
-                braincenter = None
-                # Add image to database
-                self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
-                # Update list of images
-                self.selectBvSubject(bidsSub[iSub])
-    
+                    # Acq: eg. T1pre_2016-11-27
+                    if len(img['date']) >= 10:
+                        d = img['date'][:10]
+                    else:
+                        d = img['ses'] + '-01-01'
+                    acq = str(img['mod'] + img['acq'] + '_' + d)
+                    # Brain center
+                    braincenter = None
+                    # Add image to database
+                    self.importNifti(img['path'], bidsSub[iSub], proto, img['mod'], acq, img['isGado'], braincenter)
+                    # Update list of images
+                    self.selectBvSubject(bidsSub[iSub])
+                    
         # === NORMALIZE+REGISTER ===
         if isRegister:
             # Switch to coreg tab
@@ -1195,7 +1204,7 @@ class ImageImport(QtGui.QDialog):
         if not diT1pre:
             errMsg = "No T1pre found"
             if isGui:
-                QtGui.QMessageBox.warning(self, "Error", subject + + ": " + errMsg)
+                QtGui.QMessageBox.warning(self, "Error", subject + ": " + errMsg)
             return [False, [errMsg]]
 
         # Find FreeSurfer database

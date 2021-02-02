@@ -159,7 +159,7 @@ def removeFromDB(file, db=None):
     # Delete folder/file
     if os.path.isdir(file):
         for f in os.listdir(file):
-            self.removeFromDB(os.path.join(file, f), db)
+            removeFromDB(os.path.join(file, f), db)
         os.rmdir(file)
     elif os.path.exists(file):
         os.remove(file)

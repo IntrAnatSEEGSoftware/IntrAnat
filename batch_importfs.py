@@ -13,6 +13,7 @@ from brainvisa.data import neuroHierarchy
 # from brainvisa.processes import *
 from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 from brainvisa.data.readdiskitem import ReadDiskItem
+from __builtin__ import False
 
 
 # ===== IMPORT FREESURFER =====
@@ -163,7 +164,11 @@ def main(input_dir, logFilename):
         w.currentProtocol = bvCenter[subList[iSub]]
         # Import FreeSurfer folder
         importDir = os.path.join(input_dir, fsSubjects[subList[iSub]], 'freesurfer')
-        isOk, errMsg = w.importFSoutput(bvSubjects[subList[iSub]], w.currentProtocol, importDir, FsSubjDir, False, False)
+        try:
+            isOk, errMsg = w.importFSoutput(bvSubjects[subList[iSub]], w.currentProtocol, importDir, FsSubjDir, False, False)
+        except:
+            isOk = False
+            errMsg = ["Cancelled by user."]
         # Handling error/success
         if isOk and not errMsg:
             log.write("OK\n")
