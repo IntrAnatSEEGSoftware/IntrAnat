@@ -6,7 +6,7 @@
 # License GNU GPL v3
  
 # Standard Python imports
-import sys, os, pickle, numpy, re, string, time, subprocess, json, io
+import sys, os, pickle, csv, numpy, re, string, time, subprocess, json, io
 from numpy import *
 from scipy import ndimage
 from collections import OrderedDict
@@ -244,10 +244,10 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateComboboxes()
         
         # Start anatomist
-        if (loadAll == True) and self.app:
+        if (loadAll == True):
             self.a = anatomist.Anatomist('-b') #Batch mode (hide Anatomist window)
         # Create Anatomist windows
-        if (loadAll == True) and self.app and isGui:
+        if (loadAll == True) and isGui:
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
             self.a.onCursorNotifier.add(self.clickHandler)
@@ -328,7 +328,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.connect(self.buttonWin1, QtCore.SIGNAL('clicked()'), lambda : self.setWindowNumber(1))
             self.connect(self.buttonWin2, QtCore.SIGNAL('clicked()'), lambda : self.setWindowNumber(2))
             self.connect(self.buttonWin4, QtCore.SIGNAL('clicked()'), lambda : self.setWindowNumber(4))
-            
 
             # List of controls to enable when a subject is loaded
             self.widgetsLoaded = [self.loadPatientButton, self.patientList, self.protocolCombo, self.filterSiteCombo, self.filterYearCombo]
@@ -350,32 +349,31 @@ class LocateElectrodes(QtGui.QDialog):
         if not hasattr(self, 'wins'):
              self.wins = []
              self.widgetsLoaded = []
-             self.widgetsUnloaded = []
-             
+             self.widgetsUnloaded = []  
             
         # ===== LOAD PREFERENCES =====
-        if (loadAll == True) and self.app:
-            prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
+        if (loadAll == True):
             self.spmpath = None
+            self.bidspath = None
+            prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
             try:
                 if (os.path.exists(prefpath_imageimport)):
                     filein = open(prefpath_imageimport, 'rU')
                     prefs_imageimport = pickle.load(filein)
-                    self.spmpath = prefs_imageimport['spm']
+                    if 'spm' in prefs_imageimport.keys():
+                        self.spmpath = prefs_imageimport['spm']
+                    if 'bids' in prefs_imageimport.keys():
+                        self.bidspath = prefs_imageimport['bids']
                     filein.close()
             except:
                 pass
 
-
-        if self.app:
-            # Get BrainVISA context
-            self.brainvisaContext = defaultContext()
-            
+        # Get BrainVISA context
+        self.brainvisaContext = defaultContext()
         # Get Transformation Manager
         self.transfoManager = registration.getTransformationManager()
         # Get ReferentialConverter (for Talairach, AC-PC...)
         self.refConv = ReferentialConverter()
-
 
 
     # ==========================================================================
@@ -1883,10 +1881,11 @@ class LocateElectrodes(QtGui.QDialog):
             "Compute parcel metrics",\
             "Save contact coordinates (.pts/.txt files)",\
             "Save contact info (CSV file)",\
+            "Save contact info (BIDS .tsv)", \
             "Save screenshots",\
             "Save video (MP4)"],\
             "Export", "Select options to run:",\
-            [True, True, False, False, True, True, False, False])
+            [True, True, False, False, True, True, self.bidspath != None, False, False])
         selOptions = dialog.exec_()
         # If user cancelled the selection
         if selOptions is None:
@@ -1903,8 +1902,8 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
-            #res = self.exportAllWorker(selOptions)
+            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            res = self.exportAllWorker(selOptions)
             
             # Unload patient
             if isLoad:
@@ -1958,8 +1957,9 @@ class LocateElectrodes(QtGui.QDialog):
         isParcelMetrics = selOptions[3]
         isSavePts = selOptions[4]
         isSaveCsv = selOptions[5]
-        isScreenshot = selOptions[6]
-        isVideo = selOptions[7]
+        isSaveTsv = selOptions[6]
+        isScreenshot = selOptions[7]
+        isVideo = selOptions[8]
 
         # ===== MNI COORDINATES =====
         plots_MNI = None
@@ -2075,9 +2075,17 @@ class LocateElectrodes(QtGui.QDialog):
         # Save CSV
         if isSaveCsv:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 60)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
             res = self.saveCSV(self.diskItems['T1pre'])
+            newFiles += res[0]
+            errMsg += res[1]
+        # Save TSV
+        if isSaveTsv:
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating BIDS TSV files...")
+            res = self.saveBidsTsv(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Save screenshots
@@ -2678,8 +2686,6 @@ class LocateElectrodes(QtGui.QDialog):
 
     # ===== EXPORT CSV FILES =====
     def saveCSV(self, diT1pre):
-        import csv
-
         # === GET DATABASE FILES === 
         # eleclabel
         rdi_eleclabel = ReadDiskItem('Electrodes Labels','Electrode Label Format',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
@@ -2768,6 +2774,7 @@ class LocateElectrodes(QtGui.QDialog):
                 'Lausanne2008-250', \
                 'Lausanne2008-500', \
                 'GreyWhite', \
+                'IntrAnat-MarsAtlas', \
                 'MNI-MarsAtlas', \
                 'MNI-Destrieux', \
                 'MNI-DKT', \
@@ -2866,6 +2873,173 @@ class LocateElectrodes(QtGui.QDialog):
         neuroHierarchy.databases.insertDiskItem(di, update=True)
         print "Export csv done."
         return [[fileCsv], []]
+    
+    
+    # ===== EXPORT CSV FILES =====
+    def saveBidsTsv(self, diT1pre):
+        # === GET BIDS SUBJECT ===
+        # If BIDS database not set
+        if not self.bidspath:
+            return [[], ["BIDS database not set: Open ImageImport preferences and select BIDS folder."]]
+        # Parse subject name: SIT_SESS_SUBj
+        splitName = diT1pre['subject'].split('_')
+        if (len(splitName) != 3):
+            return [[], ["Subject '" + diT1pre['subject'] + "' not formatted as SIT_SESS_SUBj."]]
+        bidsSes = 'ses-' + splitName[1].lower()
+        bidsSub = 'sub-' + splitName[2].lower()
+        # Check if folder exists
+        sesPath = os.path.join(self.bidspath, bidsSub, bidsSes)
+        if not os.path.exists(sesPath):
+            return [[], ["Session does not exist in BIDS database: " + sesPath]]
+        # Create ieeg folder if missing
+        ieegPath = os.path.join(sesPath, 'ieeg')
+        if not os.path.exists(ieegPath):
+            try:
+                os.mkdir(ieegPath)
+            except:
+                return [[], ["Could not create folder: " + ieegPath]]
+        # Get T1pre file
+        bidsT1w = 'N/A'
+        anatPath = os.path.join(sesPath, 'anat')
+        if os.path.exists(anatPath):
+            anatDir = os.listdir(anatPath)
+            anatNii = [x for x in anatDir if ('_T1w.nii' in x) and ('_acq-pre_' in x)]
+            if len(anatNii) == 1:
+                bidsT1w = os.path.join(bidsSub, bidsSes, 'anat', anatNii[0])
+        # Target tsv spaces
+        T1 = 'Other'
+        MNI = 'IXI549Space'
+          
+        # === GET ELEC FILE === 
+        # Find eleclabel
+        rdi_eleclabel = ReadDiskItem('Electrodes Labels','Electrode Label Format',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        di_eleclabel = rdi_eleclabel.findValue(diT1pre)
+        if not di_eleclabel:
+            return [[], ["File eleclabel not found."]]
+        # Read eleclabel file            
+        fin = open(di_eleclabel.fullPath(), 'r')
+        eleclabel = json.loads(fin.read())
+        fin.close()
+        
+        # === GET COORDINATES ===
+        # Scanner-based coordinates
+        plots = dict()
+        plots[T1] = self.getPlotsT1preScannerBasedRef()
+        plots[T1] = dict(self.sortContacts(plots[T1]))
+        # MNI coordinates
+        plots[MNI] = self.getPlotsMNIRef(False)
+        if plots[MNI] is None:
+            return [[], ["MNI coordinates are not available."]]
+        plots[MNI] = dict(self.sortContacts(plots[MNI]))
+        
+        # === GENERATE ALL TSV ===
+        outfiles = []
+        for space in plots.keys():
+            # Output TSV filename
+            fileTsv = os.path.join(ieegPath, bidsSub + '_' + bidsSes + '_acq-intranat_space-' + space + '_electrodes.tsv')
+            fileJson = os.path.join(ieegPath, bidsSub + '_' + bidsSes + '_acq-intranat_space-' + space + '_coordsystem.json')
+            # List of parcel names to print
+            if space == T1:
+                parcelNames = [\
+                    'MarsAtlas', \
+                    'MarsAtlasFull', \
+                    'Destrieux', \
+                    'DKT', \
+                    'HCP-MMP1', \
+                    'Lausanne2008-33', \
+                    'Lausanne2008-60', \
+                    'Lausanne2008-125', \
+                    'Lausanne2008-250', \
+                    'Lausanne2008-500', \
+                    'GreyWhite']
+                jsonCoord = {\
+                        "iEEGCoordinateSystem": space, \
+                        "iEEGCoordinateSystemDescription": "(x,y,z) in the scanner-based coordinate system of the pre-implantation T1w (.nii qform)", \
+                        "iEEGCoordinateUnits": "mm", \
+                        "iEEGCoordinateProcessingDescription": "SEEG contacts were positioned manually on the post-implantation T1w/CT with the IntrAnat software. Pre- and post-implantation images were coregistered using SPM12.", \
+                        "IntendedFor": bidsT1w}
+            elif space == MNI:
+                parcelNames = [\
+                    'IntrAnat-MarsAtlas', \
+                    'MNI-MarsAtlas', \
+                    'MNI-Destrieux', \
+                    'MNI-DKT', \
+                    'MNI-Lausanne2008-33', \
+                    'MNI-Lausanne2008-60', \
+                    'MNI-Lausanne2008-125', \
+                    'MNI-Lausanne2008-250', \
+                    'MNI-Lausanne2008-500', \
+                    'MNI-AAL', \
+                    'MNI-AALDilate', \
+                    'MNI-AAL1_2018', \
+                    'MNI-AAL2', \
+                    'MNI-AAL3', \
+                    'MNI-Brodmann', \
+                    'MNI-BrodmannDilate', \
+                    'MNI-Hammers', \
+                    'MNI-HCP-MMP1', \
+                    'MNI-AICHA', \
+                    'MNI-JulichBrain']
+                jsonCoord = {\
+                        "iEEGCoordinateSystem": space, \
+                        "iEEGCoordinateUnits": "mm", \
+                        "iEEGCoordinateProcessingDescription": "SEEG contacts were positioned manually on the post-implantation T1w/CT with the IntrAnat software. Pre- and post-implantation images were coregistered using SPM12. Pre-implantation T1w image was normalized to IXI549Space using SPM12.", \
+                        "IntendedFor": bidsT1w}
+            # Write electrodes.tsv file
+            with open(fileTsv, 'w') as fout:
+                # Write file header
+                writer = csv.writer(fout, delimiter='\t')
+                # Add list of column names
+                colNames = ['name', 'x', 'y', 'z', 'size', 'type'] + [p.replace('MNI-','') for p in parcelNames]
+                # Print column names
+                writer.writerow(colNames)
+                # Print all contacts
+                dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label'].items()))
+                for kk,vv in dict_sorted_tmp.iteritems():
+                    # name
+                    listwrite = [self.fixContactLabel(kk)]
+                    # x y z
+                    for i in range(3):
+                        listwrite.append(format(plots[space][kk][i],'.3f'))
+                    # size
+                    listwrite.append('N/A')
+                    # type
+                    listwrite.append('N/A')
+                    # List parcel names
+                    for p in parcelNames:
+                        if isinstance(vv[p], list):
+                            listwrite.append(vv[p][1])
+                        elif isinstance(vv[p], str) or isinstance(vv[p], unicode):     # Example: MarsAtlasFull
+                            listwrite.append(vv[p])
+                        else:
+                            str(listwrite.append(vv[p]))
+                    # Write line in TSV file
+                    writer.writerow(listwrite)
+                # Write coordsystem.json
+                with open(fileJson, 'w') as fout:
+                    json.dump(jsonCoord, fout, indent=2)
+                # List of output files
+                outfiles += [fileTsv]
+                outfiles += [fileJson]
+        # Return success
+        print "Export BIDS TSV done."
+        return [outfiles, []]
+    
+    
+    # Convert between naming conventions (' or p for left/right electrodes)
+    def fixContactLabel(self, contact_label):
+        # Upper case for all the letters except from "p" that stand for ' (prime)
+        contact_label = list(contact_label)
+        for i in range(len(contact_label)):
+            # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+            # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
+            # Convention: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+            # "p" in the .csv files
+            if contact_label[i].isalpha():
+                contact_label[i] = contact_label[i].upper()
+            elif (contact_label[i] == "'"):
+                contact_label[i] = 'p'
+        return "".join(contact_label)
     
 
     def sortContacts(self, dict_contacts):
@@ -3118,7 +3292,8 @@ class LocateElectrodes(QtGui.QDialog):
         # ===== READ: MNI ATLASES =====
         # Define all atlases to generate
         files_MNI = {}
-        files_MNI['MNI-MarsAtlas']        = {'vol':None,                                                 'labels':labels['MarsAtlas']}
+        files_MNI['IntrAnat-MarsAtlas']   = {'vol':None,                                                 'labels':labels['MarsAtlas']}
+        files_MNI['MNI-MarsAtlas']        = {'vol':'MNI_Atlases/colin27_MNI_MarsAtlas_reslice.nii.gz',   'labels':labels['MarsAtlas']}
         files_MNI['MNI-AAL']              = {'vol':'MNI_Atlases/rAALSEEG12.nii.gz',                      'labels':'MNI_Atlases/rAALSEEG12_labels.txt'}
         files_MNI['MNI-AALDilate']        = {'vol':'MNI_Atlases/rAALSEEG12Dilate.nii.gz',                'labels':'MNI_Atlases/rAALSEEG12Dilate_labels.txt'}
         files_MNI['MNI-AAL1_2018']        = {'vol':'MNI_Atlases/AAL1_2018_reslice.nii.gz',               'labels':'MNI_Atlases/AAL1_2018_labels.txt'}
@@ -3146,12 +3321,12 @@ class LocateElectrodes(QtGui.QDialog):
                     labels[atlas] = files_MNI[atlas]['labels']
                 else:
                     labels[atlas] = readLabels(files_MNI[atlas]['labels'])
-        # Load: MNI-MarsAtlas
-        vol['MNI-MarsAtlas'] = aims.read('MNI_Brainvisa/Gre_2016_MNI1_L_gyriVolume.nii.gz') \
-                             + aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
+        # Load: IntrAnat-MarsAtlas
+        vol['IntrAnat-MarsAtlas'] = aims.read('MNI_Brainvisa/Gre_2016_MNI1_L_gyriVolume.nii.gz') \
+                                  + aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
         # Load: MNI-Hippocampus
-        vol['MNI-hip'] = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz') \
-                       + aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
+        vol['IntrAnat-hip'] = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz') \
+                            + aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
 
         # ===== PROCESS ALL CONTACTS =====
         # Define sphere size
@@ -3337,7 +3512,11 @@ class LocateElectrodes(QtGui.QDialog):
                         else:
                             label = "%d" % (value)
                     else:
-                        label = labels[atlas][value]
+                        if value in labels[atlas].keys():
+                            label = labels[atlas][value]
+                        else:
+                            print atlas + '-' + plots[pindex][0] + ": Missing label: " + str(value)
+                            label = 'N/A'
                 else:
                     value = round(vol[atlas].value(pos_MNI[0],pos_MNI[1],pos_MNI[2]))
                     label = 'N/A'                
