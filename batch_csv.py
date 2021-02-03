@@ -6,17 +6,12 @@ import sys, os, time, datetime
 import locateElectrodes
 from soma import aims
 from brainvisa import axon
-# from brainvisa.configuration import neuroConfig
-# neuroConfig.gui = True
-# from brainvisa.data import neuroHierarchy
-# import brainvisa.registration as registration
-# from brainvisa.processes import *
 from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 from brainvisa.data.readdiskitem import ReadDiskItem
 
 
 # ===== SAVE CSV =====
-def generateCsv(w, subject):
+def generateCsv(w, subject, isCsv, isBids):
     errMsg = []
     # Load patient
     try:
@@ -96,20 +91,32 @@ def generateCsv(w, subject):
         return [False, errMsg]
       
     # Generate CSV
-    try:
-        csvfile, errMsgCsv = w.saveCSV(diT1pre)
-        errMsg += errMsgCsv
-        if not csvfile:
+    if isCsv:
+        try:
+            csvfile, errMsgCsv = w.saveCSV(diT1pre)
+            errMsg += errMsgCsv
+            if not csvfile:
+                return [False, errMsg]
+        except:
+            errMsg += ["Could not save CSV"]
             return [False, errMsg]
-    except:
-        errMsg += ["Could not save CSV"]
-        return [False, errMsg]
+
+    # Generate TSV
+    if isBids and w.bidspath:
+        try:
+            tsvfiles, errMsgCsv = w.saveBidsTsv(diT1pre)
+            errMsg += errMsgCsv
+            if not tsvfiles:
+                return [False, errMsg]
+        except:
+            errMsg += ["Could not save BIDS TSV"]
+            return [False, errMsg]
 
     return [True, errMsg]
     
     
 # ===== MAIN =====
-def main(computeMni, start_index, logFilename):
+def main(isCsv, isBids, start_index, logFilename):
     # Open log file
     log = open(logFilename, 'wb')
     # Start BrainVISA
@@ -124,11 +131,6 @@ def main(computeMni, start_index, logFilename):
     w.subjects = sorted(w.subjects)
     log.write("Number of patients: %d\n\n" % len(w.subjects))
     maxLen = max([len(s) for s in w.subjects])
-    # Export options
-    if computeMni:
-        selOptions = [True, True, False, False, True, True, False, False]
-    else:
-        selOptions = [False, True, False, False, True, True, False, False]
     # Loop on subjects
     for iSubj in range(start_index - 1, len(w.subjects)):
         # Write patient name to log
@@ -138,7 +140,7 @@ def main(computeMni, start_index, logFilename):
         log.write(strPatient)
         log.flush()
         # Create CSV
-        isOk, errMsg = generateCsv(w, w.subjects[iSubj])
+        isOk, errMsg = generateCsv(w, w.subjects[iSubj], isCsv, isBids)
         # Handling error/success
         if isOk and not errMsg:
             log.write("OK\n")
@@ -157,27 +159,34 @@ def main(computeMni, start_index, logFilename):
 # ===== COMMAND LINE =====
 if __name__ == "__main__":
     defLog = "log_csv_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H.%M.%S') + ".txt"
-    # Test input parameters
-    if (len(sys.argv) < 2) or ((sys.argv[1] != "--mni-skip") and (sys.argv[1] != "--mni-recompute")):
-        print("USAGE: batch_csv.py --mni-skip      [start_index=1] [logfile=$HOME/" + defLog + "]")
-        print("       batch_csv.py --mni-recompute [start_index=1] [logfile=$HOME/" + defLog + "]")
+    # Help
+    if (len(sys.argv) < 2) or ((sys.argv[1] != "--all") and (sys.argv[1] != "--csv-only") and (sys.argv[1] != "--bids-only")):
+        print("USAGE: batch_csv.py --all       [start_index=1] [logfile=$HOME/" + defLog + "]")
+        print("       batch_csv.py --csv-only  [start_index=1] [logfile=$HOME/" + defLog + "]")
+        print("       batch_csv.py --bids-only [start_index=1] [logfile=$HOME/" + defLog + "]")
         sys.exit(2)
-    elif (sys.argv[1] == "--mni-skip"):
-        computeMni = False
-    else:
-        computeMni = True
+    # Get command
+    if (sys.argv[1] == "--all"):
+        isCsv = True
+        isBids = True
+    elif (sys.argv[1] == "--csv-only"):
+        isCsv = True
+        isBids = False
+    elif (sys.argv[1] == "--bids-only"):
+        isCsv = False
+        isBids = True
     # Start index
-    if (len(sys.argv) == 3):
+    if (len(sys.argv) >= 3):
         start_index = int(sys.argv[2])
     else:
         start_index = 1
     # Log file
-    if (len(sys.argv) == 4):
+    if (len(sys.argv) >= 4):
         logFilename = sys.argv[3]
     else:
         logFilename = os.path.join(os.path.expanduser("~"), defLog)
     # Call processing function
-    main(computeMni, start_index, logFilename)
+    main(isCsv, isBids, start_index, logFilename)
     # Close application
     os._exit(0)
     

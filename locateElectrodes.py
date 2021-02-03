@@ -1902,7 +1902,7 @@ class LocateElectrodes(QtGui.QDialog):
                 self.loadPatient(patient)
                 
             # Run export with a progress bar
-            #res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
+            # res = ProgressDialog.call(lambda thr:self.exportAllWorker(selOptions, thr), True, self, "Processing...", "Export: " + patient)
             res = self.exportAllWorker(selOptions)
             
             # Unload patient
@@ -3124,12 +3124,18 @@ class LocateElectrodes(QtGui.QDialog):
 
     # ===== GET VOXELS WITHIN SPHERE =====
     def getSphVoxels(self, vol, pos, Nsph, sphere_size):
-        vox = [vol.value(pos[0]+vox_i, pos[1]+vox_j, pos[2]+vox_k) \
-            for vox_k in range(-Nsph[2], Nsph[2]+1) \
-            for vox_j in range(-Nsph[1], Nsph[1]+1) \
-            for vox_i in range(-Nsph[0], Nsph[0]+1) \
-            if math.sqrt(vox_i**2 + vox_j**2 + vox_k**2) < sphere_size]
-        return [int(round(x)) for x in vox if not math.isnan(x)]
+        if (not pos) or (len(pos) < 3) or \
+           (pos[0]-Nsph[2] < 0) or (pos[0]+Nsph[2] >= vol.getSizeX()) or \
+           (pos[1]-Nsph[2] < 0) or (pos[1]+Nsph[2] >= vol.getSizeY()) or \
+           (pos[2]-Nsph[2] < 0) or (pos[2]+Nsph[2] >= vol.getSizeZ()):
+            return []
+        else:
+            vox = [vol.value(pos[0]+vox_i, pos[1]+vox_j, pos[2]+vox_k) \
+                for vox_k in range(-Nsph[2], Nsph[2]+1) \
+                for vox_j in range(-Nsph[1], Nsph[1]+1) \
+                for vox_i in range(-Nsph[0], Nsph[0]+1) \
+                if math.sqrt(vox_i**2 + vox_j**2 + vox_k**2) < sphere_size]
+            return [int(round(x)) for x in vox if not math.isnan(x)]
 
 
     # ===== COMPUTE PARCELS =====
@@ -3173,52 +3179,33 @@ class LocateElectrodes(QtGui.QDialog):
             inter_pos = numpy.matrix(inter_pos).reshape([4,1])
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
             plots_MNI.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
-            
-        # === READ: MARSATLAS ===
+        
+        # ===== READ: GREY/WHITE =====
         # Default acquisition
         acq = diT1pre['acquisition']
         initSegmentation = 'N/A'
         diSegment = diT1pre
-        # Get surface MarsAtlas: Only to (re-)compute the volume version
-        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={'side': 'left' ,'subject':diT1pre['subject'], 'center':diT1pre['center'], 'parcellation_type':'marsAtlas' })
-        LeftGyri = list(LeftGyri.findValues(diT1pre, None, False))
-        if LeftGyri:
-            # If there are multiple files, use the most recent one
-            if (len(LeftGyri) > 1):
-                errMsg += ["Export CSV: Multiple MarsAtlas segmentations found: using the first one."]
-            LeftGyri = LeftGyri[0]
-            # Generate 3D version of the MarsAtlas surface-based atlas
-            try:
-                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
-                acq = LeftGyri.attributes()['acquisition']
-            except Exception, e:
-                errMsg += ["Could not interpolate MarsAtlas in 3D: " + repr(e)]
-        # Required attributes for files within this acquisition
-        acqAttr = {'subject':diT1pre['subject'], 'center':diT1pre['center'], 'acquisition':acq}
-        # Get volume MarsAtlas
-        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes=acqAttr)
-        diMaskleft = Mask_left.findValue(diT1pre)
-        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes=acqAttr)
-        diMaskright = Mask_right.findValue(diMaskleft)
-        # Read volumes
-        if diMaskleft and diMaskright:
+        # Find grey-white segmentation (from BrainVISA or FreeSurfer)
+        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        diMaskGW_left = MaskGW_left.findValue(diSegment)
+        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        diMaskGW_right = MaskGW_right.findValue(diSegment)
+        # If segmentation was found
+        if diMaskGW_left and diMaskGW_right:
+            # Read greay-white volume
+            vol['GW'] = aims.read(diMaskGW_left.fileName()) \
+                      + aims.read(diMaskGW_right.fileName())
             # Initial segmentation: FreeSurfer
-            if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
+            if ('FreesurferAtlaspre' in diMaskGW_left['acquisition']):
                 initSegmentation = "FreeSurfer"
-                diSegment = self.diskItems['FreesurferT1pre']
+                diSegment = diMaskGW_left
                 # ===== COMPUTE FREESURFER COORDINATES =====
-                # Convert to FreeSurfer coordinates if necessary
-                # Get T1pre volume
-                diT1 = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center']} )
-                allT1 = list(diT1.findValues({},None,False))
-                idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
-                rdiT1 = allT1[idxT1pre[0]]
                 # Get FreeSurfer => Scanner-based transformation
-                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center'], 'acquisition':diMaskleft['acquisition']})
+                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diSegment['modality'], 'subject':diSegment['subject'], 'center':diSegment['center'], 'acquisition':diSegment['acquisition']})
                 rdiTransFS = list(rdi.findValues({}, None, False ))
                 TransFS = aims.read(rdiTransFS[0].fullName())
                 # Get T1pre => Scanner-based transformation
-                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':rdiT1['modality'], 'subject':rdiT1['subject'], 'center':rdiT1['center'], 'acquisition':rdiT1['acquisition']})
+                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diT1pre['modality'], 'subject':diT1pre['subject'], 'center':diT1pre['center'], 'acquisition':diT1pre['acquisition']})
                 rdiTransT1 = list(rdi.findValues({}, None, False ))
                 TransT1 = aims.read(rdiTransT1[0].fullName())
                 # Compute transformation: T1pre=>FreeSurfer
@@ -3227,29 +3214,43 @@ class LocateElectrodes(QtGui.QDialog):
                 for i in range(len(plots_fs)):
                     plots_fs[i] = (plots_fs[i][0], Transf.transform(plots_fs[i][1]))
                 # Get FS image information
-                info_fs = diMaskleft.attributes()
+                info_fs = diSegment.attributes()
             else:
                 initSegmentation = "BrainVISA"
-            # Read volumes
+        else:
+            errMsg += ['Grey-white mask not found']
+        # Attributes required for the files from the segmentation
+        segmentAttr = {'subject':diSegment['subject'], 'center':diSegment['center'], 'acquisition':diSegment['acquisition']}
+        
+        # === READ: MARSATLAS ===
+        # Get surface MarsAtlas: Only to (re-)compute the volume version
+        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={'side': 'left' ,'subject':diSegment['subject'], 'center':diSegment['center'], 'acquisition':diSegment['acquisition'], 'parcellation_type':'marsAtlas' })
+        LeftGyri = list(LeftGyri.findValues(diSegment, None, False))
+        if LeftGyri:
+            # If there are multiple files, use the most recent one
+            if (len(LeftGyri) > 1):
+                errMsg += ["Export CSV: Multiple MarsAtlas segmentations found: using the first one."]
+            LeftGyri = LeftGyri[0]
+            # Generate 3D version of the MarsAtlas surface-based atlas
+            try:
+                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+            except Exception, e:
+                errMsg += ["Could not interpolate MarsAtlas in 3D: " + repr(e)]
+        # Get volume MarsAtlas
+        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes=segmentAttr)
+        diMaskleft = Mask_left.findValue(diT1pre)
+        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes=segmentAttr)
+        diMaskright = Mask_right.findValue(diMaskleft)
+        # Read volumes
+        if diMaskleft and diMaskright:
             vol['MarsAtlas'] = aims.read(diMaskleft.fileName())\
                              + aims.read(diMaskright.fileName())
         else:
             errMsg += ["MarsAtlas not found"]
-        
-        # ===== READ: GREY/WHITE =====
-        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes=acqAttr)
-        diMaskGW_left = MaskGW_left.findValue(diSegment)
-        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes=acqAttr)
-        diMaskGW_right = MaskGW_right.findValue(diSegment)
-        if diMaskGW_left and diMaskGW_right:
-            vol['GW'] = aims.read(diMaskGW_left.fileName()) \
-                      + aims.read(diMaskGW_right.fileName())
-        else:
-            errMsg += ['Grey/white mask not found']
 
         # ===== READ: HIPPOCAMPUS =====
         # HIPPOCAMPUS: LEFT
-        diHipLeft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes=acqAttr)
+        diHipLeft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes=segmentAttr)
         rdiHipLeft = list(diHipLeft.findValues({}, None, False ))
         if not rdiHipLeft:
             # If file is not properly registered in DB, try to search volume by filename directly
@@ -3257,7 +3258,7 @@ class LocateElectrodes(QtGui.QDialog):
             if os.path.isfile(lhippoFile):
                 rdiHipLeft = [lhippoFile]
         # HIPPOCAMPUS: RIGHT
-        diHipRight = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes=acqAttr)
+        diHipRight = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes=segmentAttr)
         rdiHipRight = list(diHipRight.findValues({}, None, False ))
         if not rdiHipRight:
             # If file is not properly registered in DB, try to search volume by filename directly
@@ -3284,10 +3285,10 @@ class LocateElectrodes(QtGui.QDialog):
             errMsg += ["Freesurfer atlas not found"]
             
         # ===== READ: RESECTION =====
-        diResec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes=acqAttr)
+        diResec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes=segmentAttr)
         rdiResec = list(diResec.findValues({}, None, False ))
         if rdiResec:
-            vol['resec'] = aims.read(di_resec[0].fileName())           
+            vol['resec'] = aims.read(di_resec[0].fileName())
 
         # ===== READ: MNI ATLASES =====
         # Define all atlases to generate
@@ -3412,20 +3413,21 @@ class LocateElectrodes(QtGui.QDialog):
             if math.isnan(pos_MNI[0]):
                 print("ERROR: Invalid MNI coordinates for contact: " + plots[pindex][0])
                 continue
+            # Positions depending on the segmentation: MarsAtlas, Grey-White
+            if initSegmentation == "FreeSurfer":
+                pos_seg = pos_fs
+                Nsph_seg = Nsph_fs
+            else:
+                pos_seg = pos_SB
+                Nsph_seg = Nsph
                 
             # === PROCESS: MARS ATLAS ===
             value = 0
             label = 'N/A'
             full_MA = 'N/A'
             if 'MarsAtlas' in vol.keys():
-                if initSegmentation == "FreeSurfer":
-                    pos_MA = pos_fs
-                    Nsph_MA = Nsph_fs
-                else:
-                    pos_MA = pos_SB
-                    Nsph_MA = Nsph
-                if pos_MA:
-                    vox = self.getSphVoxels(vol['MarsAtlas'], pos_MA, Nsph_MA, sphere_size)
+                vox = self.getSphVoxels(vol['MarsAtlas'], pos_seg, Nsph_seg, sphere_size)
+                if vox:
                     vox = [x for x in vox if x != 0 and x !=255 and x != 100]
                     if vox:
                         value,N = Counter(vox).most_common(1)[0]
@@ -3433,21 +3435,23 @@ class LocateElectrodes(QtGui.QDialog):
                         full_count = Counter(vox).most_common()
                         full_MA = [(labels['MarsAtlas'][iLabel[0]],float(iLabel[1])/len(vox)*100) for iLabel in full_count]
                 else:
-                    value = vol['MarsAtlas'].value(pos_MA[0],pos_MA[1],pos_MA[2])
+                    print plots[pindex][0] + '-MarsAtlas: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])
             plots_label[plots[pindex][0]]['MarsAtlas'] = (value, label)
             plots_label[plots[pindex][0]]['MarsAtlasFull'] = full_MA          
             
             # === PROCESS GREY/WHITE ===
+            value = 255
             if ('GW' in vol.keys()):
-                vox = self.getSphVoxels(vol['GW'], pos_fs, Nsph_fs, sphere_size)
-                vox = [x for x in vox if x !=255 and x !=0]
+                vox = self.getSphVoxels(vol['GW'], pos_seg, Nsph_seg, sphere_size)
                 if vox:
-                    most_common2,num_most_common2 = Counter(vox).most_common(1)[0]
-                    value = most_common2
+                    vox = [x for x in vox if x !=255 and x !=0]
+                    if vox:
+                        most_common2,num_most_common2 = Counter(vox).most_common(1)[0]
+                        value = most_common2
+                    else:
+                        value = vol['GW'].value(pos_seg[0],pos_seg[1],pos_seg[2])
                 else:
-                    value = vol['GW'].value(pos_fs[0],pos_fs[1],pos_fs[2])
-            else:
-                value = 255
+                    print plots[pindex][0] + '-GW: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])                
             GW_label_name = {0:'N/A',100:'GreyMatter',200:'WhiteMatter',255:'N/A'}[value]
             plots_label[plots[pindex][0]]['GreyWhite'] = (value, GW_label_name)
             
@@ -3457,26 +3461,27 @@ class LocateElectrodes(QtGui.QDialog):
             if ('Destrieux' in vol.keys()):
                 # Destrieux Atlas is reinterpolated in the t1pre space 
                 vox = self.getSphVoxels(vol['Destrieux'], pos_SB, Nsph, sphere_size)
-                vox = [x for x in vox if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
                 if vox:
-                    value,N = Counter(vox).most_common(1)[0]
-                    # Check if it's in the hippocampus
-                    if (value == 53 or value == 17) and ('hip' in vol.keys()):
-                        vox = self.getSphVoxels(vol['hip'], pos_SB, Nsph, sphere_size)
-                        vox = [x for x in vox if x != 0 and x != 2 and x != 41]
-                        try:
-                            value,N = Counter(vox).most_common(1)[0]
-                            if value == 3403:
-                                raise Exception("?????")
+                    vox = [x for x in vox if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
+                    if vox:
+                        value,N = Counter(vox).most_common(1)[0]
+                        # Check if it's in the hippocampus
+                        if (value == 53 or value == 17) and ('hip' in vol.keys()):
+                            vox = self.getSphVoxels(vol['hip'], pos_SB, Nsph, sphere_size)
+                            vox = [x for x in vox if x != 0 and x != 2 and x != 41]
+                            try:
+                                value,N = Counter(vox).most_common(1)[0]
+                                if value == 3403:
+                                    raise Exception("?????")
+                                label = labels['Destrieux'][value]
+                            except:
+                                print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
+                                label = 'ERROR hipp/amyg surfaces not aligned with MRI'
+                                value = vol['Destrieux'].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                        else:
                             label = labels['Destrieux'][value]
-                        except:
-                            print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
-                            label = 'ERROR hipp/amyg surfaces not aligned with MRI'
-                            value = vol['Destrieux'].value(pos_SB[0],pos_SB[1],pos_SB[2])
-                    else:
-                        label = labels['Destrieux'][value]
                 else:
-                    value = vol['Destrieux'].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                    print plots[pindex][0] + '-Destrieux: Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
             plots_label[plots[pindex][0]]['Destrieux'] = (value, label)
 
             # === PROCESS: OTHER FREESURFER ATLASES ===
@@ -3486,40 +3491,45 @@ class LocateElectrodes(QtGui.QDialog):
                 if (name in vol.keys()):
                     # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
                     vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
-                    vox = [x for x in vox if x != 0]
                     if vox:
-                        value,N = Counter(vox).most_common(1)[0]
-                        label = labels[name][value]
+                        vox = [x for x in vox if x != 0]
+                        if vox:
+                            value,N = Counter(vox).most_common(1)[0]
+                            label = labels[name][value]
+                        else:
+                            value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
                     else:
-                        value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                        print plots[pindex][0] + '-' + name + ': Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
                 plots_label[plots[pindex][0]][name] = (value, label)
 
             # === PROCESS: MNI ATLASES ===
             for atlas in files_MNI:
+                value = 0
+                label = 'N/A'
                 vox = self.getSphVoxels(vol[atlas], pos_MNI, Nsph_MNI, sphere_size)
-                vox = [x for x in vox if x != 0]
                 if vox:
-                    most_common,N = Counter(vox).most_common(1)[0]
-                    value = int(round(most_common))
-                    if atlas == 'MNI-Brodmann':
-                        if pos_MNI[0]>90:
-                            label = "%d" % (value)
+                    vox = [x for x in vox if x != 0]
+                    if vox:
+                        most_common,N = Counter(vox).most_common(1)[0]
+                        value = int(round(most_common))
+                        if atlas == 'MNI-Brodmann':
+                            if pos_MNI[0]>90:
+                                label = "%d" % (value)
+                            else:
+                                label = "%d" % (value+100)
+                        elif atlas == 'MNI-BrodmannDilate':
+                            if value>48:
+                                label = "%d" % (value-48+100)
+                            else:
+                                label = "%d" % (value)
                         else:
-                            label = "%d" % (value+100)
-                    elif atlas == 'MNI-BrodmannDilate':
-                        if value>48:
-                            label = "%d" % (value-48+100)
-                        else:
-                            label = "%d" % (value)
-                    else:
-                        if value in labels[atlas].keys():
-                            label = labels[atlas][value]
-                        else:
-                            print atlas + '-' + plots[pindex][0] + ": Missing label: " + str(value)
-                            label = 'N/A'
+                            if value in labels[atlas].keys():
+                                label = labels[atlas][value]
+                            else:
+                                print atlas + '-' + plots[pindex][0] + ": Missing label: " + str(value)
+                                label = 'N/A'
                 else:
-                    value = round(vol[atlas].value(pos_MNI[0],pos_MNI[1],pos_MNI[2]))
-                    label = 'N/A'                
+                    print plots[pindex][0] + '-' + atlas + ': Invalid coordinates (%d,%d,%d)'%(pos_MNI[0],pos_MNI[1],pos_MNI[2])
                 plots_label[plots[pindex][0]][atlas] = (value, label)
 
             # === PROCESS: RESECTION ===
