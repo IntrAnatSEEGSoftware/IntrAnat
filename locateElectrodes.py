@@ -567,7 +567,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo4.blockSignals(True)
         # Call loading function
         errMsg = ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        # errMsg = self.loadPatientWorker(patient)
+        #errMsg = self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -998,42 +998,45 @@ class LocateElectrodes(QtGui.QDialog):
         if params:
             self.lastClickedPos = params['position']
             self.lastClickedRef = params['window'].getReferential()
+        # No T1pre
         if not 'T1pre' in self.dispObj:
-            pT1Pre = self.positionPreRef()
-            if not pT1Pre:
-                return
-            # Labels
-            if (self.coordsDisplayRef == "Destrieux") or (self.coordsDisplayRef == "DKT") or (self.coordsDisplayRef == "HCP-MMP1"):
-                info_image = self.diskItems['T1pre'].attributes()
-                pos_SB = [round(pT1Pre[i]/info_image['voxel_size'][i]) for i in range(3)]
-                pos_fs = pos_SB
-                if (self.coordsDisplayRef == "Destrieux"):
-                    fsIndex = self.vol_destrieux.value(pos_fs[0],pos_fs[1],pos_fs[2])
-                    self.positionLabel.setText(labels['Destrieux'][fsIndex])
-                elif (self.coordsDisplayRef == "DKT"):
-                    fsIndex = self.vol_dkt.value(pos_fs[0],pos_fs[1],pos_fs[2])
-                    self.positionLabel.setText(labels['DKT'][fsIndex])
-                elif (self.coordsDisplayRef == "HCP-MMP1"):
-                    fsIndex = self.vol_hcp.value(pos_fs[0],pos_fs[1],pos_fs[2])
-                    self.positionLabel.setText(labels['HCP-MMP1'][fsIndex])
-            # Coordinates
+            return
+        # Get coordinates
+        pT1Pre = self.positionPreRef()
+        if not pT1Pre:
+            return
+        # Labels
+        if (self.coordsDisplayRef == "Destrieux") or (self.coordsDisplayRef == "DKT") or (self.coordsDisplayRef == "HCP-MMP1"):
+            info_image = self.diskItems['T1pre'].attributes()
+            pos_SB = [round(pT1Pre[i]/info_image['voxel_size'][i]) for i in range(3)]
+            pos_fs = pos_SB
+            if (self.coordsDisplayRef == "Destrieux"):
+                fsIndex = self.vol_destrieux.value(pos_fs[0],pos_fs[1],pos_fs[2])
+                self.positionLabel.setText(labels['Destrieux'][fsIndex])
+            elif (self.coordsDisplayRef == "DKT"):
+                fsIndex = self.vol_dkt.value(pos_fs[0],pos_fs[1],pos_fs[2])
+                self.positionLabel.setText(labels['DKT'][fsIndex])
+            elif (self.coordsDisplayRef == "HCP-MMP1"):
+                fsIndex = self.vol_hcp.value(pos_fs[0],pos_fs[1],pos_fs[2])
+                self.positionLabel.setText(labels['HCP-MMP1'][fsIndex])
+        # Coordinates
+        else:
+            if self.coordsDisplayRef == 'Natif':
+                coords = pT1Pre
+            elif self.coordsDisplayRef == 'Scanner-based':
+                infos = self.t1pre2ScannerBased().getInfos()
+                rot = infos['rotation_matrix']
+                trans = infos['translation']
+                m = aims.Motion(rot[:3]+[trans[0]]+rot[3:6]+[trans[1]]+rot[6:]+[trans[2]]+[0,0,0,1])
+                coords = m.transform(pT1Pre)
             else:
-                if self.coordsDisplayRef == 'Natif':
-                    coords = pT1Pre
-                elif self.coordsDisplayRef == 'Scanner-based':
-                    infos = self.t1pre2ScannerBased().getInfos()
-                    rot = infos['rotation_matrix']
-                    trans = infos['translation']
-                    m = aims.Motion(rot[:3]+[trans[0]]+rot[3:6]+[trans[1]]+rot[6:]+[trans[2]]+[0,0,0,1])
-                    coords = m.transform(pT1Pre)
-                else:
-                    try:
-                        coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
-                    except:
-                        coords = [0.0,0.0,0.0]
-                if coords is None:
+                try:
+                    coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
+                except:
                     coords = [0.0,0.0,0.0]
-                self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
+            if coords is None:
+                coords = [0.0,0.0,0.0]
+            self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
 
 
     def preReferential(self):
