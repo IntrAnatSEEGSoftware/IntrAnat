@@ -3007,12 +3007,14 @@ class LocateElectrodes(QtGui.QDialog):
                     listwrite.append('N/A')
                     # List parcel names
                     for p in parcelNames:
-                        if isinstance(vv[p], list):
+                        if not vv[p]:
+                            listwrite.append('N/A')
+                        elif p == 'MarsAtlasFull':
+                            listwrite.append(str(vv[p]))
+                        elif isinstance(vv[p], list) and (len(vv[p]) == 2):
                             listwrite.append(vv[p][1])
-                        elif isinstance(vv[p], str) or isinstance(vv[p], unicode):     # Example: MarsAtlasFull
-                            listwrite.append(vv[p])
                         else:
-                            str(listwrite.append(vv[p]))
+                            listwrite.append(str(vv[p]))
                     # Write line in TSV file
                     writer.writerow(listwrite)
                 # Write coordsystem.json
