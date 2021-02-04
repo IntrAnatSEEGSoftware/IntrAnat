@@ -82,14 +82,14 @@
 141 R_Insula
 210 L_Thalamus
 211 L_Caudate
-212 L_Puttamen
+212 L_Putamen
 213 L_Pallidum
 217 L_Hippocampus
 218 L_Amygdala
 226 L_Accumbens
 249 R_Thalamus
 250 R_Caudate
-251 R_Puttamen
+251 R_Putamen
 252 R_Pallidum
 253 R_Hippocampus
 254 R_Amygdala
