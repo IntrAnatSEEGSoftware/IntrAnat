@@ -913,7 +913,7 @@ class LocateElectrodes(QtGui.QDialog):
                 if amygHippoMesh:
                     dictionnaire_list_images.update({strVol + ' + hippocampus + amygdala':[na, 'electrodes'] + amygHippoMesh})
 
-        # ===== FREESURFER TRANSFOMRATION =====
+        # ===== FREESURFER TRANSFORMATION =====
         # FreeSurfer atlas was resliced using T1pre: force T1pre referential
         if objAtlas and refT1pre:
             for obj in objAtlas:
@@ -3148,6 +3148,9 @@ class LocateElectrodes(QtGui.QDialog):
         errMsg = []
         
         # ===== GET: NATIVE COORDINATES =====
+        # Get subject and protocol
+        subject = diT1pre['subject']
+        center = diT1pre['center']
         # Get contact coordinates in T1pre coordinates
         plots = self.getPlotsT1preRef()
         if len(plots)==0:
@@ -3166,8 +3169,8 @@ class LocateElectrodes(QtGui.QDialog):
         # Default freesurfer coordinates
         plots_fs = copy.deepcopy(plots)
         info_fs = info_image
-
-        # === GET: MNI COORDINATES ===
+        
+        # ===== GET: MNI COORDINATES =====
         plots_MNI_dict = self.getPlotsMNIRef()
         if plots_MNI_dict is None:
             errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
@@ -3185,77 +3188,86 @@ class LocateElectrodes(QtGui.QDialog):
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
             plots_MNI.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
         
-        # ===== READ: GREY/WHITE =====
-        # Default acquisition
-        acq = diT1pre['acquisition']
-        initSegmentation = 'N/A'
-        diSegment = diT1pre
-        # Find grey-white segmentation (from BrainVISA or FreeSurfer)
-        MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
-        diMaskGW_left = MaskGW_left.findValue(diSegment)
-        MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
-        diMaskGW_right = MaskGW_right.findValue(diSegment)
-        # If segmentation was found
-        if diMaskGW_left and diMaskGW_right:
-            # Read greay-white volume
-            vol['GW'] = aims.read(diMaskGW_left.fileName()) \
-                      + aims.read(diMaskGW_right.fileName())
-            # Initial segmentation: FreeSurfer
-            if ('FreesurferAtlaspre' in diMaskGW_left['acquisition']):
-                initSegmentation = "FreeSurfer"
-                diSegment = diMaskGW_left
-                # ===== COMPUTE FREESURFER COORDINATES =====
-                # Get FreeSurfer => Scanner-based transformation
-                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diSegment['modality'], 'subject':diSegment['subject'], 'center':diSegment['center'], 'acquisition':diSegment['acquisition']})
-                rdiTransFS = list(rdi.findValues({}, None, False ))
-                TransFS = aims.read(rdiTransFS[0].fullName())
-                # Get T1pre => Scanner-based transformation
-                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diT1pre['modality'], 'subject':diT1pre['subject'], 'center':diT1pre['center'], 'acquisition':diT1pre['acquisition']})
-                rdiTransT1 = list(rdi.findValues({}, None, False ))
-                TransT1 = aims.read(rdiTransT1[0].fullName())
-                # Compute transformation: T1pre=>FreeSurfer
-                Transf = TransFS.inverse() * TransT1
-                # Apply to contact coordinates
-                for i in range(len(plots_fs)):
-                    plots_fs[i] = (plots_fs[i][0], Transf.transform(plots_fs[i][1]))
-                # Get FS image information
-                info_fs = diSegment.attributes()
-            else:
-                initSegmentation = "BrainVISA"
-        else:
-            errMsg += ['Grey-white mask not found']
-        # Attributes required for the files from the segmentation
-        segmentAttr = {'subject':diSegment['subject'], 'center':diSegment['center'], 'acquisition':diSegment['acquisition']}
-        
-        # === READ: MARSATLAS ===
+        # ===== READ: MARSATLAS =====
         # Get surface MarsAtlas: Only to (re-)compute the volume version
-        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={'side': 'left' ,'subject':diSegment['subject'], 'center':diSegment['center'], 'acquisition':diSegment['acquisition'], 'parcellation_type':'marsAtlas' })
-        LeftGyri = list(LeftGyri.findValues(diSegment, None, False))
-        if LeftGyri:
+        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={'side':'left' ,'subject':subject, 'center':center, 'parcellation_type':'marsAtlas' })
+        diLeftGyri = list(LeftGyri.findValues({}, None, False))
+        if diLeftGyri:
             # If there are multiple files, use the most recent one
-            if (len(LeftGyri) > 1):
+            if (len(diLeftGyri) > 1):
                 errMsg += ["Export CSV: Multiple MarsAtlas segmentations found: using the first one."]
-            LeftGyri = LeftGyri[0]
+            diLeftGyri = diLeftGyri[0]
             # Generate 3D version of the MarsAtlas surface-based atlas
             try:
-                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
+                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = diLeftGyri)
             except Exception, e:
                 errMsg += ["Could not interpolate MarsAtlas in 3D: " + repr(e)]
-        # Get volume MarsAtlas
-        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes=segmentAttr)
-        diMaskleft = Mask_left.findValue(diT1pre)
-        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes=segmentAttr)
-        diMaskright = Mask_right.findValue(diMaskleft)
-        # Read volumes
-        if diMaskleft and diMaskright:
-            vol['MarsAtlas'] = aims.read(diMaskleft.fileName())\
-                             + aims.read(diMaskright.fileName())
+            # Get volume MarsAtlas
+            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            diMaskleft = Mask_left.findValue(diLeftGyri)
+            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            diMaskright = Mask_right.findValue(diLeftGyri)
+            # Read volumes
+            if diMaskleft and diMaskright:
+                vol['MarsAtlas'] = aims.read(diMaskleft.fileName())\
+                                 + aims.read(diMaskright.fileName())
+            else:
+                errMsg += ["MarsAtlas not found (volume)"]
         else:
             errMsg += ["MarsAtlas not found"]
+        
+        # ===== READ: GREY/WHITE =====
+        # If MarsAtlas available: Find MarsAtlas grey-white segmentation
+        if diLeftGyri:
+            MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            diMaskGW_left = MaskGW_left.findValue(diLeftGyri)
+            diMaskGW_right = MaskGW_right.findValue(diLeftGyri)
+        # Otherwise: Look for grey-white anywhere in the subject
+        else:
+            MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center})
+            MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center})
+            diMaskGW_left = list(MaskGW_left.findValues({}, None, False))
+            diMaskGW_right = list(MaskGW_right.findValues({}, None, False))
+            # If segmentations found: pick the first ones
+            if diMaskGW_left and diMaskGW_right:
+                diMaskGW_left = diMaskGW_left[0]
+                diMaskGW_right = diMaskGW_right[0]
+        # Read gray-white volume segmentation
+        if diMaskGW_left and diMaskGW_right:
+            vol['GW'] = aims.read(diMaskGW_left.fileName()) \
+                      + aims.read(diMaskGW_right.fileName())
+        else:
+            errMsg += ['Grey-white mask not found']
+            
+        # ===== INITIAL SEGMENTATION =====        
+        # Initial segmentation not identified
+        if not diMaskGW_left:
+            initSegmentation = 'N/A'
+        # Initial segmentation: FreeSurfer =>  Compute FreeSurfer coordinates
+        elif ('FreesurferAtlaspre' in diMaskGW_left['acquisition']):
+            initSegmentation = "FreeSurfer"
+            # Get FreeSurfer => Scanner-based transformation
+            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diMaskGW_left['modality'], 'subject':subject, 'center':center, 'acquisition':diMaskGW_left['acquisition']})
+            rdiTransFS = list(rdi.findValues({}, None, False ))
+            TransFS = aims.read(rdiTransFS[0].fullName())
+            # Get T1pre => Scanner-based transformation
+            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diT1pre['modality'], 'subject':subject, 'center':center, 'acquisition':diT1pre['acquisition']})
+            rdiTransT1 = list(rdi.findValues({}, None, False ))
+            TransT1 = aims.read(rdiTransT1[0].fullName())
+            # Compute transformation: T1pre=>FreeSurfer
+            Transf = TransFS.inverse() * TransT1
+            # Apply to contact coordinates
+            for i in range(len(plots_fs)):
+                plots_fs[i] = (plots_fs[i][0], Transf.transform(plots_fs[i][1]))
+            # Get FS image information
+            info_fs = diMaskGW_left.attributes()
+        else:
+            initSegmentation = "BrainVISA"
 
         # ===== READ: HIPPOCAMPUS =====
         # HIPPOCAMPUS: LEFT
-        diHipLeft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes=segmentAttr)
+        diHipLeft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
         rdiHipLeft = list(diHipLeft.findValues({}, None, False ))
         if not rdiHipLeft:
             # If file is not properly registered in DB, try to search volume by filename directly
@@ -3263,7 +3275,7 @@ class LocateElectrodes(QtGui.QDialog):
             if os.path.isfile(lhippoFile):
                 rdiHipLeft = [lhippoFile]
         # HIPPOCAMPUS: RIGHT
-        diHipRight = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes=segmentAttr)
+        diHipRight = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
         rdiHipRight = list(diHipRight.findValues({}, None, False ))
         if not rdiHipRight:
             # If file is not properly registered in DB, try to search volume by filename directly
@@ -3277,7 +3289,7 @@ class LocateElectrodes(QtGui.QDialog):
             
         # ===== READ: LAUSANNE2008 =====
         # Get all the FreeSurfer atlases:
-        diFs = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        diFs = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':subject, 'center':center})
         rdiFs = list(diFs.findValues({}, None, False))
         for name in ['FreesurferAtlaspre', 'DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
             iFile = [i for i in range(len(rdiFs)) if name in rdiFs[i].attributes()["acquisition"]]
@@ -3290,7 +3302,7 @@ class LocateElectrodes(QtGui.QDialog):
             errMsg += ["Freesurfer atlas not found"]
             
         # ===== READ: RESECTION =====
-        diResec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes=segmentAttr)
+        diResec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
         rdiResec = list(diResec.findValues({}, None, False ))
         if rdiResec:
             vol['resec'] = aims.read(di_resec[0].fileName())
