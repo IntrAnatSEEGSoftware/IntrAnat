@@ -15,6 +15,45 @@ def generateCsv(w, subject, isCsv, isBids):
     errMsg = []
     # Load patient
     try:
+        # Unload disk items
+        for k in w.diskItems.keys():
+            del w.diskItems[k]
+        w.diskItems = dict()
+        # Unload electrodes
+        for e in w.electrodes:
+            e['elecModel'].clearDisplay()
+            del e['elecModel']
+            w.a.deleteElements(e['transf'])
+            w.a.deleteObjects(e['transf'])
+            del e['transf']
+            w.a.deleteElements(e['ref'])
+            w.a.deleteObjects(e['ref'])
+            del e['ref']
+        w.electrodes = []
+        # Delete volumes
+        if hasattr(w, 'vol_dkt'):
+            del w.vol_dkt
+        if hasattr(w, 'vol_destrieux'):
+            del w.vol_destrieux
+        if hasattr(w, 'vol_hcp'):
+            del w.vol_hcp
+        if hasattr(w, 't1pre2ScannerBasedTransform'):
+            del w.t1pre2ScannerBasedTransform
+#         # Remove unused referentials
+#         referentials = w.a.getReferentials()
+#         for element in referentials:
+#             w.a.deleteElements(element)
+        # Unload disk items
+        for k in w.dispObj.keys():
+            del w.dispObj[k]
+        w.dispObj = dict()
+        # Delete all the graphical objects
+        w.a.deleteObjects(w.a.getObjects())
+        w.a.deleteElements(w.a.getObjects())
+    except:
+        errMsg += ["Could not unload previous patient"]
+
+    try:
         # Find T1pre for subject
         diT1 = ReadDiskItem('Raw T1 MRI', 'aims readable volume formats', requiredAttributes={'subject':subject, 'modality':'t1mri', 'normalized':'no'})
         rdiT1 = list(diT1._findValues({}, None, False))
@@ -24,17 +63,12 @@ def generateCsv(w, subject, isCsv, isBids):
         elif (len(diT1pre) == 0):
             return [False, ['No T1pre']]
         diT1pre = diT1pre[0]
-    
+        
         # Load patient
         w.brainvisaPatientAttributes = diT1pre.attributes()
         w.currentProtocol = diT1pre.attributes()['center']
         w.t1pre2ScannerBasedTransform = None
-        w.electrodes = []
-        
         # Load T1 in anatomist
-        if w.diskItems and w.dispObj and w.diskItems['T1pre'] and w.dispObj['T1pre']:
-            del w.dispObj['T1pre']
-            del w.diskItems['T1pre']
         w.diskItems['T1pre'] = diT1pre
         w.dispObj['T1pre'] = w.a.loadObject(diT1pre)
         # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
@@ -64,13 +98,13 @@ def generateCsv(w, subject, isCsv, isBids):
         if diDKT:
             w.vol_dkt = aims.read(str(diDKT[0]))
         else:
-            w.vol_destrieux = None
+            w.vol_dkt = None
         # HCP-MMP1
         diHCP = [x for x in rdiFs if ('HCP-MMP1' in x.attributes()['acquisition'])]
         if diHCP:
             w.vol_hcp = aims.read(str(diHCP[0]))
         else:
-            w.vol_destrieux = None
+            w.vol_hcp = None
     
         # Load electrodes and contacts
         w.loadElectrodes(subject, w.currentProtocol, isGui=False)
