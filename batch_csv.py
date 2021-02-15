@@ -8,6 +8,7 @@ from soma import aims
 from brainvisa import axon
 from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 from brainvisa.data.readdiskitem import ReadDiskItem
+from __builtin__ import True
 
 
 # ===== SAVE CSV =====
@@ -150,9 +151,7 @@ def generateCsv(w, subject, isCsv, isBids):
     
     
 # ===== MAIN =====
-def main(isCsv, isBids, start_index, logFilename):
-    # Open log file
-    log = open(logFilename, 'wb')
+def main(isCsv, isBids, start_index, stop_index, logFilename):
     # Start BrainVISA
     app = QtGui.QApplication(sys.argv)
     axon.initializeProcesses()
@@ -163,10 +162,22 @@ def main(isCsv, isBids, start_index, logFilename):
     w.currentProtocol = 'Epilepsy'
     w.subjects = [s.attributes()['subject'] for s in w.allSubjects if 'center' in s.attributes() and s.attributes()['center'] == w.currentProtocol]
     w.subjects = sorted(w.subjects)
-    log.write("Number of patients: %d\n\n" % len(w.subjects))
+    # Maximum subject length
     maxLen = max([len(s) for s in w.subjects])
+    # Open log file
+    if os.path.exists(logFilename):
+        log = open(logFilename, 'a+')
+        log.write("\n")
+    else:
+        log = open(logFilename, 'wb')
+        log.write("Number of patients: %d\n\n" % len(w.subjects))
+    # Until the end
+    if stop_index < start_index:
+        stop_index = len(w.subjects)
+    if stop_index > len(w.subjects):
+        stop_index = len(w.subjects)
     # Loop on subjects
-    for iSubj in range(start_index - 1, len(w.subjects)):
+    for iSubj in range(start_index - 1, stop_index):
         # Write patient name to log
         tstamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
         strPatient = ("[%s] Patient #%4d: %" + str(maxLen) + "s...    ") % (tstamp, iSubj+1, w.subjects[iSubj])
@@ -188,6 +199,8 @@ def main(isCsv, isBids, start_index, logFilename):
     # Quit Qt application
     app.quit()
     del app
+    # Return remaining patients
+    return len(w.subjects) - stop_index
 
 
 # ===== COMMAND LINE =====
@@ -195,9 +208,9 @@ if __name__ == "__main__":
     defLog = "log_csv_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H.%M.%S') + ".txt"
     # Help
     if (len(sys.argv) < 2) or ((sys.argv[1] != "--all") and (sys.argv[1] != "--csv-only") and (sys.argv[1] != "--bids-only")):
-        print("USAGE: batch_csv.py --all       [start_index=1] [logfile=$HOME/" + defLog + "]")
-        print("       batch_csv.py --csv-only  [start_index=1] [logfile=$HOME/" + defLog + "]")
-        print("       batch_csv.py --bids-only [start_index=1] [logfile=$HOME/" + defLog + "]")
+        print("USAGE: batch_csv.py --all       [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]")
+        print("       batch_csv.py --csv-only  [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]")
+        print("       batch_csv.py --bids-only [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]")
         sys.exit(2)
     # Get command
     if (sys.argv[1] == "--all"):
@@ -214,14 +227,20 @@ if __name__ == "__main__":
         start_index = int(sys.argv[2])
     else:
         start_index = 1
-    # Log file
+    # Start index
     if (len(sys.argv) >= 4):
-        logFilename = sys.argv[3]
+        stop_index = int(sys.argv[3])
+    else:
+        stop_index = 0
+    # Log file
+    if (len(sys.argv) >= 5):
+        logFilename = sys.argv[4]
     else:
         logFilename = os.path.join(os.path.expanduser("~"), defLog)
     # Call processing function
-    main(isCsv, isBids, start_index, logFilename)
+    Nleft = main(isCsv, isBids, start_index, stop_index, logFilename)
+    print("Remaining: %s" % (Nleft))
     # Close application
-    os._exit(0)
+    os._exit(Nleft)
     
     
