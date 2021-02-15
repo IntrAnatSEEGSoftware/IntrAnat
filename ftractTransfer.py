@@ -9,6 +9,10 @@ from soma.qt_gui.qt_backend import uic, QtGui, QtCore
 from progressbar import *
 from externalprocesses import *
 
+# Distant account
+# ssh_account = 'odavid@f-tract.eu'
+# ssh_account = 'odavid@gin-serv.ujf-grenoble.fr'
+ssh_account = 'davido@129.88.196.130'
 
 # Correction problem in the nifti file.
 spm_reinitialiaze_mat = """try
@@ -45,7 +49,7 @@ def transferFileScp(srcDir, destDir):
 
 # Run SSH command remotely
 def runSSH(cmdRemote):
-    cmd = ['ssh', '-Y', 'odavid@gin-serv.ujf-grenoble.fr', '-p', '206', cmdRemote]
+    cmd = ['ssh', '-Y', ssh_account, '-p', '206', cmdRemote]
     print('Register: ' + ' '.join(cmd))
     subprocess.Popen(cmd, stdout=subprocess.PIPE, env = dict()).communicate()   
 
@@ -313,7 +317,7 @@ class ftractTransfer(QtGui.QDialog):
                 srcDir = str(self.subjects[patients[i]]['rdi'])
                 destDir = dbDir
                 # Copy subject
-                transferFileRsync(srcDir, 'odavid@f-tract.eu:' + destDir, True)
+                transferFileRsync(srcDir, ssh_account + ':' + destDir, True)
                 # Register in database
                 runSSH("export PYTHONPATH=/home/odavid/ft_pipeline:/home/odavid/ft_database:/home/odavid/ft_pipeline/scripts; python3 -c \"import tools.get_assign_CRF_from_path as s;s.scan_database_with_CRF(path='03-preprocessed/Brainvisa/Epilepsy/" + patients[i] + "', conf='brainvisa_epilepsy')\"")
 
@@ -355,7 +359,7 @@ class ftractTransfer(QtGui.QDialog):
                     # Copy pre images
                     for kk in range(len(infoT1)):
                         localFile = os.path.join(preDir, os.path.split(infoT1[kk])[-1])
-                        transferFileScp('odavid@f-tract.eu:/gin/data/database/' + infoT1[kk], localFile)
+                        transferFileScp(ssh_account + ':/gin/data/database/' + infoT1[kk], localFile)
                         spmFiles.append(localFile)
 
                 # === POST ===
@@ -369,7 +373,7 @@ class ftractTransfer(QtGui.QDialog):
                     # Copy post images
                     for kk in range(len(infoPost)):
                         localFile = os.path.join(postDir, os.path.split(infoPost[kk])[-1])
-                        transferFileScp('odavid@f-tract.eu:/gin/data/database/' + infoPost[kk], localFile)
+                        transferFileScp(ssh_account + ':/gin/data/database/' + infoPost[kk], localFile)
                         spmFiles.append(localFile)
 
                 # === POSTOP ===
@@ -383,7 +387,7 @@ class ftractTransfer(QtGui.QDialog):
                     # Copy postop images
                     for kk in range(len(infoPostop)):
                         localFile = os.path.join(postopDir, os.path.split(infoPostop[kk])[-1])
-                        transferFileScp('odavid@f-tract.eu:/gin/data/database/' + infoPostop[kk], localFile)
+                        transferFileScp(ssh_account + ':/gin/data/database/' + infoPostop[kk], localFile)
                         spmFiles.append(localFile)
 
                 # === FREESURFER ===
@@ -395,7 +399,7 @@ class ftractTransfer(QtGui.QDialog):
                     deleteLocalFolder(fsDirLocal)
                     # Copy entire FreeSurfer folder
                     fsDir = os.path.dirname(os.path.dirname(infoDestrieuxLabelling[0]))
-                    transferFileScp('odavid@f-tract.eu:/gin/data/database/' + fsDir, fsDirLocal)
+                    transferFileScp(ssh_account + ':/gin/data/database/' + fsDir, fsDirLocal)
                 # Try to copy only Lausanne2008 segmentation
                 elif infoDestrieuxLabelling:
                     lausanneDirLocal = fsDirLocal + '/' + 'parcellation_Lausanne2008'
@@ -405,7 +409,7 @@ class ftractTransfer(QtGui.QDialog):
                         # Copy Lausanne subfolder
                         try:
                             lausanneDir = os.path.dirname(os.path.dirname(infoDestrieuxLabelling[0])) + '/' + 'parcellation_Lausanne2008'
-                            transferFileScp('odavid@f-tract.eu:/gin/data/database/' + lausanneDir, lausanneDirLocal)
+                            transferFileScp(ssh_account + ':/gin/data/database/' + lausanneDir, lausanneDirLocal)
                         except:
                             pass
                     
