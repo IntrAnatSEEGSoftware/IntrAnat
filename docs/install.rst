@@ -1,54 +1,31 @@
-.. IntrAnat documentation master file, created by
-   sphinx-quickstart on Tue Feb 16 17:20:34 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Installation
+***************
 
-Welcome to IntrAnat's documentation!
-====================================
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-
-IntrAnat is for research purpose only. It is provided "as is," Inserm
-and its collaborators do not assume any liability or responsibility for
-its use.
-
--  Software presentation: https://f-tract.eu/software/intranat
--  Latest developments:
-   https://github.com/ftadel/IntrAnat/tree/brainvisa\_4.6
--  Installation instructions:
-   https://github.com/ftadel/IntrAnat/wiki/Installation
--  User documentation:
-   https://github.com/IntrAnatSEEGSoftware/IntrAnat/blob/brainvisa\_4.6/doc/user\_documentation.pdf
+Intranat depends on multiple software. The installation process is therefore not completely
+straightforward.
 
 Requirements
 ============
 
-IntrAnat requires the installation of: \* **BrainVISA**: Version > 4.6.1
-\* **Matlab**: Requires a Matlab license to run SPM12 for MNI
-normalization \* **SPM12**: For MNI normalization and volume
-co-registration \* **ANTs 2.2**: For volume co-registration (optional)
-\* **FreeSurfer 6.0**: For importing the result of the FreeSurfer T1 MRI
-segmentation pipeline (optional)
+IntrAnat requires the installation of:
 
-Supported operating systems: \* **Ubuntu 16.04**: Reference for all the
-instructions below \* **CentOS 7**: \* For CentOS/Fedora/RHEL, similar
-packages are available for install using "sudo yum install" instead of
-"sudo apt install", but their name might have to be updated. \* **Other
-Linux distributions**: Might work but haven't been tested yet, the main
-limiting factor for portability being BrainVISA \* **Windows 10/WSL**:
-`Linux subsystem on Windows 10 / Ubuntu
-16.04 <https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/>`__
-\* Almost everything works just as with a Ubuntu 16.04, \* WSL can run
-only the latest versions of Matlab (>= 2018b), but Matlab can be
-installed on the Windows system and called from WSL/IntrAnat
+- **BrainVISA**: Version > 4.6.1
+- **Matlab**: Requires a Matlab license to run SPM12 for MNI normalization
+- **SPM12**: For MNI normalization and volume co-registration
+- **ANTs (>2.2)**: For volume co-registration (optional)
+- **FreeSurfer (> 6.0)**: For importing the result of the FreeSurfer T1 MRI segmentation pipeline (optional)
+
+Supported operating systems:
+
+- **Ubuntu 16.04**: Reference for all the instructions below
+- **CentOS 7**: For CentOS/Fedora/RHEL, similar packages are available for install using "sudo yum install" instead of "sudo apt install", but their name might have to be updated.
+- **Other Linux distributions**: Might work but haven't been tested yet, the main limiting factor for portability being BrainVISA
+- **Windows 10/WSL**: `Linux subsystem on Windows 10 / Ubuntu 16.04 <https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/>`__ Almost everything works just as with a Ubuntu 16.04, WSL can run only the latest versions of Matlab (>= 2018b), but Matlab can be installed on the Windows system and called from WSL/IntrAnat
 
 Install Ubuntu packages
 =======================
 
-Instructions for Unbuntu 16.04.
+Instructions for Ubuntu 16.04 (should still work for 18.04 and 20.04).
 
 Update your system:
 
@@ -74,6 +51,7 @@ BrainVISA/IntrAnat:
 ::
 
     sudo apt install libtinfo-dev libapt-pkg-dev git libav-tools mencoder libglm-dev
+    # Next instructions are not needed for ubuntu >= 18.04
     wget http://ftp.br.debian.org/debian/pool/main/a/apt/libapt-pkg4.12_1.0.9.8.4_amd64.deb
     dpkg -i libapt-pkg4.12_1.0.9.8.4_amd64.deb
     rm libapt-pkg4.12_1.0.9.8.4_amd64.deb
@@ -153,16 +131,18 @@ Start Brainvisa, set up and update the databases:
     mkdir $INTRANAT_INSTALL/brainvisa_db
     $INTRANAT_INSTALL/brainvisa-4.6.1/BrainVISA
 
-In the BrainVISA interface: \* In the window "Update databases", click
-on the button "Update", then close the figure \* If you get the window
-"Welcome to BrainVISA" click on button "Open preferences", otherwise
-select menu "BrainVISA > Preferences" \* In the "Databases" section,
-click on "Add", then select folder $INTRANAT\_INSTALL/brainvisa\_db,
-then click "OK" \* Close BrainVISA \* Add your freesurfer database: Read
-the help in BrainVISA's FreeSurfer toolbox
+In the BrainVISA interface:
+
+* In the window "Update databases", click on the button "Update", then close the figure
+* If you get the window "Welcome to BrainVISA" click on button "Open preferences", otherwise select menu "BrainVISA > Preferences"
+* In the "Databases" section, click on "Add", then select folder $INTRANAT\_INSTALL/brainvisa\_db, then click "OK"
+* Close BrainVISA
+* Add your freesurfer database: Read the help in BrainVISA's FreeSurfer toolbox
 
 Install additional packages in BrainVISA's Python environment if
-necessary: \* openpyxl:
+necessary:
+
+* openpyxl:
 
 ::
 
@@ -174,23 +154,25 @@ necessary: \* openpyxl:
     cd openpyxl-2.5.5/
     python setup.py install
 
--  jdcal
--  et\_xmlfile
+*  jdcal
+*  et\_xmlfile
 
-Specific instructions for Windows 10/WSL: \* Delete
-brainvisa/lib/libxcb\* to avoid the errors "libxcb-dri3.so.0: undefined
-symbol: xcb\_send\_fd" \* Delete additional duplicated libraries \*
-``cd $INTRANAT_INSTALL/brainvisa-4.6.1/lib`` \*
-``rm libxcb* libgcc_s* libpcre* libstdc++* libtinfo* libdl* libz*``
+Specific instructions for Windows 10/WSL:
 
-Specific instructions for Mandriva2008: \*
-``rm libgcc_s* libstdc++* libdl* libz*`` \* Install in brainvisa Python
-environment: jdcal, et\_xmlfile, openpyxl
+* Delete brainvisa/lib/libxcb
+* to avoid the errors "libxcb-dri3.so.0: undefined symbol: xcb\_send\_fd"
+* Delete additional duplicated libraries
+* ``cd $INTRANAT_INSTALL/brainvisa-4.6.1/lib``
+* ``rm libxcb* libgcc_s* libpcre* libstdc++* libtinfo* libdl* libz*``
+
+Specific instructions for Mandriva2008:
+* ``rm libgcc_s* libstdc++* libdl* libz*``
+* Install in brainvisa Python environment: jdcal, et\_xmlfile, openpyxl
 
 Install FreeSurfer
 ==================
 
-Download FreeSurfer 6.0:
+Download FreeSurfer 6.0 (or more recent):
 
 ::
 
@@ -260,10 +242,11 @@ Install SPM12:
     unzip spm12.zip
     rm spm12.zip
 
-Set the program paths in BrainVISA: \* Start BrainVISA:
-``$INTRANAT_INSTALL/brainvisa-4.6.1/BrainVISA`` \* Open menu BrainVISA >
-Preferences: Set SPM path to ``$INTRANAT_INSTALL/spm12`` \* Close
-BrainVISA
+Set the program paths in BrainVISA:
+
+* Start BrainVISA: ``$INTRANAT_INSTALL/brainvisa-4.6.1/BrainVISA``
+* Open menu BrainVISA > Preferences: Set SPM path to ``$INTRANAT_INSTALL/spm12``
+* Close BrainVISA
 
 Matlab on Windows 10/WSL
 ------------------------
@@ -278,63 +261,22 @@ example:
     printf '#!/bin/bash\n/mnt/c/Program\ Files/MATLAB/R2017b/bin/matlab.exe -nodesktop -wait "$@"\nexit $?' > /usr/local/bin/matlab
     chmod a+x /usr/local/bin/matlab
 
-Exchanging data between the Ubuntu and Windows drives: \* Everything
-must be on the Linux drive: using a network drive connected via SSH to
-access the files in Matlab \* ``sudo vi /etc/ssh/sshd_config`` \* Change
-the port to 2222 and edit all the options as in
-https://superuser.com/questions/1123552/how-to-ssh-into-wsl \*
-``sudo service ssh start`` \* On Windows: Install SFTP Net Drive:
-https://www.nsoftware.com/netdrive/sftp/ \* Connect to the drive: \*
-Server: 127.0.0.1:2222 \* Username/password: The authentication of your
-Ubuntu user \* Drive letter: "L:"
+Exchanging data between the Ubuntu and Windows drives:
 
-Start IntrAnat
-==============
-
-Create startup scripts:
-
-::
-
-    cd $INTRANAT_INSTALL
-    printf "#!/bin/bash\nsource $INTRANAT_INSTALL/brainvisa-4.6.1/bin/bv_env.sh $INTRANAT_INSTALL/brainvisa-4.6.1\ncd IntrAnat\npython ImageImport.py" > ImageImport.sh
-    printf "#!/bin/bash\nsource $INTRANAT_INSTALL/brainvisa-4.6.1/bin/bv_env.sh $INTRANAT_INSTALL/brainvisa-4.6.1\ncd IntrAnat\npython locateElectrodes.py" > locateElectrodes.sh
-    printf "#!/bin/bash\nsource $INTRANAT_INSTALL/brainvisa-4.6.1/bin/bv_env.sh $INTRANAT_INSTALL/brainvisa-4.6.1\ncd IntrAnat\npython groupDisplay.py" > groupDisplay.sh
-    chmod a+x *.sh
-
-Manual execution:
-
-::
-
-    cd ~/IntrAnat
-    source brainvisa-4.6.1/bin/bv_env.sh
-    cd IntrAnat
-    python ImageImport.py
-
-Or all in one line:
-
-::
-
-    cd ~/IntrAnat && source brainvisa-4.6.1/bin/bv_env.sh && cd IntrAnat && python ImageImport.py
-
-Set program paths: \* Open ImageImport, go to the tab "Preferences" \*
-Set path to SPM12: ``$INTRANAT_INSTALL/spm12`` \* Set path to ANTs:
-``$INTRANAT_INSTALL/ANTs-build`` \* Set path to FreeSurfer:
-``$INTRANAT_INSTALL/freesurfer`` (should be set automatically if the
-FreeSurfer path is properly set in the BrainVISApreferences ) \* Click
-on button "Save preferences"
-
-Update IntrAnat from GitHub:
-
-::
-
-    cd ~/IntrAnat/IntrAnat
-    git pull
+* Everything must be on the Linux drive: using a network drive connected via SSH to access the files in Matlab
+* ``sudo vi /etc/ssh/sshd_config``
+* Change the port to 2222 and edit all the options as in https://superuser.com/questions/1123552/how-to-ssh-into-wsl
+* ``sudo service ssh start``
+* On Windows: Install SFTP Net Drive: https://www.nsoftware.com/netdrive/sftp/
+* Connect to the drive:
+   * Server: 127.0.0.1:2222
+   * Username/password: The authentication of your Ubuntu user
+   * Drive letter: "L:"
 
 Install MRIConvert
 ==================
 
-MRIConvert is not needed for running IntrAnat, but is a very useful tool
-for converting DICOM images into .nii files.
+MRIConvert is not needed to run IntrAnat, but is a very useful tool for converting DICOM images into .nii files used by IntrAnat.
 https://lcni.uoregon.edu/downloads/mriconvert
 
 ::
@@ -371,10 +313,49 @@ Edit .bashrc, add at the end:
 
 
 
-Indices and tables
-==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Running IntrAnat
+================
+
+Create startup scripts:
+
+::
+
+    cd $INTRANAT_INSTALL
+    printf "#!/bin/bash\nsource $INTRANAT_INSTALL/brainvisa-4.6.1/bin/bv_env.sh $INTRANAT_INSTALL/brainvisa-4.6.1\ncd IntrAnat\npython ImageImport.py" > ImageImport.sh
+    printf "#!/bin/bash\nsource $INTRANAT_INSTALL/brainvisa-4.6.1/bin/bv_env.sh $INTRANAT_INSTALL/brainvisa-4.6.1\ncd IntrAnat\npython locateElectrodes.py" > locateElectrodes.sh
+    printf "#!/bin/bash\nsource $INTRANAT_INSTALL/brainvisa-4.6.1/bin/bv_env.sh $INTRANAT_INSTALL/brainvisa-4.6.1\ncd IntrAnat\npython groupDisplay.py" > groupDisplay.sh
+    chmod a+x *.sh
+
+Manual execution:
+
+::
+
+    cd ~/IntrAnat
+    source brainvisa-4.6.1/bin/bv_env.sh
+    cd IntrAnat
+    python ImageImport.py
+
+Or all in one line:
+
+::
+
+    cd ~/IntrAnat && source brainvisa-4.6.1/bin/bv_env.sh && cd IntrAnat && python ImageImport.py
+
+Set program paths:
+
+* Open ImageImport, go to the tab "Preferences"
+* Set path to SPM12: ``$INTRANAT_INSTALL/spm12``
+* Set path to ANTs: ``$INTRANAT_INSTALL/ANTs-build``
+* Set path to FreeSurfer: ``$INTRANAT_INSTALL/freesurfer`` (should be set automatically if the
+FreeSurfer path is properly set in the BrainVISApreferences )
+* Click on button "Save preferences"
+
+Update IntrAnat from GitHub:
+
+::
+
+    cd ~/IntrAnat/IntrAnat
+    git pull
+
 
