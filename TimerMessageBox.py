@@ -16,7 +16,7 @@ class TimerMessageBox(QtGui.QMessageBox):
         self.setStandardButtons(QtGui.QMessageBox.NoButton)
         self.timer = QtCore.QTimer(self)
         self.timer.setInterval(1000)
-        self.connect(self.timer, QtCore.SIGNAL("timeout()"), self.changeContent)
+        self.timer.timeout.connect(self.changeContent)
         self.timer.start()
 
     def changeContent(self):
@@ -39,7 +39,7 @@ class Example(QtGui.QWidget):
         btn.resize(btn.sizeHint())
         btn.move(50, 50)
         self.setWindowTitle('Example')
-        self.connect(btn, QtCore.SIGNAL("clicked()"), self.warning)
+        btn.clicked.connect(self.warning)
 
     def warning(self):
         messagebox = TimerMessageBox(5, self)

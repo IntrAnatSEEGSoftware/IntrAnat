@@ -30,7 +30,6 @@ from TimerMessageBox import *
 from progressbar import ProgressDialog
 import DialogCheckbox
 
-
 #  Matlab code : coregister file1 to file2
 def matlab_cellstr(listOfStrings):
     """ Converts a list of filenames as a matlab-suitable cell table of strings and adds ',1' at the end of each string (for spm file lists) """

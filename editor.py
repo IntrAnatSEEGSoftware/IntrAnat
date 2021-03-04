@@ -48,17 +48,17 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     self.typeColors = {}
     
     # Linking UI elements to functions
-    self.connect(self.exitButton, QtCore.SIGNAL('clicked()'), self.quit)
-    self.connect(self.openButton, QtCore.SIGNAL('clicked()'), self.open)
-    self.connect(self.saveButton, QtCore.SIGNAL('clicked()'), self.save)
-    self.connect(self.addButton, QtCore.SIGNAL('clicked()'), self.addCylinder)
-    self.connect(self.updateButton, QtCore.SIGNAL('clicked()'), self.updateCylinder)
-    self.connect(self.deleteButton, QtCore.SIGNAL('clicked()'), self.deleteCylinder)
-    self.connect(self.axisCombo,  QtCore.SIGNAL('currentIndexChanged(QString)'), self.axisChanged)
-    #self.connect(self.typeCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.updateName)
+    self.exitButton.clicked.connect(self.quit)
+    self.openButton.clicked.connect(self.open)
+    self.saveButton.clicked.connect(self.save)
+    self.addButton.clicked.connect(self.addCylinder)
+    self.updateButton.clicked.connect(self.updateCylinder)
+    self.deleteButton.clicked.connect(self.deleteCylinder)
+    self.axisCombo.currentIndexChanged[str].connect(self.axisChanged)
+    #self.typeCombo.currentIndexChanged[str].connect(self.updateName)
     
     self.cylinderList.sortItems(QtCore.Qt.AscendingOrder)
-    self.connect(self.cylinderList, QtCore.SIGNAL("currentItemChanged(QListWidgetItem*,QListWidgetItem*)"), self.cylinderListClick) #itemClicked
+    self.cylinderList.currentItemChanged.connect(self.cylinderListClick) #itemClicked
     
     # Anatomist windows
     if anato is None:
@@ -94,15 +94,16 @@ class ElectrodeEditorDialog(QtGui.QWidget):
       
   # Load an Electrode Definition file
   def open(self, model=None):
-    if model is not None:
+    if model is not None and model is not False:
+      print ('Model: ' + repr(model))  
       if not os.path.isfile(model):
         path = '/home/manik/prog/electrophysiology/epilepsie/'+str(model)
       else:
         path = model
     else:
-      path = QtGui.QFileDialog.getOpenFileName(self, "Open Electrode Definition File", "", "Electrode Definition files (*.elecdef)")
+      path, _filter = QtGui.QFileDialog.getOpenFileName(self, "Open Electrode Definition File", "", "Electrode Definition files (*.elecdef)")
     if not os.path.exists(path):
-      print 'No electrode model at '+str(path)
+      print('No electrode model at '+str(path))
       return
 
     filein = open(path, 'rb')
@@ -127,7 +128,7 @@ class ElectrodeEditorDialog(QtGui.QWidget):
 
   # Save an Electrode Definition file
   def save(self):
-    path = QtGui.QFileDialog.getSaveFileName(self, "Save Electrode Definition File", "", "Electrode Definition files (*.elecdef)")
+    path, _filter = QtGui.QFileDialog.getSaveFileName(self, "Save Electrode Definition File", "", "Electrode Definition files (*.elecdef)")
     if path is None or str(path) == "":
       return
     fileout = open(path, 'wb')
@@ -331,7 +332,7 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     if name in self.displayed:
       g.setSelection(self.displayed[name]['mesh'])
     else:
-      print "Cannot find %s in self.displayed -> cannot light up selection"%name
+      print("Cannot find %s in self.displayed -> cannot light up selection"%name)
       
   def updateName(self):
       

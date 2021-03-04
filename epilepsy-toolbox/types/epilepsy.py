@@ -223,3 +223,4 @@ FileType( 'Raw Eye Tracking', 'Any Type', 'Eyelink format' )
 
 # Resection
 FileType( 'Resection Description' ,'Any Type','Resection json')
+
