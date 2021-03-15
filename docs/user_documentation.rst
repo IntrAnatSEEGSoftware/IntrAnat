@@ -317,7 +317,7 @@ to not scroll on the full patient list)
 on one, it will show it on 3bis and 3ter anatomist windows.
 (http://brainvisa.info/anatomist-4.5/user_doc/anatomist_tutorial.html)
 
-**4, 4bis and 4ter **: List of all available images. If you double click
+**4, 4bis and 4ter** : List of all available images. If you double click
 on one, it will show it on 4bis and 4ter anatomist windows.
 (http://brainvisa.info/anatomist-4.5/user_doc/anatomist_tutorial.html)
 
@@ -615,7 +615,7 @@ save implantation in « patient space », not in the MNI space.
 implantation has been generated on an other computer and you want to
 import it on this computer.
 
-You can **normalize and export **: generate the MNI position of the
+You can **normalize and export**: generate the MNI position of the
 electrodes (necessary for group studies and the use of groupDisplay).
 
 It generates as well PTS and TXT files with electrodes names and
@@ -736,7 +736,7 @@ MarsAtlas or Freesurfer Atlas parcels are done on the Resection Image
 and not the Resection ROI. The ROI is there only to make manual
 correction. So DON'T FORGET TO CONVERT THE ROI INTO IMAGE !!!!
 
-**17 **: Generate the resection image and ROI automaticaly by
+**17**: Generate the resection image and ROI automaticaly by
 subtracting the brain mask of the T1postOp with the brain mask of the
 T1pre. If the T1postOp has not been imported, it doesn't do anything,
 but for now it doesn't display any error/warning message either. Once
@@ -747,7 +747,7 @@ The resection is added in the patient folder
 
 /BrainVisaDatabase/Protocol/PatientName/Resection/Resection
 
-**19 **: Generate dictionnaries :
+**19**: Generate dictionnaries :
 
 |image33|\ Generate All Dictionaries will generate all « options » in
 the displayed order. Otherwise it will generate only the selected one.
@@ -818,18 +818,6 @@ database/protocol/patientname/implantation/patientname.csv
 
 At the begining of the file there are information on contact, then on
 bipole center and then on the resection, as below :
-
-|image35|.
-
-.
-
-.
-
-|image36|.
-
-.
-
-.
 
 |image37|
 
@@ -999,132 +987,132 @@ the MNI that contain the folder SPM12
 (http://brainvisa.info/anatomist/user_doc/anatomist_manual1.html), see
 parts before (ImageImport or locateElectrodes).
 
-.. |image0| image:: Pictures/10000000000007410000041F73158A38.png
+
+Electrode Model Editor
+=======================
+Adding a new electrode model
+
+
+
+.. |image0| image:: img/img1.png
    :width: 17cm
    :height: 9.657cm
-.. |image1| image:: Pictures/100000000000056F0000041E56EE70DF.png
+.. |image1| image:: img/img2.png
    :width: 17cm
    :height: 12.882cm
-.. |image2| image:: Pictures/10000000000005640000001D3EDD7D29.png
+.. |image2| image:: img/img2b.png
    :width: 17cm
    :height: 0.356cm
-.. |image3| image:: Pictures/1000000000000206000003E56BDE577B.png
+.. |image3| image:: img/img3b.png
    :width: 8.804cm
    :height: 18.156cm
-.. |image4| image:: Pictures/10000000000005AB0000042081C83A16.png
+.. |image4| image:: img/img4.png
    :width: 17cm
    :height: 12.372cm
-.. |image5| image:: Pictures/100000000000007C000000A249C4B067.png
+.. |image5| image:: img/img5.png
    :width: 2.409cm
    :height: 3.369cm
-.. |image6| image:: Pictures/10000000000005AD00000419BEB4087A.png
+.. |image6| image:: img/img6.png
    :width: 17cm
    :height: 12.273cm
-.. |image7| image:: Pictures/100000000000019300000071EDBD069D.png
+.. |image7| image:: img/img7.png
    :width: 10.661cm
    :height: 2.99cm
-.. |image8| image:: Pictures/10000201000005FF0000048F0346BECB.png
+.. |image8| image:: img/img8b.png
    :width: 10.111cm
    :height: 11.19cm
-.. |image9| image:: Pictures/10000000000002090000010046E0F08C.png
+.. |image9| image:: img/img9.png
    :width: 12.27cm
    :height: 5.78cm
-.. |image10| image:: Pictures/1000000000000202000003E08F0EA464.png
+.. |image10| image:: img/img10.png
    :width: 10.054cm
    :height: 19.405cm
-.. |image11| image:: Pictures/100000000000045A000004146D97D271.png
+.. |image11| image:: img/img11.png
    :width: 17cm
    :height: 15.931cm
-.. |image12| image:: Pictures/100000000000045F0000030486DD2868.png
+.. |image12| image:: img/img12.png
    :width: 17cm
    :height: 11.728cm
-.. |image13| image:: Pictures/100000000000048C00000392694FA7AC.png
+.. |image13| image:: img/img13.png
    :width: 17cm
    :height: 13.347cm
-.. |image14| image:: Pictures/10000000000003BD00000289BA442E1E.png
+.. |image14| image:: img/img14.png
    :width: 17cm
    :height: 9.781cm
-.. |image15| image:: Pictures/1000000000000608000003F95728B31C.png
+.. |image15| image:: img/img15.png
    :width: 10.647cm
    :height: 8.495cm
-.. |image16| image:: Pictures/1000000000000468000002631B099BD8.png
+.. |image16| image:: img/img16.png
    :width: 17cm
    :height: 9.208cm
-.. |image17| image:: Pictures/10000000000004740000024AADB99F74.png
+.. |image17| image:: img/img17.png
    :width: 17cm
    :height: 8.738cm
-.. |image18| image:: Pictures/10000000000004740000024A522C1661.png
+.. |image18| image:: img/img18.png
    :width: 17cm
    :height: 8.738cm
-.. |image19| image:: Pictures/10000000000001DF000000777D9688F2.png
+.. |image19| image:: img/img19.png
    :width: 12.672cm
    :height: 3.149cm
-.. |image20| image:: Pictures/100000000000035D00000355B7E78FD1.png
+.. |image20| image:: img/img20.png
    :width: 10.993cm
    :height: 12.744cm
-.. |image21| image:: Pictures/10000000000006F70000041A7041F98B.png
+.. |image21| image:: img/img21.png
    :width: 15.785cm
    :height: 8.918cm
-.. |image22| image:: Pictures/1000000000000181000000723051FE2B.png
+.. |image22| image:: img/img22.png
    :width: 10.185cm
    :height: 3.014cm
-.. |image23| image:: Pictures/100000000000052700000416BED87A76.png
+.. |image23| image:: img/img23.png
    :width: 9.523cm
    :height: 8.005cm
-.. |image24| image:: Pictures/100000000000052700000416BB2BE91E.png
+.. |image24| image:: img/img24.png
    :width: 10.566cm
    :height: 8.553cm
-.. |image25| image:: Pictures/100000000000029500000236236538F7.png
+.. |image25| image:: img/img25.png
    :width: 12.541cm
    :height: 9.911cm
-.. |image26| image:: Pictures/100000000000021E000003168C1BEAC0.png
+.. |image26| image:: img/img26a.png
    :width: 6.675cm
    :height: 9.726cm
-.. |image27| image:: Pictures/100000000000021E00000316DB0DC5BF.png
+.. |image27| image:: img/img26b.png
    :width: 6.78cm
    :height: 9.881cm
-.. |image28| image:: Pictures/10000000000003330000038F6590A3C7.png
+.. |image28| image:: img/img27.png
    :width: 11.053cm
    :height: 12.293cm
-.. |image29| image:: Pictures/1000000000000433000002F1D2E01985.png
+.. |image29| image:: img/img28.png
    :width: 17cm
    :height: 11.908cm
-.. |image30| image:: Pictures/1000000000000284000001C315C6A497.png
+.. |image30| image:: img/img29.png
    :width: 10.067cm
    :height: 7.049cm
-.. |image31| image:: Pictures/100000000000029000000238070B8AF4.png
+.. |image31| image:: img/img30.png
    :width: 12.952cm
    :height: 8.728cm
-.. |image32| image:: Pictures/100000000000046C000001FF538AA502.png
+.. |image32| image:: img/img31.png
    :width: 17cm
    :height: 7.673cm
-.. |image33| image:: Pictures/100000000000011300000053EEAE335D.png
+.. |image33| image:: img/img32.png
    :width: 7.274cm
    :height: 2.194cm
-.. |image34| image:: Pictures/10000000000004C2000001E3DDBED8F5.png
+.. |image34| image:: img/img33.png
    :width: 17cm
    :height: 6.74cm
-.. |image35| image:: ./ObjectReplacements/Object 1
-   :width: 16.043cm
-   :height: 1.51cm
-.. |image36| image:: ./ObjectReplacements/Object 2
-   :width: 16.044cm
-   :height: 0.757cm
-.. |image37| image:: ./ObjectReplacements/Object 3
-   :width: 8.077cm
-   :height: 1.806cm
-.. |image38| image:: Pictures/100000000000055D000003AA4F18C28E.png
+.. |image37| image:: img/img34.png
+   :width: 16.000cm
+.. |image38| image:: img/img35.png
    :width: 12.478cm
    :height: 8.525cm
-.. |image39| image:: Pictures/1000000000000507000002EB6EAAA736.png
+.. |image39| image:: img/img36.png
    :width: 17cm
    :height: 9.867cm
-.. |image40| image:: Pictures/1000000000000504000002EFAEF888F0.png
+.. |image40| image:: img/img37.png
    :width: 12.271cm
    :height: 7.177cm
-.. |image41| image:: Pictures/10000000000001F7000000811707BDA1.png
+.. |image41| image:: img/img38.png
    :width: 12.158cm
    :height: 3.119cm
-.. |image42| image:: Pictures/1000000000000502000002EAADA3EBBB.png
+.. |image42| image:: img/img39.png
    :width: 15.094cm
    :height: 8.65cm

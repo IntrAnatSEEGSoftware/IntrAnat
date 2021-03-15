@@ -13,6 +13,7 @@ Welcome to IntrAnat's documentation!
 
    install
    user_documentation
+   technical_documentation
 
 **IntrAnat** is a free database and visualization software for Intracranial Electroencephalographic (iEEG) data
 that allows to locate and register intracerebral electrodes for individual cases as well as
