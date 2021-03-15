@@ -100,11 +100,13 @@ def saveMatlabCall(cmd):
     f.write("disp(['===============================================================' 10]);\n\n")
     f.write(cmd + "\n\n")
     f.close()
-    matlabExe = ['matlab', '-nodesktop', '-r']
-    print("Calling script '"+tmp['fullpath']+ "' and with Matlab command : "+repr(matlabExe))
-    scriptCall = ["cd '%s';%s"%(formatExternalPath(tmp['dir']),tmp['filename']),]
-    return {'code':matlabExe+scriptCall, 'file':f, 'fullpath':tmp['fullpath']}
-
+    # matlabExe = ['matlab', '-nodesktop', '-r']
+    # print("Calling script '"+tmp['fullpath']+ "' and with Matlab command : "+repr(matlabExe))
+    # scriptCall = ["cd '%s';%s"%(formatExternalPath(tmp['dir']),tmp['filename']),]
+    # return {'code':matlabExe+scriptCall, 'file':f, 'fullpath':tmp['fullpath']}
+    scriptCall = ['matlab', '-nodesktop', '<', tmp['fullpath']]
+    print("Call: " + " ".join(scriptCall))
+    return {'code':scriptCall, 'file':f, 'fullpath':tmp['fullpath']}
 
 def runCmd(cmd):
     """ Executes a command and returns the output as an array of strings (the output lines)"""
