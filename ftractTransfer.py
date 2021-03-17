@@ -319,7 +319,7 @@ class ftractTransfer(QtGui.QDialog):
                 # Copy subject
                 transferFileRsync(srcDir, ssh_account + ':' + destDir, True)
                 # Register in database
-                runSSH("export PYTHONPATH=/home/odavid/ft_pipeline:/home/odavid/ft_database:/home/odavid/ft_pipeline/scripts; python3 -c \"import tools.get_assign_CRF_from_path as s;s.scan_database_with_CRF(path='03-preprocessed/Brainvisa/Epilepsy/" + patients[i] + "', conf='brainvisa_epilepsy')\"")
+                runSSH("export PYTHONPATH=/home/davido/ft_pipeline:/home/davido/ft_database:/home/davido/ft_pipeline/scripts; python3 -c \"import tools.get_assign_CRF_from_path as s;s.scan_database_with_CRF(path='03-preprocessed/Brainvisa/Epilepsy/" + patients[i] + "', conf='brainvisa_epilepsy')\"")
 
         # Playground to local
         else:
