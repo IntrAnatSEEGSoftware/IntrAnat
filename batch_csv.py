@@ -8,7 +8,6 @@ from soma import aims
 from brainvisa import axon
 from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 from brainvisa.data.readdiskitem import ReadDiskItem
-from __builtin__ import True
 
 
 # ===== SAVE CSV =====

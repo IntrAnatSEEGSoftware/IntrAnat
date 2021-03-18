@@ -36,7 +36,6 @@ from electrode import ElectrodeModel
 from bipoleSEEGColors import bipoleSEEGColors
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
-from ImageImport import createItemDirs
 
 
 # =============================================================================
@@ -2688,7 +2687,7 @@ class LocateElectrodes(QtGui.QDialog):
     
 
     # ===== EXPORT CSV FILES =====
-    def saveCSV(self, diT1pre):
+    def saveCSV(self, diT1pre, plots_MNI=None):
         # === GET DATABASE FILES === 
         # eleclabel
         rdi_eleclabel = ReadDiskItem('Electrodes Labels','Electrode Label Format',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
@@ -2711,16 +2710,35 @@ class LocateElectrodes(QtGui.QDialog):
         fileCsv = di.fullPath()
         
         # ===== GET COORDINATES =====
-        # MNI coordinates
-        plots_MNI = self.getPlotsMNIRef(False)
-        # No contacts available
-        if plots_MNI is None:
-            return [[], ["MNI coordinates are not available."]]
-        # Sort contacts by name and index
-        plots_MNI = self.sortContacts(plots_MNI)
         # Get scanner-based coordinates
-        plots_SB = self.getPlotsT1preScannerBasedRef()
-        plots_SB = self.sortContacts(plots_SB)
+        if not plots_MNI:
+            plots_SB = self.getPlotsT1preScannerBasedRef()
+            plots_SB = self.sortContacts(plots_SB)
+            # Bipolar montage: Scanner-based coordinates
+            bip_SB = []
+            for pindex in range(1,len(plots_SB)):
+                prev_elec = "".join([i for i in plots_SB[pindex-1][0] if not i.isdigit()])
+                cur_elec = "".join([i for i in plots_SB[pindex][0] if not i.isdigit()])
+                prev_ind = int("".join([i for i in plots_SB[pindex-1][0] if i.isdigit()]))
+                cur_ind = int("".join([i for i in plots_SB[pindex][0] if i.isdigit()]))
+                if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
+                    bip_SB.append((plots_SB[pindex-1][0] + '-' + plots_SB[pindex][0],(numpy.array(plots_SB[pindex][1])+numpy.array(plots_SB[pindex-1][1]))/2 ))
+            plots_SB = dict(plots_SB)
+            bip_SB = dict(bip_SB)
+        else:
+            plots_SB = {}
+            bip_SB = {}
+            
+        # MNI coordinates
+        if not plots_MNI:
+            plots_MNI = self.getPlotsMNIRef(False)
+            if plots_MNI is None:
+                return [[], ["MNI coordinates are not available."]]
+            # Sort contacts by name and index
+            plots_MNI = self.sortContacts(plots_MNI)
+        else:
+            # Convert from dict to list
+            plots_MNI = [(pname, plots_MNI[pname]) for pname in sorted(plots_MNI.keys())]
         # Bipolar montage: MNI coordinates
         bip_MNI = []
         for pindex in range(1,len(plots_MNI)):
@@ -2732,18 +2750,7 @@ class LocateElectrodes(QtGui.QDialog):
                 bip_MNI.append((plots_MNI[pindex-1][0] + '-' + plots_MNI[pindex][0],(numpy.array(plots_MNI[pindex][1])+numpy.array(plots_MNI[pindex-1][1]))/2 ))
         plots_MNI = dict(plots_MNI)
         bip_MNI = dict(bip_MNI)
-
-        # Bipolar montage: Scanner-based coordinates
-        bip_SB = []
-        for pindex in range(1,len(plots_SB)):
-            prev_elec = "".join([i for i in plots_SB[pindex-1][0] if not i.isdigit()])
-            cur_elec = "".join([i for i in plots_SB[pindex][0] if not i.isdigit()])
-            prev_ind = int("".join([i for i in plots_SB[pindex-1][0] if i.isdigit()]))
-            cur_ind = int("".join([i for i in plots_SB[pindex][0] if i.isdigit()]))
-            if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
-                bip_SB.append((plots_SB[pindex-1][0] + '-' + plots_SB[pindex][0],(numpy.array(plots_SB[pindex][1])+numpy.array(plots_SB[pindex-1][1]))/2 ))
-        plots_SB = dict(plots_SB)
-        bip_SB = dict(bip_SB)
+        
         
         # === GENERATE CSV ===
         # Read eleclabel file            
@@ -2820,15 +2827,24 @@ class LocateElectrodes(QtGui.QDialog):
                 contact_label = "".join(contact_label)
                 listwrite = [contact_label]
                 listwrite.append([float(format(plots_MNI[kk][i],'.3f')) for i in range(3)])
-                listwrite.append([float(format(plots_SB[kk][i],'.3f')) for i in range(3)])
-                listwrite.append(vv['MarsAtlasFull'])
+                if plots_SB:
+                    listwrite.append([float(format(plots_SB[kk][i],'.3f')) for i in range(3)])
+                else:
+                    listwrite.append("N/A")
+                if 'MarsAtlasFull' in vv.keys():
+                    listwrite.append(vv['MarsAtlasFull'])
+                else:
+                    listwrite.append("N/A")
                 for p in parcelNames:
-                    listwrite.append(vv[p][1])
+                    if p in vv.keys():
+                        listwrite.append(vv[p][1])
+                    else:
+                        listwrite.append("N/A")
                 writer.writerow(listwrite)
             writer.writerow([])
             writer.writerow([])
             
-            # Print all dipolescontacts
+            # Print all dipoles contacts
             dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label_bipolar'].items()))
             for kk,vv in dict_sorted_tmp.iteritems():
                 # Upper case for all the letters except from "p" that stand for ' (prime)
@@ -2845,10 +2861,19 @@ class LocateElectrodes(QtGui.QDialog):
                 contact_label = "".join(contact_label)
                 listwrite = [contact_label]
                 listwrite.append([float(format(bip_MNI[kk][i],'.3f')) for i in range(3)])
-                listwrite.append([float(format(bip_SB[kk][i],'.3f')) for i in range(3)])
-                listwrite.append(vv['MarsAtlasFull'])
+                if bip_SB:
+                    listwrite.append([float(format(bip_SB[kk][i],'.3f')) for i in range(3)])
+                else:
+                    listwrite.append("N/A")
+                if 'MarsAtlasFull' in vv.keys():
+                    listwrite.append(vv['MarsAtlasFull'])
+                else:
+                    listwrite.append("N/A")
                 for p in parcelNames:
-                    listwrite.append(vv[p][1])
+                    if p in vv.keys():
+                        listwrite.append(vv[p][1])
+                    else:
+                        listwrite.append("N/A")
                 writer.writerow(listwrite)
             writer.writerow([])
             writer.writerow([])
@@ -3144,24 +3169,27 @@ class LocateElectrodes(QtGui.QDialog):
 
 
     # ===== COMPUTE PARCELS =====
-    def computeParcels(self, diT1pre):
+    def computeParcels(self, diT1pre, plots_MNI_dict=None):
         errMsg = []
-        
-        # ===== GET: NATIVE COORDINATES =====
         # Get subject and protocol
         subject = diT1pre['subject']
         center = diT1pre['center']
-        # Get contact coordinates in T1pre coordinates
-        plots = self.getPlotsT1preRef()
-        if len(plots)==0:
-            errMsg += ['No contact found']
-            return [[], errMsg]
-        # Sort by contact names
-        info_plot = []
-        for k,v in plots.iteritems():
-            plot_name_split = k.split('-$&_&$-')
-            info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-        plots = sorted(info_plot, key=lambda plot_number: plot_number[0])
+        
+        # ===== GET: NATIVE COORDINATES =====
+        if plots_MNI_dict is None:
+            # Get contact coordinates in T1pre coordinates
+            plots = self.getPlotsT1preRef()
+            if len(plots)==0:
+                errMsg += ['No contact found']
+                return [[], errMsg]
+            # Sort by contact names
+            info_plot = []
+            for k,v in plots.iteritems():
+                plot_name_split = k.split('-$&_&$-')
+                info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
+            plots = sorted(info_plot, key=lambda plot_number: plot_number[0])
+        else:
+            plots = dict()
         # List of loaded volumes
         vol = {}
         # Get image voxel size
@@ -3171,14 +3199,15 @@ class LocateElectrodes(QtGui.QDialog):
         info_fs = info_image
         
         # ===== GET: MNI COORDINATES =====
-        plots_MNI_dict = self.getPlotsMNIRef()
         if plots_MNI_dict is None:
-            errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
-            return [[], errMsg]
-        missingMni = list(set([i[0] for i in plots]) - set(plots_MNI_dict.keys()))
-        if missingMni:
-            errMsg += ["Recomputing MNI coordinates is required. Missing contacts: " + " ".join(missingMni)]
-            return [[], errMsg]
+            plots_MNI_dict = self.getPlotsMNIRef()
+            if plots_MNI_dict is None:
+                errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
+                return [[], errMsg]
+            missingMni = list(set([i[0] for i in plots]) - set(plots_MNI_dict.keys()))
+            if missingMni:
+                errMsg += ["Recomputing MNI coordinates is required. Missing contacts: " + " ".join(missingMni)]
+                return [[], errMsg]
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plots_MNI = {}
@@ -3373,6 +3402,10 @@ class LocateElectrodes(QtGui.QDialog):
                  bip_fs.append((plots_fs[pindex-1][0] + '-' + plots_fs[pindex][0],(plots_fs[pindex][1]+plots_fs[pindex-1][1])/2 ))
         # MNI coordinates
         bip_MNI = {}
+        if not plots:  # Reconstruct missing list of contact names
+            plots = []
+            for k in sorted(plots_MNI.keys()):
+                plots.append((k, plots_MNI[k]))
         for pindex in range(1,len(plots)):
             prev_elec = "".join([i for i in plots[pindex-1][0] if not i.isdigit()])
             cur_elec = "".join([i for i in plots[pindex][0] if not i.isdigit()])
@@ -3393,6 +3426,8 @@ class LocateElectrodes(QtGui.QDialog):
             errMsg += ["Could not find where to save file .eleclabel"]
             return [[], errMsg]
         fileEleclabel = di.fullPath()
+        # Create folder if it doesn't exist
+        createItemDirs(di)
         # Write file
         fout = open(fileEleclabel,'w')
         fout.write(json.dumps({ \
@@ -3410,161 +3445,181 @@ class LocateElectrodes(QtGui.QDialog):
         
     
     # ===== COMPUTE PARCES: SUBFUNCTION =====
+    # Warning:  plots is a list
+    #           plots_MNI is a dict
     def computeParcelsSub(self, plots, plots_fs, plots_MNI, sphere_size, info_image, info_fs, vol, labels, files_MNI, initSegmentation):
         # Size of search sphere in voxels
-        Nsph = [int(round(sphere_size/info_image['voxel_size'][i])) for i in range(3)]
-        Nsph_fs = [int(round(sphere_size/info_fs['voxel_size'][i])) for i in range(3)]
-        Nsph_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution
-        # Process all the contacts
+        if plots:
+            Nsph = [int(round(sphere_size/info_image['voxel_size'][i])) for i in range(3)]
+            Nsph_fs = [int(round(sphere_size/info_fs['voxel_size'][i])) for i in range(3)]
+        if plots_MNI:
+            Nsph_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution
+            
+        # Process all the contacts (patient space and/or MNI space)
         plots_label = {}
         plots_name = []
-        for pindex in range(len(plots)):
-            plots_label[plots[pindex][0]] = {}
-            # Contact positions in voxels in the different types of volumes (ScannerBased, FreeSurfer, MNI)
-            pos_SB = [round(plots[pindex][1][i] / info_image['voxel_size'][i]) for i in range(3)]
-            pos_fs = [round(plots_fs[pindex][1][i] / info_fs['voxel_size'][i]) for i in range(3)]
-            pos_MNI = [round(plots_MNI[plots[pindex][0]][i]) for i in range(3)]
-            if math.isnan(pos_SB[0]) or math.isnan(pos_fs[0]):
-                print("ERROR: Invalid coordinates for contact: " + plots[pindex][0])
-                continue
-            if math.isnan(pos_MNI[0]):
-                print("ERROR: Invalid MNI coordinates for contact: " + plots[pindex][0])
-                continue
-            # Positions depending on the segmentation: MarsAtlas, Grey-White
-            if initSegmentation == "FreeSurfer":
-                pos_seg = pos_fs
-                Nsph_seg = Nsph_fs
-            else:
-                pos_seg = pos_SB
-                Nsph_seg = Nsph
-                
-            # === PROCESS: MARS ATLAS ===
-            value = 0
-            label = 'N/A'
-            full_MA = 'N/A'
-            if 'MarsAtlas' in vol.keys():
-                vox = self.getSphVoxels(vol['MarsAtlas'], pos_seg, Nsph_seg, sphere_size)
-                if vox:
-                    vox = [x for x in vox if x != 0 and x !=255 and x != 100]
-                    if vox:
-                        value,N = Counter(vox).most_common(1)[0]
-                        label = labels['MarsAtlas'][value]
-                        full_count = Counter(vox).most_common()
-                        full_MA = [(labels['MarsAtlas'][iLabel[0]],float(iLabel[1])/len(vox)*100) for iLabel in full_count]
-                else:
-                    print plots[pindex][0] + '-MarsAtlas: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])
-            plots_label[plots[pindex][0]]['MarsAtlas'] = (value, label)
-            plots_label[plots[pindex][0]]['MarsAtlasFull'] = full_MA          
+        for pindex in range(max(len(plots), len(plots_MNI))):
             
-            # === PROCESS GREY/WHITE ===
-            value = 255
-            if ('GW' in vol.keys()):
-                vox = self.getSphVoxels(vol['GW'], pos_seg, Nsph_seg, sphere_size)
-                if vox:
-                    vox = [x for x in vox if x !=255 and x !=0]
-                    if vox:
-                        most_common2,num_most_common2 = Counter(vox).most_common(1)[0]
-                        value = most_common2
-                    else:
-                        value = vol['GW'].value(pos_seg[0],pos_seg[1],pos_seg[2])
+            # === PATIENT SPACE ===
+            if plots:
+                # Contact name
+                pname = plots[pindex][0]
+                plots_label[pname] = {}
+                # Contact positions in voxels in the different types of volumes (ScannerBased, FreeSurfer, MNI)
+                pos_SB = [round(plots[pindex][1][i] / info_image['voxel_size'][i]) for i in range(3)]
+                pos_fs = [round(plots_fs[pindex][1][i] / info_fs['voxel_size'][i]) for i in range(3)]
+                if math.isnan(pos_SB[0]) or math.isnan(pos_fs[0]):
+                    print("ERROR: Invalid coordinates for contact: " + plots[pindex][0])
+                    continue
+                # Positions depending on the segmentation: MarsAtlas, Grey-White
+                if initSegmentation == "FreeSurfer":
+                    pos_seg = pos_fs
+                    Nsph_seg = Nsph_fs
                 else:
-                    print plots[pindex][0] + '-GW: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])                
-            GW_label_name = {0:'N/A',100:'GreyMatter',200:'WhiteMatter',255:'N/A'}[value]
-            plots_label[plots[pindex][0]]['GreyWhite'] = (value, GW_label_name)
-            
-            # === PROCESS: DESTRIEUX ===
-            value = 0
-            label = 'N/A'
-            if ('Destrieux' in vol.keys()):
-                # Destrieux Atlas is reinterpolated in the t1pre space 
-                vox = self.getSphVoxels(vol['Destrieux'], pos_SB, Nsph, sphere_size)
-                if vox:
-                    vox = [x for x in vox if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
-                    if vox:
-                        value,N = Counter(vox).most_common(1)[0]
-                        # Check if it's in the hippocampus
-                        if (value == 53 or value == 17) and ('hip' in vol.keys()):
-                            vox = self.getSphVoxels(vol['hip'], pos_SB, Nsph, sphere_size)
-                            vox = [x for x in vox if x != 0 and x != 2 and x != 41]
-                            try:
-                                value,N = Counter(vox).most_common(1)[0]
-                                if value == 3403:
-                                    raise Exception("?????")
-                                label = labels['Destrieux'][value]
-                            except:
-                                print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
-                                label = 'ERROR hipp/amyg surfaces not aligned with MRI'
-                                value = vol['Destrieux'].value(pos_SB[0],pos_SB[1],pos_SB[2])
-                        else:
-                            label = labels['Destrieux'][value]
-                else:
-                    print plots[pindex][0] + '-Destrieux: Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
-            plots_label[plots[pindex][0]]['Destrieux'] = (value, label)
-
-            # === PROCESS: OTHER FREESURFER ATLASES ===
-            for name in ['DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+                    pos_seg = pos_SB
+                    Nsph_seg = Nsph
+                    
+                # === PROCESS: MARS ATLAS ===
                 value = 0
                 label = 'N/A'
-                if (name in vol.keys()):
-                    # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
-                    vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
+                full_MA = 'N/A'
+                if 'MarsAtlas' in vol.keys():
+                    vox = self.getSphVoxels(vol['MarsAtlas'], pos_seg, Nsph_seg, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x != 0 and x !=255 and x != 100]
+                        if vox:
+                            value,N = Counter(vox).most_common(1)[0]
+                            label = labels['MarsAtlas'][value]
+                            full_count = Counter(vox).most_common()
+                            full_MA = [(labels['MarsAtlas'][iLabel[0]],float(iLabel[1])/len(vox)*100) for iLabel in full_count]
+                    else:
+                        print pname + '-MarsAtlas: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])
+                plots_label[pname]['MarsAtlas'] = (value, label)
+                plots_label[pname]['MarsAtlasFull'] = full_MA          
+                
+                # === PROCESS GREY/WHITE ===
+                value = 255
+                if ('GW' in vol.keys()):
+                    vox = self.getSphVoxels(vol['GW'], pos_seg, Nsph_seg, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x !=255 and x !=0]
+                        if vox:
+                            most_common2,num_most_common2 = Counter(vox).most_common(1)[0]
+                            value = most_common2
+                        else:
+                            value = vol['GW'].value(pos_seg[0],pos_seg[1],pos_seg[2])
+                    else:
+                        print pname + '-GW: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])                
+                GW_label_name = {0:'N/A',100:'GreyMatter',200:'WhiteMatter',255:'N/A'}[value]
+                plots_label[pname]['GreyWhite'] = (value, GW_label_name)
+                
+                # === PROCESS: DESTRIEUX ===
+                value = 0
+                label = 'N/A'
+                if ('Destrieux' in vol.keys()):
+                    # Destrieux Atlas is reinterpolated in the t1pre space 
+                    vox = self.getSphVoxels(vol['Destrieux'], pos_SB, Nsph, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
+                        if vox:
+                            value,N = Counter(vox).most_common(1)[0]
+                            # Check if it's in the hippocampus
+                            if (value == 53 or value == 17) and ('hip' in vol.keys()):
+                                vox = self.getSphVoxels(vol['hip'], pos_SB, Nsph, sphere_size)
+                                vox = [x for x in vox if x != 0 and x != 2 and x != 41]
+                                try:
+                                    value,N = Counter(vox).most_common(1)[0]
+                                    if value == 3403:
+                                        raise Exception("?????")
+                                    label = labels['Destrieux'][value]
+                                except:
+                                    print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
+                                    label = 'ERROR hipp/amyg surfaces not aligned with MRI'
+                                    value = vol['Destrieux'].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                            else:
+                                label = labels['Destrieux'][value]
+                    else:
+                        print pname + '-Destrieux: Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
+                plots_label[pname]['Destrieux'] = (value, label)
+    
+                # === PROCESS: OTHER FREESURFER ATLASES ===
+                for name in ['DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+                    value = 0
+                    label = 'N/A'
+                    if (name in vol.keys()):
+                        # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
+                        vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
+                        if vox:
+                            vox = [x for x in vox if x != 0]
+                            if vox:
+                                value,N = Counter(vox).most_common(1)[0]
+                                label = labels[name][value]
+                            else:
+                                value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                        else:
+                            print pname + '-' + name + ': Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
+                    plots_label[pname][name] = (value, label)
+    
+                # === PROCESS: RESECTION ===
+                if ('resec' in vol.keys()):
+                    vox = self.getSphVoxels(vol['resec'], pos_SB, Nsph, sphere_size)
+                    valResec,N = Counter(vox).most_common(1)[0]
+                    value = max(vox) 
+                    per_mc = (float(N)/float(size(vox)))*100 #percentage of most_common value inside the sphere created for that contact
+                    if value == 0:
+                        per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
+                else:
+                    value = 255
+                    per_mc = 0
+                label = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'N/A'}[value]
+                plots_label[pname]['Resection rate'] = (value, label)
+            else:
+                pname = None
+
+
+            # === PROCESS: MNI ATLASES ===
+            if plots_MNI:
+                # Contact name
+                if not pname:
+                    pname = plots_MNI.keys()[pindex]
+                    plots_label[pname] = {}
+                # Get MNI coordinates
+                pos_MNI = [round(plots_MNI[pname][i]) for i in range(3)]
+                if math.isnan(pos_MNI[0]):
+                    print("ERROR: Invalid MNI coordinates for contact: " + pname)
+                    continue
+                # Process all MNI volumes
+                for atlas in files_MNI:
+                    value = 0
+                    label = 'N/A'
+                    vox = self.getSphVoxels(vol[atlas], pos_MNI, Nsph_MNI, sphere_size)
                     if vox:
                         vox = [x for x in vox if x != 0]
                         if vox:
-                            value,N = Counter(vox).most_common(1)[0]
-                            label = labels[name][value]
-                        else:
-                            value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                            most_common,N = Counter(vox).most_common(1)[0]
+                            value = int(round(most_common))
+                            if atlas == 'MNI-Brodmann':
+                                if pos_MNI[0]>90:
+                                    label = "%d" % (value)
+                                else:
+                                    label = "%d" % (value+100)
+                            elif atlas == 'MNI-BrodmannDilate':
+                                if value>48:
+                                    label = "%d" % (value-48+100)
+                                else:
+                                    label = "%d" % (value)
+                            else:
+                                if value in labels[atlas].keys():
+                                    label = labels[atlas][value]
+                                else:
+                                    print atlas + '-' + pname + ": Missing label: " + str(value)
+                                    label = 'N/A'
                     else:
-                        print plots[pindex][0] + '-' + name + ': Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
-                plots_label[plots[pindex][0]][name] = (value, label)
-
-            # === PROCESS: MNI ATLASES ===
-            for atlas in files_MNI:
-                value = 0
-                label = 'N/A'
-                vox = self.getSphVoxels(vol[atlas], pos_MNI, Nsph_MNI, sphere_size)
-                if vox:
-                    vox = [x for x in vox if x != 0]
-                    if vox:
-                        most_common,N = Counter(vox).most_common(1)[0]
-                        value = int(round(most_common))
-                        if atlas == 'MNI-Brodmann':
-                            if pos_MNI[0]>90:
-                                label = "%d" % (value)
-                            else:
-                                label = "%d" % (value+100)
-                        elif atlas == 'MNI-BrodmannDilate':
-                            if value>48:
-                                label = "%d" % (value-48+100)
-                            else:
-                                label = "%d" % (value)
-                        else:
-                            if value in labels[atlas].keys():
-                                label = labels[atlas][value]
-                            else:
-                                print atlas + '-' + plots[pindex][0] + ": Missing label: " + str(value)
-                                label = 'N/A'
-                else:
-                    print plots[pindex][0] + '-' + atlas + ': Invalid coordinates (%d,%d,%d)'%(pos_MNI[0],pos_MNI[1],pos_MNI[2])
-                plots_label[plots[pindex][0]][atlas] = (value, label)
-
-            # === PROCESS: RESECTION ===
-            if ('resec' in vol.keys()):
-                vox = self.getSphVoxels(vol['resec'], pos_SB, Nsph, sphere_size)
-                valResec,N = Counter(vox).most_common(1)[0]
-                value = max(vox) 
-                per_mc = (float(N)/float(size(vox)))*100 #percentage of most_common value inside the sphere created for that contact
-                if value == 0:
-                    per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
-            else:
-                value = 255
-                per_mc = 0
-            label = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'N/A'}[value]
-            plots_label[plots[pindex][0]]['Resection rate'] = (value, label)
+                        print pname + '-' + atlas + ': Invalid coordinates (%d,%d,%d)'%(pos_MNI[0],pos_MNI[1],pos_MNI[2])
+                    plots_label[pname][atlas] = (value, label)
 
             # Add to list of exported plot names
-            plots_name += [plots[pindex][0]]
+            plots_name += [pname]
         return plots_label, plots_name
         
 
