@@ -144,61 +144,35 @@ network database by computing a new anonymization)
 
 |image3|
 
-General information
-
-today's date
-
-birthdate
-
-patient age
-
-patient sexe
-
-patient lateralization
-
-Signature date of the consent
-
-Research protocol inclusion
-
-Date of the inclusion
-
-Personal past history
-
-Familial past history
-
-Causal eurologic disease
-
-MRI lesion
-
-Right
-
-Left
-
-Neurologic exam
-
-Comorbidity
-
-Neurologic Comorbidity
-
-Psychiatric Comorbidity
-
-Other Comorbidity
-
-Pathology Specific Information
-
-Epilespy crisis start
-
-Aura
-
-Seizure Type
-
-Crisis frequency
-
-Treatment tried
-
-Actual treatment
-
-Validation Button
+..
+   General information
+   today's date
+   birthdate
+   patient age
+   patient sexe
+   patient lateralization
+   Signature date of the consent
+   Research protocol inclusion
+   Date of the inclusion
+   Personal past history
+   Familial past history
+   Causal eurologic disease
+   MRI lesion
+   Right
+   Left
+   Neurologic exam
+   Comorbidity
+   Neurologic Comorbidity
+   Psychiatric Comorbidity
+   Other Comorbidity
+   Pathology Specific Information
+   Epilespy crisis start
+   Aura
+   Seizure Type
+   Crisis frequency
+   Treatment tried
+   Actual treatment
+   Validation Button
 
 Some of the fields are editable. Type in the item you want, press
 enter and it will be added to the list. In the database, there is a file
@@ -991,6 +965,14 @@ parts before (ImageImport or locateElectrodes).
 Electrode Model Editor
 =======================
 Adding a new electrode model
+
+
+BIDS compatibility
+=======================
+
+Importing from a BIDS database
+
+Exporting to a BIDS database
 
 
 

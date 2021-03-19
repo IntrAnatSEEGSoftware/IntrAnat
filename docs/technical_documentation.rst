@@ -7,75 +7,60 @@ Technical Documentation
 
 IntrAnat
 
-Documentation technique
+Technical documentation
 
-version de la documentation : janvier 2014
+Written : January 2014
+Last updated : March 2021
 
-Liste des logiciels
+List of software
 ===================
 
-**IntrAnat** est un ensemble de logiciels dédiés à la SEEG et à la DBS.
+**IntrAnat** is a collection of software for Stereo-ElectroEncephaloGraphy (SEEG),
+also called Intracerebral EEG and for Deep Brain Stimulation (DBS).
 
-Ils comprennent:
+Main parts:
 
-**ImageImport**: importation dans la base de données
+-  **ImageImport**: importing data into the IntrAnat/Brainvisa database
 
-**locateElectrodes**: placement des électrodes et affichage 3D
+-  **locateElectrodes**: Display 3D imaging data and locate electrodes on
+images. Multimodal display (including atlases) and export electrode coordinates and parcels.
 
-**SubjectView**: visualisation des données d'un sujet
+-  **groupDisplay**: Display electrode locations of multiple subjects in MNI space (**deprecated**)
 
+-  **electrodeEditor**: creating a new model of electrode for *locateElectrodes*
 CombiView: visualisation de données de groupes de sujets
 
-Dépendances logicielles: 
+Software dependencies:
 ==========================
 
-IntrAnat a été développé et utilisé sous Linux.
+IntrAnat was developed and used mostly on Linux.
 
-En théorie, il devrait fonctionner sous Microsoft Windows et Mac OS X,
-mais il est possible que certains bugs s'y révèlent.
+It should run on Windows and Mac OS X but bugs may be platform-specific.
 
-Il dépend de quelques logiciels :
+Il uses multiple pieces of software :
 
--  **BrainVisa 4.3.0** (la version 4.4.0 sortie fin 2013 nécessite de
-   porter les patches), avec un dossier déclaré pour stocker la base de
-   données.
--  **Qt4 et PyQt4** (inclus dans BrainVisa)
--  **Python 2.5/2.6** (inclus dans BrainVisa), **Python 3** après
-   conversion par « 2to3 »
--  **SPM8** (et **matlab**) pour la conversion de DICOM en Nifti, pour
-   le recalage intrasujet 'coregister', pour la normalisation vers le
-   référentiel MNI.
--  **dcmtk** est utilisé pour l'analyse de fichiers DICOM et la
-   connexion à un serveur PACS pour récupérer des images au format
-   DICOM. Cette fonctionnalité est suspendue pour l'instant (trop lent,
-   impossible de tester l'accès au PACS, et conversion DICOM-> nifti
-   avec SPM pas toujours fiable)
+-  **BrainVisa 4.6.1** (Started on 4.2) that should already be configured with a database.
+BrainVisa manages the database used by IntrAnat, provides many tools used by IntrAnat, notably
+Anatomist which displays 3D volumes and meshes.
+-  **Qt4 and PyQt4** (included in BrainVisa)
+-  **Python 2.6** (included in BrainVisa), and **Python 3**
+-  **SPM12** (and **matlab**) fo intrasubject coregistration, and normalization to MNI referential.
+-  **FreeSurfer** atlases can be imported and used to tag electrode contacts with the name of brain regions
+-  **dcmtk** was used to import from DICOM servers but function was removed
 
-| Lorsqu'il y aura une **mise à jour de Qt et PyQt** dans BrainVisa, il
-  faudra porter le code vers PyQt5.
-| La page suivante précise les changements à effectuer :
-  http://pyqt.sourceforge.net/Docs/PyQt5/pyqt4_differences.html Le plus
-  gros travail sera de réécrire les signaux et les connexions
-  (QObject.connect n'existera plus, SIGNAL non plus).
+| For Brainvisa 5 (released march 2021) code will be ported to Qt5 (see relevant git branch) e.g. rewriting
 | *self.connect(self.electrodeList,
   QtCore.SIGNAL("currentRowChanged(int)"), self.electrodeSelect)*
-| deviendra ainsi
+| as
 | *self.electrodeList.currentRowChanged[int].connect(self.electrodeSelect)*
-| Il est aussi possible de devoir passer à PySide, l'autre binding Qt/Python.
 
-**Matlab** est uniquement appelé par sa ligne de commande, donc un
-changement de version de matlab ne devrait avoir aucun influence sur le
-logiciel.
+**Matlab** is called through command line, so version changes should not be a problem
+as long as Matlab binary is in the PATH.
 
-Pour **SPM8**, il y a déjà eu des changements au cours du développement
-qui ont cassé les fonctions appelées par IntrAnat. L'API utilisée est
-maintenant plus bas-niveau et en principe plus stable, mais il est
-possible qu'une nouvelle version de SPM casse les fonctionnalité
-utilisées. Pour modifier le code correspondant, il suffit de rechercher
-les chaînes spm\_\* dans le code qui contiennent le code matlab qui est
-appelé, et de l'adapter en conséquence.
+For **SPM12**, functions called by IntrAnat were broken between versions in the past.
+To update affected code, search for spm\_\* strings that contain spm calls in the code.
 
-**Exemple** : spm_coregister :
+**Example** : spm_coregister :
 
 spm_coregister = "try,VF=spm_vol(%s);VG=spm_vol(%s);x = spm_coreg(VF,
 VG);\\
@@ -86,44 +71,39 @@ dlmwrite(%s,trm, 'delimiter',' ','precision',16); \\
 
 catch, disp 'AN ERROR OCCURED'; end;quit;"
 
-Cette chaîne contient le code matlab qui dépend des fonctions spm. Il
-est ensuite appelé dans la fonction def spmCoregister(self, image,
-target):
+This string contains the matlab codeusing spm functions. It is then called
+in *spmCoregister(self, image,target)*
 
-Fonctionnement de SPM coregister : chaque image a une transformation de
-base, qui va vers un référentiel « scanner-based ». Parfois cette
-transformation n'est pas présente dans le header, et le comportement de
-SPM n'est alors pas évident.
+How SPM coregister works : each Nifti image has an internal transform that goes to a
+« scanner-based » referential. Sometimes this transform is not present in the file header
+and SPM behavior is not always predictable (depends on versions and file header).
 
-| En principe, la transformation sortie de spm_coreg ne contient pas les
-  transformations scanner-based. Pour transformer une image vers
-  l'autre, on devrait faire
-| trm = VF.mat\spm_matrix(x(:)')*VG.mat
-| Dans notre cas on utilise directement la matrice obtenue qui est une
-  transformation du scanner-based d'une image vers le scanner-based de
-  l'autre.
+In principle, spm_coreg output transformation does not include scanner-based transforms.
+So to get from an image to another, the transform should be
 
-Intégration dans BrainVisa
+trm = VF.mat\spm_matrix(x(:)')*VG.mat
+
+In IntrAnat, the matrix from one scanner-based ref to the other is directly stored and used by Anatomist
+(Brainvisa's viewer)
+
+Integration into BrainVisa
 ==========================
 
 L'intégration comprend deux parties :
 
--  une toolbox « epilepsie » dans BrainVisa
--  Quelques patchs (qui devraient être intégrés à BrainVisa à terme)
--  des logiciels semi-indépendants qui nécessitent BrainVisa mais sans
-   s'y intégrer
+-  A toolbox « epilepsy » in BrainVisa **deprecated**
+-  software using BrainVisa but that are called stand-alone (not from Brainvisa GUI)
 
-Toolbox epilepsy
+Epilepsy toolbox
 ----------------
 
-brainvisa-4.3.0/brainvisa/toolboxes/epilepsy/
+brainvisa-4.6.1/brainvisa/toolboxes/epilepsy/
 
-Ce dossier contient les définitions de types de fichiers et la
-description de la hiérarchie des données dans la base, ainsi que
-quelques « processus BrainVisa » accessibles depuis l'interface de
-BrainVisa
+This directory contains definitions of file types (electrode models, implantations
+and so on), a description of how this data is organized in the database (inside
+each subject directory), as well as a few « BrainVisa processes » that can be called from Brainvisa GUI
 
-Définitions pour la base de données
+Definitions for the database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Les données intégrées dans la base de données BrainVisa sont déclarées

@@ -29,10 +29,10 @@ toolbox such as morphologist
 (http://brainvisa.info/web/morphologist.html ) and cortical surface
 analysis (http://brainvisa.info/web/cortical_surface.html ).
 
-It's using ANTs (http://stnava.github.io/ANTs/ ) and SPM as well
+It's also using ANTs (http://stnava.github.io/ANTs/ ) and SPM
 (http://www.fil.ion.ucl.ac.uk/spm/software/spm12/ ) for multimodality
-coregistration and estimation of the deformation field « patient space »
-to « MNI space ».
+coregistration and estimation of the deformation field (« patient space »
+to « MNI space »).
 
 -  Software presentation: https://f-tract.eu/software/intranat
 -  Latest developments:

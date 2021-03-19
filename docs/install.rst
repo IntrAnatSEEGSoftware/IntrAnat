@@ -17,7 +17,7 @@ IntrAnat requires the installation of:
 
 Supported operating systems:
 
-- **Ubuntu 16.04**: Reference for all the instructions below
+- **Ubuntu 16.04 (or newer)**: Reference for all the instructions below
 - **CentOS 7**: For CentOS/Fedora/RHEL, similar packages are available for install using "sudo yum install" instead of "sudo apt install", but their name might have to be updated.
 - **Other Linux distributions**: Might work but haven't been tested yet, the main limiting factor for portability being BrainVISA
 - **Windows 10/WSL**: `Linux subsystem on Windows 10 / Ubuntu 16.04 <https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/>`__ Almost everything works just as with a Ubuntu 16.04, WSL can run only the latest versions of Matlab (>= 2018b), but Matlab can be installed on the Windows system and called from WSL/IntrAnat
@@ -25,7 +25,7 @@ Supported operating systems:
 Install Ubuntu packages
 =======================
 
-Instructions for Ubuntu 16.04 (should still work for 18.04 and 20.04).
+Instructions for Ubuntu 16.04 (should work for 18.04 and 20.04).
 
 Update your system:
 
