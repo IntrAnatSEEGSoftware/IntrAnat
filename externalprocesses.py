@@ -93,13 +93,16 @@ def saveMatlabCall(cmd):
     tmp = getTmpFilePath('m', True)
     # Write Matlab script in temp folder
     f = open(tmp['fullpath'], 'w')
-    f.write("disp('===============================================================');\n")
-    f.write("disp('Executing Matlab script: "+tmp['fullpath']+"');\n")
-    f.write("disp(' ');\n")
-    f.write("fprintf(1, '" + cmd.replace("\\", "\\\\").replace("'", "''").replace('\n','\\n').replace('%','%%') + "\\n');\n")
-    f.write("disp(['===============================================================' 10]);\n\n")
-    f.write(cmd + "\n\n")
-    f.close()
+    
+    # Print contents of the script
+    # f.write("disp('===============================================================');\n")
+    # f.write("disp('Executing Matlab script: "+tmp['fullpath']+"');\n")
+    # f.write("disp(' ');\n")
+    # f.write("fprintf(1, '" + cmd.replace("\\", "\\\\").replace("'", "''").replace('\n','\\n').replace('%','%%') + "\\n');\n")
+    # f.write("disp(['===============================================================' 10]);\n\n")
+    # f.write(cmd + "\n\n")
+    # f.close()
+    
     # matlabExe = ['matlab', '-nodesktop', '-r']
     # print("Calling script '"+tmp['fullpath']+ "' and with Matlab command : "+repr(matlabExe))
     # scriptCall = ["cd '%s';%s"%(formatExternalPath(tmp['dir']),tmp['filename']),]
