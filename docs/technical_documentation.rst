@@ -23,12 +23,12 @@ Main parts:
 -  **ImageImport**: importing data into the IntrAnat/Brainvisa database
 
 -  **locateElectrodes**: Display 3D imaging data and locate electrodes on
-images. Multimodal display (including atlases) and export electrode coordinates and parcels.
+   images. Multimodal display (including atlases) and export electrode coordinates and parcels.
 
 -  **groupDisplay**: Display electrode locations of multiple subjects in MNI space (**deprecated**)
 
 -  **electrodeEditor**: creating a new model of electrode for *locateElectrodes*
-CombiView: visualisation de données de groupes de sujets
+   CombiView: visualisation de données de groupes de sujets
 
 Software dependencies:
 ==========================
@@ -40,8 +40,8 @@ It should run on Windows and Mac OS X but bugs may be platform-specific.
 Il uses multiple pieces of software :
 
 -  **BrainVisa 4.6.1** (Started on 4.2) that should already be configured with a database.
-BrainVisa manages the database used by IntrAnat, provides many tools used by IntrAnat, notably
-Anatomist which displays 3D volumes and meshes.
+   BrainVisa manages the database used by IntrAnat, provides many tools used by IntrAnat, notably
+   Anatomist which displays 3D volumes and meshes.
 -  **Qt4 and PyQt4** (included in BrainVisa)
 -  **Python 2.6** (included in BrainVisa), and **Python 3**
 -  **SPM12** (and **matlab**) fo intrasubject coregistration, and normalization to MNI referential.
@@ -60,18 +60,14 @@ as long as Matlab binary is in the PATH.
 For **SPM12**, functions called by IntrAnat were broken between versions in the past.
 To update affected code, search for spm\_\* strings that contain spm calls in the code.
 
-**Example** : spm_coregister :
+**Example** : spm_coregister ::
 
-spm_coregister = "try,VF=spm_vol(%s);VG=spm_vol(%s);x = spm_coreg(VF,
-VG);\\
+    spm_coregister = "try,VF=spm_vol(%s);VG=spm_vol(%s);x = spm_coreg(VF,VG);
+    trm = spm_matrix(x(:)');trm = [trm(1:3,4)';trm(1:3,1:3)];
+    dlmwrite(%s,trm, 'delimiter',' ','precision',16);
+    catch, disp 'AN ERROR OCCURED'; end;quit;"
 
-trm = spm_matrix(x(:)');trm = [trm(1:3,4)';trm(1:3,1:3)];\\
-
-dlmwrite(%s,trm, 'delimiter',' ','precision',16); \\
-
-catch, disp 'AN ERROR OCCURED'; end;quit;"
-
-This string contains the matlab codeusing spm functions. It is then called
+This string contains the matlab code using spm functions. It is then called
 in *spmCoregister(self, image,target)*
 
 How SPM coregister works : each Nifti image has an internal transform that goes to a
@@ -79,9 +75,9 @@ How SPM coregister works : each Nifti image has an internal transform that goes 
 and SPM behavior is not always predictable (depends on versions and file header).
 
 In principle, spm_coreg output transformation does not include scanner-based transforms.
-So to get from an image to another, the transform should be
+So to get from an image to another, the transform should be::
 
-trm = VF.mat\spm_matrix(x(:)')*VG.mat
+    trm = VF.mat\spm_matrix(x(:)')*VG.mat
 
 In IntrAnat, the matrix from one scanner-based ref to the other is directly stored and used by Anatomist
 (Brainvisa's viewer)
@@ -104,197 +100,175 @@ and so on), a description of how this data is organized in the database (inside
 each subject directory), as well as a few « BrainVisa processes » that can be called from Brainvisa GUI
 
 Definitions for the database
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Les données intégrées dans la base de données BrainVisa sont déclarées
-en deux étapes :
+Data stored for IntrAnat in BrainVisa database is defined in two steps:
 
--  dans le dossier types :un fichier epilepsy.py qui définit les formats
-   de fichiers (nom et extension) et les types de données. Exemple pour
-   les enregistrement SEEG au format TRC :
-   On déclare le format de fichier et l'extension correspondante
-   Format( 'EEG TRC format', 'f|*.trc' )
-   On déclare un type de données, 'SEEG recording', qui n'est pas un
-   sous-type, et qui peut être dans deux formats différents
-   FileType( 'SEEG recording', 'Any Type', ['EEG TRC format', 'Elan EEG
-   format'])#'ImaGIN matlab format'
-   On déclare un type de données, 'Raw SEEG recording', qui est un
-   sous-type de 'SEEG recording', et qui est stocké dans le format EEG
-   TRC.
-   FileType( 'Raw SEEG recording', 'SEEG recording', 'EEG TRC format' )
-   De nombreux exemples sont visibles dans la hiérarchie de base de
-   brainvisa (brainvisa-4.3.0/brainvisa/types/), ainsi que dans les
-   autres toolboxes.
--  dans le dossiers hierarchies, se trouvent plusieurs sous-dossiers qui
-   correspondent aux différentes versions de l'organisation des données.
-   A ce jour, la base utilisateur utilise la hiérarchie brainvisa-3.1.0,
-   de la même façon que dans brainvisa-4.3.0/brainvisa/hierarchies/. Le
-   dossier 'shared' correspond à la base interne de Brainvisa (pour
-   stocker ses templates, par exemple).
-   Ainsi, dans
-   brainvisa-4.3.0/brainvisa/toolboxes/epilepsy/hierarchies/brainvisa-3.1.0/,
-   un certain nombre de fichiers déclarent où insérer les données
-   spécifiques à IntrAnat dans la hiérarchie standard de BrainVisa.
-   Exemple : dans le fichier images.py, on déclare que l'on peut stocker
-   des images CT :
-   On crée un tuple ct_content, qui contient une chaîne de caractères
-   qui représente le nom dans la base de données. Ce nom est une
-   expression qui va correspondre à un nom de dossier réel dans la base
-   de données. Ici, {acquisition} signifie que le nom du dossier sera la
-   propriété 'acquisition' de ce même objet. Ainsi, si un dossier se
-   nomme 'postOp-2012-11-11', brainvisa saura que les données de ce
-   répertoire ont une propriété acquisition dont le nom est la valeur.
-   On peut réutiliser cette propriété dans les noms des dossiers et
-   fichiers contenus dans le dossier courant. Dans le cas présent, on va
-   donner une valeur par défaut, et choisir de ne pas rendre cette
-   propriété obligatoire (pas exemple on peut vouloir stocker le CT d'un
-   patient sans préciser de nom d'acquisition si l'on pense qu'il n'y en
-   aura jamais d'autre)
-   ct_content = (
-   "{acquisition}", SetDefaultAttributeValue( 'acquisition',
-   default_acquisition ), SetNonMandatoryKeyAttribute( 'acquisition' ),
-   On déclare ensuite le contenu de ce dossier
-   SetContent(
-   Un fichier de type CT (déclaré comme 'SEEG recording' plus haut) dont
-   le nom est le nom du sujet, un tiret, et le nom de l'acquisition. Ces
-   valeurs sont des propriétés qui ont été déclarées précédemment et
-   dont la valeur est connue (déclaré avec {acquisition} pour
-   l'acquisition)
-   "<subject>-<acquisition>", SetType( 'CT' ),
-   Un dossier registration contenant les référentiels et les
-   transformations géométriques de l'image CT vers d'autres référentiels
-   'registration', SetContent(
-   'CT-<subject>_<acquisition>', SetType( 'Referential of CT' ),
-   'CT-<subject>_<acquisition>_TO_Talairach-ACPC', SetType( 'Transform
-   CT to Talairach-AC/PC-Anatomist' ),
-   'CT-<subject>_<acquisition>_TO_Talairach-MNI', SetType( 'Transform CT
-   to Talairach-MNI template-SPM'),
-   'CT-<subject>_<acquisition>_TO_Scanner_Based', SetType(
-   'Transformation to Scanner Based Referential' ),
-   Ici on ajoute une transformation vers une autre image du sujet avec
-   une modalité et une acquisition spécifiques : ce sont de nouvelles
-   propriétés, déclarées avec {}
-   'CT-<subject>_<acquisition>_TO_{modalityTarget}_{acquisitionTarget}',
-   SetType( 'Transform CT to another image' ),
-   'CT-<subject>_<acquisition>_Scanner_Based', SetType( 'Scanner Based
-   Referential' ),
-   ),
-   )
-   )
-   Enfin on injecte tout ceci dans la hiérarchie existante : dans le
-   dossier '{protocol}/{subject}' on ajoute un dossier 'ct', auquel on
-   donne un attribut 'modality' avec pour valeur 'ct'. On ajoute ensuite
-   son contenu, déclaré précédemment dans ct_content.
-   insert( '{protocol}/{subject}',
-   'ct', SetWeakAttr( 'modality', 'ct' ),
-   apply( SetContent, ct_content)
-   )
-   De nombreux exemples sont visibles dans la hiérarchie de base de
-   brainvisa et dans celle des toolbox, notamment la toolbox t1 :
-   brainvisa-4.3.0/brainvisa/hierarchies/brainvisa-3.1.0/base.py
-   brainvisa-4.3.0/brainvisa/toolboxes/morphologist/hierarchies/brainvisa-3.1.0/anatomy.py
+-  in the **types** directory: epilepsy.py defines file formats (name
+   and extension) and data types. Example for SEEG recordings using
+   Micromed's TRC file format:
+   Declare file format and extension::
 
-Patchs
-------
+      Format( 'EEG TRC format', 'f|*.trc' )
 
-Certaines fonctionnalités de BrainVisa concernant la gestion des
-référentiels géométriques et des transformations correspondantes n'étant
-pas suffisantes, j'ai ajouté des fonctionnalités à l'API BrainVisa
-4.3.0. Ceci permet une recherche automatique des liens entre
-référentiels dans la base de données des transformations, de charger
-référentiels et transformations au chargement d'un objet de façon à ne
-pas avoir à gérer les référentiels manuellement.
+   Declare a data type called 'SEEG recording', which is not a subtype (so
+   base type is 'Any Type')
+   and which can be in multiple file formats::
 
-| Ces fonctions ont vocation à être intégrées à BrainVisa, mais pour
-  l'instant ce sont quelques fichiers à remplacer dans l'installation de
-  BrainVisa.
-| Le fichier brainvisa-4.3.0/python/brainvisa/anatomist/__init__.py
+      FileType( 'SEEG recording', 'Any Type', ['EEG TRC format', 'Elan EEG format'])#'ImaGIN matlab format'
 
-La fonction loadTransformations2 de brainvisa.anatomist qui est utilisée
-dans loadObject permet d'utiliser ma version de la recherche de
-transformations, qui ne s'arrête pas à une seule transformation pour
-arriver à un référentiel déjà connu.
+   Now let's declare a type 'Raw SEEG recording', subtype of
+   'SEEG recording', and which is stored in 'EEG TRC format'.::
 
-Le fichier brainvisa-4.3.0/python/brainvisa/registration.py contient le
-transformation manager et des fonctions pour gérer référentiels et
-transformations. La fonction findPaths a été modifiée
+      FileType( 'Raw SEEG recording', 'SEEG recording', 'EEG TRC format' )
 
-Le fichier brainvisa-4.3.0/python/brainvisa/data/sqlFSODatabase.py
-contient les requêtes SQL vers la base de données pour trouver des
-chemins de transformation entre référentiels.
+   Various examples are visible in the main BrainVisa hierarchy
+   (brainvisa-4.6.0/brainvisa/types/) but also in other toolboxes.
+-  In *hierarchies* directory, multiple subdirectories, one for each version
+   of the database structure.
 
-Logiciels
----------
+   Currently, user database works with hierarchy brainvisa-3.2.0,
+   in the same way as it is organized in brainvisa-4.6.0/brainvisa/hierarchies/.
+   Directory *shared* corresponds to the internal database of Brainvisa (e.g. to
+   store its templates, available for all studies).
 
-Outils utilisés
-~~~~~~~~~~~~~~~
+   In brainvisa-4.6.0/brainvisa/toolboxes/epilepsy/hierarchies/brainvisa-3.2.0/,
+   a few files are used to declare where IntrAnat-specific files will be inserted
+   into the standard BrainVisa hierarchy.
 
-**Qt Designer** pour la création des interfaces graphiques, suivi d'un
-chargement direct depuis le script python du fichier .ui généré (cf
-fonction \__init_\_ d'ImageImportWindow) :
+   Example : in *images.py*, storing CT images in the database:
+   Create a tuple *ct_content*, containing a string description representing
+   the file name in the database. This name is an expression that will match
+   a real directory in the database.
 
-| from PyQt4 import uic
-| self.ui = uic.loadUi("epilepsie-electrodes.ui", self) # dans un objet
-  dérivant de QDialog
+   Here, {acquisition} means that the directory name will be the same as the
+   'acquisition' property of the same object. E.g. if a directory is called
+   'postOp-2012-11-11', Brainvisa will set for each file in this directory
+   a property 'acquisition' defined by the directory name.
 
-| Programmation en Python/PyQt avec les bindings python de BrainVisa.
-| Editeur utilisé : kate (sous KDE).
+   This property can be reused in directories and file names inside this directory.
+   In this example, we will set a default value, and set this property as optional
+   (e.g. we may want to store a subject's CT scan without setting an acquisition
+   name if there will be only one::
 
-Librairies
-~~~~~~~~~~
+      ct_content = (
+      "{acquisition}", SetDefaultAttributeValue( 'acquisition',
+      default_acquisition ), SetNonMandatoryKeyAttribute( 'acquisition' ),
 
-Quelques fichiers rassemblent des fonctions nécessaires aux autres
-fichiers.
+   Then, declare the content of the directory::
 
-electrode.py gère les modèles d'électrodes et leur affichage avec
-Anatomist
+      SetContent(
+   A CT file (its type is declared just like 'SEEG recording') which name
+   is subject's name, dash, and acquisition name. These values are properties
+   that were declared previously and which values are known (e.g. declared
+   through {acquisition})::
 
-dicomutilities.py contient des fonctions pour accéder aux fichiers DICOM
-et pour les analyser
+      "<subject>-<acquisition>", SetType( 'CT' ),
 
-externalprocesses.py contient des fonctions pour appeler des logiciels
-externes (appels synchrones ou asynchrones avec fonctions callback), en
-particulier pour exécuter du code matlab.
+   A registration directory, to store referentials and geometrical transforms
+   from CT imqge to other referentials::
 
-referentialconverter.py définit un objet qui stocke les définitions de
-référentiels multiples et permet de transformer les coordonnées de
-points d'un référentiel à un autre.
+      'registration', SetContent(
+      'CT-<subject>_<acquisition>', SetType( 'Referential of CT' ),
+      'CT-<subject>_<acquisition>_TO_Talairach-ACPC', SetType( 'Transform
+      CT to Talairach-AC/PC-Anatomist' ),
+      'CT-<subject>_<acquisition>_TO_Talairach-MNI', SetType( 'Transform CT
+      to Talairach-MNI template-SPM'),
+      'CT-<subject>_<acquisition>_TO_Scanner_Based', SetType(
+      'Transformation to Scanner Based Referential' ),
+   Here we are adding a new transform to another image of the same subject, with
+   a specific modality and acquisition: those are new properties, declared with {}::
 
-Le code source est commenté.
+      'CT-<subject>_<acquisition>_TO_{modalityTarget}_{acquisitionTarget}',
+      SetType( 'Transform CT to another image' ),
+      'CT-<subject>_<acquisition>_Scanner_Based', SetType( 'Scanner Based
+      Referential' ),
+      ),
+      )
+      )
+   Finally we insert this into the existing hierarchy:
+   in directory '{protocol}/{subject}' we add a 'ct' directory, which has a 'modality'
+   attribute with value 'ct'. We then add its content previously declared as ct_content.::
 
-Les logiciels
-~~~~~~~~~~~~~
+      insert( '{protocol}/{subject}',
+      'ct', SetWeakAttr( 'modality', 'ct' ),
+      apply( SetContent, ct_content)
+      )
+   Numerous other examples are available in main Brainvisa hierarchy and its toolboxes, e.g. ::
+
+      brainvisa-4.3.0/brainvisa/hierarchies/brainvisa-3.1.0/base.py
+      brainvisa-4.3.0/brainvisa/toolboxes/morphologist/hierarchies/brainvisa-3.1.0/anatomy.py
+
+Patches
+--------
+
+Referential and transformation patches developed for IntrAnat were
+integrated into BrainVisa from 4.5.0
+
+
+Tools used for development
+---------------------------
+
+**Qt Designer / Qt Creator** to create Graphical User Interfaces.
+It generates a .ui file that can be directly loaded from Python (e.g.
+ \__init_\_ function in ImageImportWindow)::
+
+   from PyQt4 import uic
+   self.ui = uic.loadUi("epilepsie-electrodes.ui", self)
+
+Programmed using Python/PyQt with bindings included in BrainVisa.
+
+Editors: Kate (on KDE), PyCharm.
+
+IntrAnat Librairies
+--------------------
+
+Python files with useful functions:
+
+-  *electrode.py* is used to manage electrode models and their display in Anatomist
+
+-  *dicomutilities.py* (DEPRECATED) functions to read and access DICOM files and servers
+
+-  *externalprocesses.py* allows to call external software (synchronous or asynchronous,
+   with callback functions), especially to run matlab code.
+
+-  *referentialconverter.py* defines an object storing multiple referentials and can convert
+   coordinates from one referential to another.
+
 
 ImageImport
+--------------
 
-Ce logiciel permet d'enregistrer les patients dans la base de données
-BrainVisa, d'y importer des images (IRM, Scanner, PET...), de recaler
-toutes ces images et de les normaliser (MNI) avec SPM, et également de
-lancer le processus de segmentation de BrainVisa.
+*ImageImport* is used to add patients in the BrainVisa database,
+import images (MRI, CT scans, PET scans...), de register these images
+to normalize them with SPM12 (to MNI referential), and to run the main
+segmentation process of BrainVisa to get brain meshes and sulci.
+It can also import Freesurfer segmentations.
 
-| L'interface est définie dans le fichier ImageImportWindow.ui
-| Le code principal est la définition de la classe *ImageImportWindow*
-  dans le fichier ImageImportWindow.py et le logiciel est lancé par le
-  petit fichier ImageImport.py
+UI is defined in ImageImportWindow.ui
 
-Structure du logiciel :
+Main code is contained in the class *ImageImportWindow* in ImageImportWindow.py
+and ImageImport.py is used to run it.
 
--  les boutons et autres éléments de l'interface sont connectés à des
-   fonctions dans la fonction \__init_\_ de la classe
-   *ImageImportWindow*.
-   self.connect(self.ui.regSubjectCombo,
-   QtCore.SIGNAL('currentIndexChanged(QString)'),
-   self.setCurrentSubject)
-   l'objet *regSubjectCombo* (une boîte combo avec la liste des sujets
-   dans l'onglet registration), lorsqu'il émet le signal
-   *currentIndexChanged* appelle la fonction *self.setCurrentSubject*
-   avec comme argument la nouvelle valeur sélectionnée.
--  Les fonctions sont approximativement regroupées par domaines (les
-   fonctions qui traitent des fichiers DICOM, les fonctions qui traitent
-   du recalage...)
--  Le code est commenté
+Software structure :
+
+-  Buttons and other UI elements are connected to functions in \__init_\_ function
+   of *ImageImportWindow* class::
+
+     self.connect(self.ui.regSubjectCombo,
+     QtCore.SIGNAL('currentIndexChanged(QString)'),
+     self.setCurrentSubject)
+   For PyQt5, newer syntax must be used::
+
+     self.ui.regSubjectCombo.currentIndexChanged[str].connect(self.setCurrentSubject)
+
+   In this example *regSubjectCombo* (a combo box of subjects in registration tab) emitting
+   *currentIndexChanged* calls *self.setCurrentSubject* function.
+
+-  code comments should help understand the code.
 
 LocateElectrodes
+----------------
 
 Ce logiciel permet de placer les modèles d'électrodes sur les images du
 patient et d'obtenir les coordonnées des plots (fichiers PTS et .txt).
