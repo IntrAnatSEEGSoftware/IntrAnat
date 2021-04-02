@@ -158,6 +158,7 @@ Data stored for IntrAnat in BrainVisa database is defined in two steps:
    Then, declare the content of the directory::
 
       SetContent(
+
    A CT file (its type is declared just like 'SEEG recording') which name
    is subject's name, dash, and acquisition name. These values are properties
    that were declared previously and which values are known (e.g. declared
@@ -176,6 +177,7 @@ Data stored for IntrAnat in BrainVisa database is defined in two steps:
       to Talairach-MNI template-SPM'),
       'CT-<subject>_<acquisition>_TO_Scanner_Based', SetType(
       'Transformation to Scanner Based Referential' ),
+
    Here we are adding a new transform to another image of the same subject, with
    a specific modality and acquisition: those are new properties, declared with {}::
 
@@ -186,6 +188,7 @@ Data stored for IntrAnat in BrainVisa database is defined in two steps:
       ),
       )
       )
+
    Finally we insert this into the existing hierarchy:
    in directory '{protocol}/{subject}' we add a 'ct' directory, which has a 'modality'
    attribute with value 'ct'. We then add its content previously declared as ct_content.::
@@ -194,6 +197,7 @@ Data stored for IntrAnat in BrainVisa database is defined in two steps:
       'ct', SetWeakAttr( 'modality', 'ct' ),
       apply( SetContent, ct_content)
       )
+
    Numerous other examples are available in main Brainvisa hierarchy and its toolboxes, e.g. ::
 
       brainvisa-4.3.0/brainvisa/hierarchies/brainvisa-3.1.0/base.py
@@ -211,7 +215,7 @@ Tools used for development
 
 **Qt Designer / Qt Creator** to create Graphical User Interfaces.
 It generates a .ui file that can be directly loaded from Python (e.g.
- \__init_\_ function in ImageImportWindow)::
+\__init_\_ function in ImageImportWindow)::
 
    from PyQt4 import uic
    self.ui = uic.loadUi("epilepsie-electrodes.ui", self)
@@ -258,6 +262,7 @@ Software structure :
      self.connect(self.ui.regSubjectCombo,
      QtCore.SIGNAL('currentIndexChanged(QString)'),
      self.setCurrentSubject)
+
    For PyQt5, newer syntax must be used::
 
      self.ui.regSubjectCombo.currentIndexChanged[str].connect(self.setCurrentSubject)
@@ -297,6 +302,7 @@ Data formats
    An electrode is a list of cylinders as a dictionary::
 
       {'Plot1', {...}, 'Plot2':{...}, 'Element1':{...}}
+
    Elements are inactive parts of the electrode model, plots are electrical contacts.
    The electrode model is defined in a referential where the endpoint of the electrode
    is at 0,0,0, and the electrode is aligned to the Z axis. Z increases when we go towards
@@ -309,6 +315,7 @@ Data formats
      'position': [0.0, 0.0, 0.0],
      'type': 'Plot',
      'vector': [0.0, 0.0, 1.0]}
+
    Axis gives the main direction of the cylinder, diameter and length are in mm, position is
    the center of one circle of the cylinder, type (Plot or Element), and vector that is added to
    center to go to the other extremity of the cylinder.
@@ -378,8 +385,8 @@ This file will be called structures_patientName.txt and will be in
       Format ( 'Powerpoint file', ["f|*.ppt","f|*.pptx"] ) # For a format with multiple extensions
 
    Already known formats may have been declared in
-   brainvisa-4.6.0/brainvisa/types/*.py (e.g. *txt) or in other toolboxes :
-   brainvisa-4.6.0/brainvisa/toolboxes/*/types/*.py
+   brainvisa-4.6.0/brainvisa/types/\*.py (e.g. \*txt) or in other toolboxes :
+   brainvisa-4.6.0/brainvisa/toolboxes/\*/types/\*.py
 
 -  A **File type** "Implanted Structures", which is not a subtype of an existing type.
    "Right Side Implanted Structures" could be a subtype of "Implanted Structures".
@@ -394,6 +401,7 @@ This file will be called structures_patientName.txt and will be in
    Just add a line in its content, as for existing data::
 
      "structures_<subject>", SetType('**Implanted Structures**'),
+
    This means that in the implantation directory, there might be a file called
    structures_PatientName.txt which is of type 'Implanted Structures'.
 
@@ -424,6 +432,7 @@ Returned objects are a list of ReadDiskItem. This object gives access to the fil
 
    implS = implStructures[0]
    print 'Subject '+implS.attributes()['subject']+'. File is here: '+ implS.fullPath()
+
 If the file type can be loaded by Anatomist (e.g. an MRI)::
 
    from brainvisa import anatomist

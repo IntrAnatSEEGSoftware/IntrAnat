@@ -347,8 +347,7 @@ Set program paths:
 * Open ImageImport, go to the tab "Preferences"
 * Set path to SPM12: ``$INTRANAT_INSTALL/spm12``
 * Set path to ANTs: ``$INTRANAT_INSTALL/ANTs-build``
-* Set path to FreeSurfer: ``$INTRANAT_INSTALL/freesurfer`` (should be set automatically if the
-FreeSurfer path is properly set in the BrainVISApreferences )
+* Set path to FreeSurfer: ``$INTRANAT_INSTALL/freesurfer`` (should be set automatically if the FreeSurfer path is properly set in the BrainVISApreferences )
 * Click on button "Save preferences"
 
 Update IntrAnat from GitHub:
