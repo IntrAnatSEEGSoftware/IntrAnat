@@ -20,7 +20,7 @@
 project = 'IntrAnat'
 copyright = '2021, Manik Bhattacharjee, Pierre Deman, François Tadel'
 author = 'Manik Bhattacharjee, Pierre Deman, François Tadel'
-
+master_doc = 'contents'
 
 # -- General configuration ---------------------------------------------------
 

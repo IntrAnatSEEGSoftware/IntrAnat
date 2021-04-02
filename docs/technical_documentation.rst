@@ -270,495 +270,356 @@ Software structure :
 LocateElectrodes
 ----------------
 
-Ce logiciel permet de placer les modèles d'électrodes sur les images du
-patient et d'obtenir les coordonnées des plots (fichiers PTS et .txt).
-Il permet également d'afficher de nombreuses données du patient
-(hémisphères cérébraux extraits de l'IRM T1, scanner CT, IRM T1, T2,
-pre/post implantation/post-résection...) et des modèles d'électrodes
-réalistes (ou bien les plots agrandis pour faciliter la visualisation.
+LocateElectrodes allows to locate electrode models in post-implantation images
+and export contact coordinates in multiple formats.
+It can also display various data imported or computed
+(e.g. cortical meshes from T1 MRI, CT scanner, T1, T2,
+pre/post implantation/post-résection MRI...) and realistic 3D models of electrodes
+(or even just contacts to improve visibility).
 
-L'interface est définie dans le fichier epilepsie-electrodes.ui
+UI is defined in epilepsie-electrodes.ui
 
-| Structure du logiciel :
-| - quelques fonctions au début du fichier permettent de gérer plus
-  facilement les électrodes (ajout, déplacement...)
+Software structure:
+-  a few functions placed at the top of the file allow easier management of electrodes
 
-- une classe principale définit les fonctions attachées aux éléments de l'interface graphique.
+- a main class defines functions linked to UI elements.
 
 
-Formats de données
+Data formats
 ==================
 
-**Images :** IRM, CT, PET : Nifti (.nii) ou nifti compressé (.nii.gz)
+**Images :** MRI, CT, PET : Nifti (.nii) or compressed nifti (.nii.gz)
 
-**SEEG**: TRC (micromed) .eeg (ELAN), .
+**SEEG**: TRC (Micromed) .eeg (ELAN). DEPRECATED: eeg signal is usually processed outside IntrAnat.
 
-| **Electrodes**: .elecmodel (variantes pickle et json)
-| Pour l'instant, les fichiers elecmodel sont des dictionnaires python
-  sauvegardés avec la librairie pickle de Python. A partir de brainvisa
-  4.4, on pourra utiliser la librairie json qui utilise un format mieux
-  défini et quasi universel. Ce n'est pas encore le cas.
-| L'électrode est un ensemble de cylindres, représenté par un
-  dictionnaire sous la forme {'Plot1', {...}, 'Plot2':{...}, 'Element
-  1':{...}}
+**Electrodes**: .elecmodel (python pickle format, could be converted to json).
+   Elecmodel files are python dictionaries saved by pickle  library.
+   An electrode is a list of cylinders as a dictionary::
 
-| Les éléments sont les morceaux non actifs du modèle d'électrode, les
-  plots sont les contacts de l'électrode. L'électrode est définie dans
-  un repère où l'extrémité (pointe) de l'électrode se situe en 0,0,0 et
-  l'électrode est alignée avec l'axe Z. Plus on s'éloigne de l'extrémité
-  plus la coordonnée z augmente.
-| Chaque morceau de l'électrode est à son tour défini par un
-  dictionnaire :
+      {'Plot1', {...}, 'Plot2':{...}, 'Element1':{...}}
+   Elements are inactive parts of the electrode model, plots are electrical contacts.
+   The electrode model is defined in a referential where the endpoint of the electrode
+   is at 0,0,0, and the electrode is aligned to the Z axis. Z increases when we go towards
+   the cable.
+   Each part of the electrode is also defined by a dictionary::
 
-'Plot1': {'axis': 'Axe Z',
+     'Plot1': {'axis': 'Axe Z',
+     'diameter': 0.80000000000000004,
+     'length': 2.0,
+     'position': [0.0, 0.0, 0.0],
+     'type': 'Plot',
+     'vector': [0.0, 0.0, 1.0]}
+   Axis gives the main direction of the cylinder, diameter and length are in mm, position is
+   the center of one circle of the cylinder, type (Plot or Element), and vector that is added to
+   center to go to the other extremity of the cylinder.
 
-'diameter': 0.80000000000000004,
+   To import those files from python::
 
-'length': 2.0,
+     import pickle
+     f=open('Dixi-D08-15BM.elecdef')
+     d=pickle.load(f)
 
-'position': [0.0, 0.0, 0.0],
+** Electrode Implantations ** : .elecimplant (pickle or json), .pts, .txt
 
-'type': 'Plot',
+   Like elecmodel files, elecimplant files are python dictionaries saved by pickle
+   They include deprecated '2mni' which used to store the linear transform to MNI referential,
+   'ReferentialUuid' is a unique identifier of the referential used for electrode coordinates, which
+   is Anatomist's native referential of the pre-operative T1 MRI.
 
-| 'vector': [0.0, 0.0, 1.0]}
-| Comme on le voit, il y a la direction principale du cylindre qui
-  compose l'élement, son diamètre en mm, sa longueur en mm, la position
-  de son extrémité, son type (ici un Plot), et le vecteur qu'on ajout à
-  la position pour trouver l'autre extrémité du cylindre.
-| Pour lire ces fichiers depuis python :
+   'electrodes' contains a list of electrodes. Each electrode is a dictionary with the following
+   keys: 'entry' for coordinates of the entry point (on the skull), 'model' for electrode model name,
+   'name' for the electrode name, 'target' for coordinates of the electrode endpoint::
 
-| import pickle
-| f=open('Dixi-D08-15BM.elecdef')
-| d=pickle.load(f)
+     { '2mni': None,
+       'ReferentialUuid': '2506a605-3d18-fa50-3557-a47922440c41',
+       'electrodes': [{'entry': [126.82000732421875,
+                                 121.16304779052734,
+                                 135.00004577636719],
+                       'model': 'Dixi-D08-08AM',
+                       'name': 'A',
+                       'target': [101.98080444335938,
+                                  120.58821868896484,
+                                  132.00001525878906]},
+                      {'entry': …....},]
+     }
 
-**Implantations d'électrodes** : .elecimplant (variantes pickle et
-json), .pts, .txt
-
-| Comme les fichiers elecmodel, les fichiers elecimplant sont des
-  dictionnaires python sauvegardés avec la librairie pickle, et sont
-  destinés à passer au format json.
-| Il contiennent '2mni' qui devait servir à stocker la transformation
-  linéaire vers le référentiel MNI (inutilisé), 'ReferentialUuid' qui
-  est l'identifiant unique du référentiel utilisé pour les coordonnées
-  des électrodes, electrodes qui contient la liste des électrodes
-  implantées. Il s'agit du référentiel 'natif' Anatomist de l'IRM T1
-  pré-opératoire.
-
-Chaque électrode, élément dans la liste electrodes[] est un dictionnaire
-qui contient les éléments suivants : 'entry' les coordonnées du point
-d'entrée, 'model' le modèle d'électrode utilisé, 'name' le nom de
-l'électrode, 'target' les coordonnées de la pointe de l'électrode.
-
-{'2mni': None,
-
-'ReferentialUuid': '2506a605-3d18-fa50-3557-a47922440c41',
-
-'electrodes': [{'entry': [126.82000732421875,
-
-121.16304779052734,
-
-135.00004577636719],
-
-'model': 'Dixi-D08-08AM',
-
-'name': 'A',
-
-'target': [101.98080444335938,
-
-120.58821868896484,
-
-132.00001525878906]},
-
-{'entry': …....},]
-
-}
-
-**Guide** **développement**
-===========================
+Development guide
+==================
 
 Debugger
 --------
 
-Utiliser ipython -q4thread leFichier.py
+Use ipython -q4thread File.py
 
-import pdb;pdb.set_trace() permet de tomber dans le debugger à la ligne
-ou ceci a été inséré dans le code.
+Insert "import pdb;pdb.set_trace()" in the code where you want the debugger to start.
 
-Utiliser le Database Browser dans BrainVisa pour voir si les fichiers de
-la base sont reconnus ou non. On peut aussi « Mettre à jour » la base de
-données pour refaire les index s'ils ont été corrompus par un mauvais
-fonctionnement du logiciel.
+Use Database Browser in BrainVisa to check whether files in the database are correctly
+indexed. « Update » the database from there can reset the index if it was damaged by a bug.
 
-Ajouter un nouveau type de donnée dans la base
-----------------------------------------------
+Adding a new data type in the database
+---------------------------------------
 
-(ATTENTION au changement de fonctionnement de la base dans la prochaine
-version majeure de BrainVisa)
+(WARNING this may change in next major brainvisa version)
 
-Comme explicité dans la partie III.1, pour ajouter un nouveau type de
-données, il faut déclarer son type (s'il est nouveau), son emplacement
-et son nom dans la base de données.
+As explained (Data Formats, above) to add a new data type, its type
+must be declared (for a new one), its place and name in the database too.
 
-Par exemple, on souhaite ajouter un fichier par patient qui liste les
-structures implantées.
+For example, adding a file for each patient to store the list of implanted
+structures.
 
-Ce fichier se nommera structures_NomPatient.txt et sera ajouté dans le
-répertoire « implantation » du répertoire du sujet dans la base. On a
-besoin :
+This file will be called structures_patientName.txt and will be in
+« implantation » directory of each subject in the database. We need :
 
--  d'un **format de fichier**, ici le format txt qui est déjà déclaré
-   dans la base. Si ce n'est pas le cas, il suffit de déclarer le format
-   de fichier dans le fichier
-   brainvisa/toolboxes/epilepsy/types/epilepsy.py sous la forme
-   Format( 'PTS format', 'f|*.pts' ) # *Pour un simple fichier avec
-   l'extension pts*
-   Format ( 'Powerpoint file', ["f|*.ppt","f|*.pptx"] ) # *Pour un
-   format avec plusieurs extensions
-   *\ Les formats déjà connus peuvent avoir été déclarés dans
-   brainvisa-4.3.0/brainvisa/types/*.py (c'est le cas pour les types
-   basiques comme .txt) ou dans d'autres toolboxes :
-   brainvisa-4.3.0/brainvisa/toolboxes/*/types/*.py
--  d'un **type de fichier** « Implanted Structures », qui n'est pas un
-   sous-type d'un type existant (« Right Side Implanted Structures »
-   pourrait être un sous-type d' « Implanted Structures »).
-   On le déclare ainsi : FileType( '**Implanted Structures'**, 'Any
-   Type', 'Text file' )
-   dans le fichier brainvisa/toolboxes/epilepsy/types/epilepsy.py
--  d'une déclaration dans la hiérarchie de la base de données : on peut
-   l'ajouter au fichier
-   brainvisa-4.3.0/brainvisa/toolboxes/epilepsy/hierarchies/brainvisa-3.1.0/electrodes.py
-   Dans ce fichier, on insère le dossier « implantation » dans le
-   dossier du sujet, et on déclare son contenu. Il suffit donc d'ajouter
-   une ligne de contenu sur le modèle des déclarations existantes :
-   "structures_<subject>", SetType('**Implanted Structures**'),
-   On déclare ainsi que dans le répertoire implantation, on peut avoir
-   un fichier nommé structures_nomDuPatient.txt qui est du type
-   'Implanted Structures'.
+-  A **file format**, here the txt format, already declared in the database.
+   If not, just add your format to
+   brainvisa/toolboxes/epilepsy/types/epilepsy.py with a line like::
 
-Accéder aux données depuis le code Python
------------------------------------------
+      Format( 'PTS format', 'f|*.pts' ) # For a .pts file format
+      Format ( 'Powerpoint file', ["f|*.ppt","f|*.pptx"] ) # For a format with multiple extensions
 
-Pour accéder aux données, on utilise l'API python de BrainVisa.
+   Already known formats may have been declared in
+   brainvisa-4.6.0/brainvisa/types/*.py (e.g. *txt) or in other toolboxes :
+   brainvisa-4.6.0/brainvisa/toolboxes/*/types/*.py
 
-On va donc importer les objets nécessaires et initialiser l'accès à la
-base de données.
+-  A **File type** "Implanted Structures", which is not a subtype of an existing type.
+   "Right Side Implanted Structures" could be a subtype of "Implanted Structures".
+   It is declared in brainvisa/toolboxes/epilepsy/types/epilepsy.py::
 
-from brainvisa import axon
+      FileType( '**Implanted Structures'**, 'Any Type', 'Text file' )
 
-axon.initializeProcesses()
+-  A declaration inside the **database hierarchy**: e.g. in
+   brainvisa/toolboxes/epilepsy/hierarchies/brainvisa-3.2.0/electrodes.py
 
-from brainvisa.data.readdiskitem import ReadDiskItem
+   In this file « implantation » is inserted into the subject directory
+   Just add a line in its content, as for existing data::
 
-from brainvisa.data.writediskitem import WriteDiskItem
+     "structures_<subject>", SetType('**Implanted Structures**'),
+   This means that in the implantation directory, there might be a file called
+   structures_PatientName.txt which is of type 'Implanted Structures'.
 
-On veut trouver tous les fichiers de type 'Implanted Structures' des
-patients epileptiques. On va utiliser le type de fichier et les
-attributs présents dans la base de données. La base de données contient
-des dossiers de protocoles qui contiennent des dossiers de patients. Le
-nom de ces dossiers correspond à un attribut défini pour toutes les
-données contenues dans ces répertoires. En effet le nom du dossier de
-protocole est déclaré comme '{protocol}' dans la hiérarchie, ce qui crée
-un attribut 'protocol' contenant le nom réel du dossier.
+Accessing data from Python
+---------------------------
+Use Brainvisa API::
 
-rdi = ReadDiskItem( 'Implanted Structures', 'Text file' ,
-requiredAttributes={'protocol':'Epilepsy'} )
+   from brainvisa import axon
+   axon.initializeProcesses()
+   from brainvisa.data.readdiskitem import ReadDiskItem
+   from brainvisa.data.writediskitem import WriteDiskItem
 
-Si on connaît le sujet, on peut ajouter une contrainte :
+Finding all files of type 'Implanted Structures' from epileptic patients. We will use
+file types and attributes from the database, e.g. '{protocol}' used to defined the directory
+name in the hierarchy creates a 'protocol' attribute filled by the real name of the directory::
 
-rdi2 = ReadDiskItem( 'Implanted Structures', 'Text file' ,
-requiredAttributes={'protocol':'Epilepsy',
-'subject' :'LYONNEURO_2013_DUPj'} )
+   rdi = ReadDiskItem( 'Implanted Structures', 'Text file' ,
+   requiredAttributes={'protocol':'Epilepsy'} )
+   # If you know subject name, add a constraint
+   rdi2 = ReadDiskItem( 'Implanted Structures', 'Text file' ,
+                         requiredAttributes={'protocol':'Epilepsy',
+                         'subject' :'GRE_2021_TEST'} )
+   # Getting the result as a list
+   implStructures = list( rdi._findValues( {}, None, False ) )
 
-On va obtenir la liste des résultats (il peut y en avoir un seul ou
-plusieurs) :
+_findValues is the one used because in 2014 there was only this internal function to access all results.
+Returned objects are a list of ReadDiskItem. This object gives access to the file path and its attributes::
 
-implStructures = list( rdi._findValues( {}, None, False ) )
+   implS = implStructures[0]
+   print 'Subject '+implS.attributes()['subject']+'. File is here: '+ implS.fullPath()
+If the file type can be loaded by Anatomist (e.g. an MRI)::
 
-Oui on utilise une fonction interne (_findValues) parce qu'il n'existait
-que cela quand j'ai posé la question. findValue existe mais ne retourne
-qu'une seule valeur. On prend ensuite le premier objet retourné, qui est
-un ReadDiskItem. Cet objet permet d'obtenir le chemin réel du fichier et
-aussi ses attributs, par exemple le nom du sujet.
+   from brainvisa import anatomist
+   anatomist.loadObject(implS)
 
-implS = implStructures[0]
+Or implS.fullPath() to read the file manually.
 
-| print 'Sujet '+implS.attributes()['subject']+'. Le fichier est là :'+
-  implS.fullPath()
-| Si on a un type de fichier qui peut être lu par Anatomist (ce n'est
-  pas le cas ici), il suffit de faire :
-| from brainvisa import anatomist
-| anatomist.loadObject(implS)
-| Sinon on utilise le chemin implS.fullPath() pour le lire.
+The logic to locate where to write the data is the same: just set the attributes andn file type you want
+to write and BrainVisa will generate the path for you. To make things simpler, you can use an existing
+ReadDiskItem to populate the properties and attribute. For example, we have a ReadDiskItem of type T1 MRI
+and want to save our 'Implanted Structures' file for the same subject. File type and diskitem are all that
+is required here::
 
-| De même pour trouver le chemin d'un fichier que l'on veut écrire dans
-  la base. C'est un petit peu plus complexe car on doit donner toutes
-  les informations nécessaires pour que BrainVisa génère un nom de
-  fichier : le type et les attributs. Comment savoir sinon dans quel
-  protocole, dans quel sujet doit être placé le nouveau fichier ? Pour
-  faciliter les choses, on peut fournir à BrainVisa le type de fichier
-  et un autre diskItem dont les attributs sont suffisants pour trouver
-  le nom de fichier. Par exemple, nous avons un ReadDiskItem de type IRM
-  T1 (que nous avons ouvert précédemment) et nous voulons sauver le
-  fichier 'Implanted Structures' qui correspond au même sujet. Il suffit
-  alors de préciser le type de fichier et le diskItemT1. Exemples :
-| wdi = WriteDiskItem( 'Implanted Structures', 'Text file' )
-| di = wdi.findValue({'subject':'monSujet', 'protocol':'Epilepsy'} )
+   wdi = WriteDiskItem( 'Implanted Structures', 'Text file' )
+   di = wdi.findValue({'subject':'monSujet', 'protocol':'Epilepsy'} )
+   di2 = wdi.findValue(diskItemT1)
+   print 'Output file: ' + di.fullPath()
 
-di2 = wdi.findValue(diskItemT1)
 
-print 'Fichier de sortie : ' + di.fullPath()
-
-Référentiels et Transformations géométriques
+Referentials and geometrical transformations
 --------------------------------------------
 
-Les voxels des images volumiques (IRM, CT, PET...) sont localisées dans
-l'espace par rapport à un **référentiel géométrique**. La plupart des
-logiciels utilisent en interne un **référentiel 'natif'**, par exemple
-dans le cas d'Anatomist, le référentiel natif de l'image est défini par
-une position 0,0,0 au centre du voxel le plus « en haut à droite au
-fond ». Ensuite les coordonnées x,y,z sont la distance en mm le long des
-axes de la matrice de voxels.
+Voxels in 3D images (MRI, CT, PET...) are located in space using a
+**referential**. Most software use internally a **'native' referential**,
+e.g. for Anatomist it is defined as position 0,0,0 at the center of the uppermost, righmost "deepmost" voxel.
+Coordinates x,y,z are the distance in mm along the voxel matrix axes.
 
-Malheureusement cette convention n'est pas la même selon les logiciels.
+Unfortunately this convention varies between software.
 
-Le format DICOM définit en général une matrice de transformation qui
-permet de calculer la position des voxels de l'image par rapport à un
-référentiel de la machine. La conversion de DICOM vers Nifti conserve en
-général cette transformation dans le header Nifti sous le nom
-« \ **scanner-based**\ ». SPM utilise cette matrice pour les coordonnées
-affichées lorsque l'on fait un « display » d'une image. On peut
-l'afficher dans spm en chargeant une image et en regardant la matrice
-disponible dans l'objet chargé avec
-a=spm_vol('LYONNEURO_2013_AAAa.nii');a.mat
+DICOM format usually defines a transformation matrix which allow to compute the
+position of image voxels in a physical referential. Converting from DICOM
+to Nifti usually keeps this information in the Nifti header under the
+**"scanner-based"** name. SPM uses this matrix for the coordinates it shows
+when using the "display" button on an image. Loading an MRI in SPM, the matrix
+can be displayed::
 
-On peut également utiliser la commande « AimsFileInfo
-LYONNEURO_2013_AAAa.nii » qui va afficher (entre autres) la liste des
-transformations et des matrices stockées dans l'en-tête de l'image
-Nifti :
+   a=spm_vol('GRE_2021_TEST.nii');a.mat
 
-'referentials' : [ 'Scanner-based anatomical coordinates' ],
+The BrainVisa commandline tool « AimsFileInfo GRE_2021_TEST.nii » also displays
+the list of transform matrices in the Nifti file header::
 
-'transformations' : [ [ -0.999992, 0, 0, 90.9604, 0, -1, 0, 134.016, 0,
-0, -1, 121.85, 0, 0, 0, 1 ] ],
+   'referentials' : [ 'Scanner-based anatomical coordinates' ],
+   'transformations' : [ [ -0.999992, 0, 0, 90.9604, 0, -1, 0, 134.016, 0, 0, -1, 121.85, 0, 0, 0, 1 ] ],
 
-J'ai appelé ce référentiel **Scanner-based referential**.
+We call this referential **Scanner-based referential**.
 
-BrainVisa peut stocker dans sa base de données des référentiels et des
-transformations permettant de passer d'un référentiel à un autre. Un
-référentiel est (comme tout les objets d'une base de données BrainVisa)
-déclaré avec un identifiant unique (UUID). Les transformations sont
-déclarées dans la base comme permettant de passer d'un UUID à un autre,
-ce qui permet ensuite de les trouver automatiquement (cf
-TransformationManager).
+BrainVisa can store in its database referentials and transforms to convert
+from one to the other.
+A referential has a unique identifier (UUID, as all other database objects).
+Transformations are declared in the database with metadata to define from which
+and to which referential they are going, which allows to load them automatically
+(using TransformationManager object).
 
-**ImageImport se charge donc de stocker le référentiel 'natif', le
-référentiel scanner-based et la transformation correspondante pour
-chaque image au moment de l'importation**. On peut trouver ces fichiers
-(.referential, .trm) dans le répertoire registration de toute image
-présente dans la base.
+**ImageImport** thus stores the native and scanner-based referentials
+and the trasnform between them for all imqges when importing.
+Those files (.referential, .trm) are available in the registration directory
+of all images imported into the database.
 
-Si on entre CA-CP, des transformations vers le référentiel de Talairach
-sont calculées et déclarées à leur tour.
+Entering the location of AC and PC will add transforms to Talairach referential.
 
-Ca se complique lorsque l'on recale une IRM post-opératoire (ou un
-scanner CT, PET...) vers une IRM T1 pré-opératoire. SPM coregister
-calcule une matrice de transformation qui permet de passer du
-référentiel scanner-based de l'IRM post vers le référentiel
-scanner-based de l'IRM pre.
+Things get more complex while registering a post-operative MRI (or
+CT, PET...) to a pre-operative MRI. SPM coregister
+computes a transformation matrix from
+scanner-based post-MRI referential towards pre-MRI scanner-based referential.
 
-Pour convertir des coordonnées saisies dans le référentiel natif de la
-t1post vers le référentiel natif de la t1pre, il faut donc appliquer :
+To convert coordinates from native T1-post referential to T1-pre native referential,
+three transforms must be combined:
+
 natif post → scanner-based post → scanner-based pre → natif pre.
 
-**Problème fréquent** : les images qui ont subit d'autres traitements
-avec d'autres logiciels peuvent avoir perdu la matrice de transformation
-vers le référentiel scanner-based. Dans ce cas, il est possible
-qu'IntrAnat interprète de façon incorrecte les transformations des
-headers.
+**Frequent issue** : imqges processed through other software might lose
+the scanner-based transformation matrix.
+In that cas IntrAnat may interpret header transformations in an incorrect way.
 
-En effet, il peut y avoir deux matrices différentes dans un header
-nifti. Si aucune des deux n'est appelée scanner-based, IntrAnat ne sait
-pas laquelle choisir comme base, et le choix retenu peut ne pas être le
-même que celui que ferait SPM. Si on recale cette image, IntrAnat ne
-saura pas à partir de quel référentiel SPM a calculé la matrice
-coregister, et le recalage ne plantera pas, mais les résultats seront
-faux.
+There can be two different matrices in a Nifti header.
+If None or both are called 'scanner-based', IntrAnat does not know which one
+to use, and it can select a one different that another software such as SPM.
+Registering this image using SPM, IntrAnat would not know which referential
+was used by SPM to compute its matrix, so the results will be wrong.
 
-**Le référentiel MNI**: la normalisation de SPM calcule à la fois une
-transformation linéaire (une matrice, comme les .trm cités plus haut) et
-une transformation non linéaire (tout est stocké dans le fichier
-\_sn.mat).
+**MNI referential**: SPM normalize computes both a linear transform
+(a matrix, sur as .trm files) and a non-linear transform in the \_sn.mat file.
 
-BrainVisa ne gère pas les transformations non linéaires, donc IntrAnat
-convertit les coordonnées des électrodes vers le référentiel MNI en
-faisant appel à matlab et SPM. Les transformations \_sn.mat vont du
-référentiel scanner-based de l'IRM vers le référentiel MNI.
+BrainVisa does not process nonlinear transforms; IntrAnat converts electrode contact
+coordinates to MNI by a call to matlab and SPM. \_sn.mat transforms go from
+scanner-based MRI referential to MNI referential.
 
-L'API de BrainVisa contient depuis peu un TransformationManager, objet
-qui permet de rechercher des référentiels et des transformations liées
-aux objets. Cependant les fonctions en question sont incomplètes et
-insuffisantes. Les patchs écrits pour BrainVisa et le fichier
-referentialconverter.py permettent de contourner une partie de ces
-limitations. En particulier, les patches permettent, lorsqu'on charge un
-objet dans Anatomist, de rechercher les transformations qui le lient aux
-référentiels déjà présents en cherchant un « chemin » de
-transformations. La version standard du code trouvera par exemple une
-transformation qui lie T1pre natif à T1 post natif, mais pas le chemin
-pre natif-> pre scanner-based → post scanner-based → post natif, ce que
-fera le patch. Ainsi, les images pre, post, CT, PET, T2 etc sont
-synchronisées dans l'affichage d'Anatomist.
+BrainVisa API now contains a TransformationManager, which can look for
+referentials and transforms linked to objects. It was updated from our patches
+to automatically load needed transforms between the images stored by IntrAnat.
 
-ReferentialConverter permet quant à lui de déclarer un ensemble de
-transformations (CA-CP, Talairach, Goetz ou toute autre transformation
-linéaire...) et de convertir des coordonnées de points d'un référentiel
-à un autre.
+ReferentialConverter is an internal tool for IntrAnat used to declare
+transformations (CA-CP, Talairach, Goetz or any linear transformation)
+and to convert points coordinates from one referential to another.
 
-Calcul des coordonnées de plots des électrodes :
+Computing electrode contact (plot) coordinates:
 
--  les coordonnées des électrodes saisies dans IntrAnat locateElectrodes
-   sont enregistrées dans le référentiel natif de l'IRM T1.
--  Pour l'exportation en .pts, ces coordonnées sont converties à l'aide
-   de la transformation natif → scanner-based pour les exprimer dans le
-   référentiel du patient (grâce aux fonctions de ReferentialConverter).
--  Les coordonnées scanner-based sont sauvées dans un fichier
-   temporaire, et un code matlab est exécuté pour convertir la
-   transformation sn.mat en champ de vecteurs (y_field.nii)
--  Ce champ de vecteurs est utilisé pour convertir les coordonnées, qui
-   sont sauvées dans le fichier temporaire.
--  A la fin de l'exécution de matlab, le fichier de sortie est relu
-   depuis python, puis le fichier PTS est sauvé dans le référentiel MNI.
+-  electrode coordinates determined through IntrAnat's locateElectrodes
+   are saved in T1-pre MRI native coordinates.
+-  To export to .pts, those coordinates are transformed into scanner-based
+-  Those coordinates are saved in a temporary file, matlab and SPM is used
+   ton convert its nonlinear transform into a vector field (y_field.nii)
+-  This vector field is used to convert coordinates to MNI in the temporary file.
+-  When matlab is done the outpuut file is read again from Python and the PTS file is saved with MNI coordinates.
 
-Ajouter un processus BrainVisa
+Adding a BrainVisa process
 ------------------------------
 
-Il suffit d'ajouter un fichier python dans le répertoire
-brainvisa-4.3.0/brainvisa/toolboxes/epilepsy/processes.
+To get a process visible from BrainVisa main UI, just add a file to
+brainvisa-4.6.0/brainvisa/toolboxes/epilepsy/processes.
 
-Ce fichier doit suivre le modèle standard des processus BrainVisa :
-importer quelques fichiers, déclarer une signature (de quoi a-t-il
-besoin comme paramètres), quelques variables (nom...), une fonction
-d'initialisation et une fonction d'exécution qui correspond au bouton
-'run' dans l'interface BrainVisa.
+This file must follow the standard BrainVisa model :
+import some files, declare a signature (its parameters), a few variables (name...),
+an init function and a run function to be called by the 'run' button in BrainVisa UI.
 
-Voici un exemple très simple. Pour les processes plus complexes, il faut
-s'inspirer des processes existants dans les toolboxes.
+Here is a simple exemple. For more complex processes, use existing processes in other toolboxes::
 
-| from neuroProcesses import \*
-| import shfjGlobals
-| from brainvisa import anatomist
-| import glob, registration
-| name = 'Anatomist Show Electrode Model' **# Nom du processus dans
-  l'interface BrainVisa**
-| userLevel = 0 **# niveau 0 accessible à tous, niveau 1 : utilisateurs
-  avancés, niveau 2 experts**
-| roles = ('viewer',) **# certains processus ont des rôles particuliers.
-  Celui-ci est un viewer pour le type de données déclaré en premier dans
-  la signature, ce qui signifie qu'il sera utilisé dès que l'on clique
-  sur l'icône œil à côté d'un fichier de ce type dans BrainVisa. Il
-  existe d'autres rôles, comme converter qui permet de transformer un
-  format de fichier en un autre.**
-| def validation(): **# Permet de vérifier que les paramètres sont
-  corrects**
-| anatomist.validation()
-| **# Ici on veut un seul paramètre, un fichier Electrode Model en
-  lecture.**
-| signature = Signature(
-| 'model', ReadDiskItem( 'Electrode Model', 'Electrode Model format' ),
-| )
-| **# Si on souhaite préremplir certains paramètres au lancement du
-  processus**
-| def initialization( self ):
-| pass
-| **# La fonction qui sera exécuté quand on appuie sur le bouton
-  « run »**
-| def execution( self, context ):
-| a = anatomist.Anatomist()
-| elec = ElectrodeEditorDialog(a)
-| elec.open(self.model.fullPath()) **# on accède au paramètre déclaré
-  dans la signature**
-| meshes = elecDialog.getAnatomistObjects()
-| w = a.createWindow('Axial')
-| a.addObjects(meshes, [w,])
-| return (w, elec, meshes) **# On renvoie tous les objets qui ne doivent
-  pas être détruit à la fin de l'exécution de la fonction, ici, les
-  objets 3D à afficher qui seront détruits plus tard par BrainVisa.**
+   from neuroProcesses import \*
+   import shfjGlobals
+   from brainvisa import anatomist
+   import glob, registration
+   name = 'Anatomist Show Electrode Model' # Process name in BrainVisa UI
+   userLevel = 0 # level 0 for everyone, level 1 : advanced users, level 2 experts
+   roles = ('viewer',) # some process have custom roles. This one is a viewer and may be called to view this data type
+   def validation(): # Validata parameter values
+      anatomist.validation()
+   # Here only one parameter, an electrode model file to be read
+   signature = Signature(
+      'model', ReadDiskItem( 'Electrode Model', 'Electrode Model format' ),
+   )
+   # May be used to fill some parameters with default values
+   def initialization( self ):
+      pass
+   # This will be run when clicking on the 'run' button
+   def execution( self, context ):
+   a = anatomist.Anatomist()
+   elec = ElectrodeEditorDialog(a)
+   elec.open(self.model.fullPath()) # Using the parameter from the signature
+   meshes = elecDialog.getAnatomistObjects()
+   w = a.createWindow('Axial')
+   a.addObjects(meshes, [w,])
+   return (w, elec, meshes) # Return all objects that should not be destroyed when the function ends, here all 3D objects that are displayed
 
-API Brainvisa
+Brainvisa API
 -------------
 
-| BrainVisa est développé principalement au CEA Neurospin par Denis
-  Rivière, Yann Cointepas et Isabelle Denghien.
-| Il y a beaucoup de documentation en ligne, à partir de :
+BrainVisa is mainly developed at CEA Neurospin by Denis Rivière, Yann Cointepas.
+A lot of documentation is available online:
 
-http://brainvisa.info/doc/cartointernet/cartointernet_pg/en/html/index.html
+http://brainvisa.info
 
-En particulier dans l'API, le plus important est pyaims (les bindings
-Python d'aims qui gère les coordonnées 3D, les maillages, les
-images...), pyanatomist (le contrôle d'Anatomist depuis Python, charger
-et afficher des images et des maillages 3D).
+For python bindings, pyaims (3D coords, meshes, volumes...),
+pyanatomist (load and display images and volumes in Anatomist).
 
-| L'API BrainVisa est documentée ici :
-  http://brainvisa.info/doc/axon-4.4/sphinx/index.html
-| On peut aussi regarder directement dans le code source
-  brainvisa-4.3.0/brainvisa, par exemple le fichier registration.py qui
-  définit les fonctions du transformationManager.
 
-Sinon, on peut poser des questions sur les forums (il y a des forums
-pour les développeurs qui sont accessibles sur demande)
-http://brainvisa.info/forum/
-
-Interactions avec Matlab
+Interacting with Matlab
 ------------------------
 
-Les fonctions présentes dans externalprocesses.py facilitent les appels
-à matlab.
+Function defined in externalprocesses.py exist to call matlab.
 
-| Le plus simple est d'écrire le code matlab dans une chaîne python avec
-  des %s à la place des paramètres, et qui se termine par « quit ; »
-  comme dans ImageImport.py :
-| from externalprocesses import \*
+Simplest way is to write matlab code in a python string with %s for parameters
+and ending by "quit;" as in ImageImport.py::
 
-spm_coregister = "VF=spm_vol(%s);VG=spm_vol(%s);x = spm_coreg(VF, VG);\\
+   from externalprocesses import \*
+   spm_coregister = "VF=spm_vol(%s);VG=spm_vol(%s);x = spm_coreg(VF, VG);\\
+   trm = spm_matrix(x(:)');trm = [trm(1:3,4)';trm(1:3,1:3)];\\
+   dlmwrite(%s,trm, 'delimiter',' ','precision',16); \\
+   quit;"
 
-trm = spm_matrix(x(:)');trm = [trm(1:3,4)';trm(1:3,1:3)];\\
+Set the parameters :
 
-dlmwrite(%s,trm, 'delimiter',' ','precision',16); \\
+   call = spm_coregister%("'monFichier.img,1'", "'AutreFichier.img,1'","'fichierOutput'")
 
-quit;"
+Execute it::
 
-On remplit les paramètres :
+   matlabRun(call)
 
-| call = spm_coregister%("'monFichier.img,1'", "'AutreFichier.img,1'",
-  "'fichierOutput'")
-| On lance l'exécution
-| matlabRun(call)
+This is a **blocking function**, so the software will be locked until matlab computation is finished.
 
-**Cette fonction est bloquante**, donc le logiciel va être bloqué
-pendant toute l'exécution du code matlab.
+A **non-blocking call** is also available and creates a Qthread object.
+Connecting to its end of execution signal allows to call a function. The object
+must be stored to avoid destroyed the thread before it is finished, and the start function is used to start it::
 
-On peut aussi utiliser un **appel non-bloquant** qui crée un objet
-Qthread, et connecter son signal de fin d'exécution à une fonction. On
-stocke l'objet pour que la thread ne soit pas détruite à la fin de la
-fonction qui la crée, et on lance l'execution avec start :
+   thr = matlabRunNB(call)
+   thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister ended", thr))
+   self.threads.append(thr)
+   thr.start()
 
-| thr = matlabRunNB(call)
-| thr.finished.connect(lambda:self.taskfinished(u"SPM Coregister
-  terminé", thr))
-| self.threads.append(thr)
-| thr.start()
+Tu create a **temporary file** for matlab to write, one can be created::
+   tempfile = getTmpFilePath('txt')
 
-| Si on a besoin de créer un **fichier temporaire** dans lequel la
-  fonction matlab va écrire, on peut en créer avec
-| tempfile = getTmpFilePath('txt')
+It must be **removed manually** after execution.
 
-**Il faudra l'effacer** à la main ensuite.
-
-Execution distribuée
+Parallel execution
 --------------------
 
-Avec BrainVisa, une librairie est fournie pour l'exécution distribuée
-(multi-core sur une même machine, ou sur un cluster de machines). C'est
-bien plus complet et puissant qu'externalprocesses donc à utiliser dans
-le futur.
-
+BrainVisa ships with soma-workflow that can manage parallel execution.
+IntrAnat does not use it yet.
 http://brainvisa.info/soma/soma-workflow/index.html
