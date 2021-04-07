@@ -315,56 +315,56 @@ class ImageImport (QtGui.QDialog):
         self.patientInfo['patientBirthday'].dateChanged.connect(self.update_patientAge)
     
         # TABS: Reload at each tab change
-        self.connect(self.ui.tabWidget,  QtCore.SIGNAL('currentChanged(int)'), self.analyseBrainvisaDB)
-        self.connect(self.ui.tabWidget,  QtCore.SIGNAL('currentChanged(int)'), self.setTabGuide)
+        self.ui.tabWidget.currentChanged[int].connect(self.analyseBrainvisaDB)
+        self.ui.tabWidget.currentChanged[int].connect(self.setTabGuide)
         # TAB1: Database
-        self.connect(self.ui.bvProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.bvSubjectCombo))
-        self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectBvSubject)
-        self.connect(self.ui.bvSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.bvImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectBvImage)
-        self.connect(self.ui.bvDeleteImageButton, QtCore.SIGNAL('clicked()'), self.deleteBvImage)
-        self.connect(self.ui.bvDeleteSubjectButton, QtCore.SIGNAL('clicked()'), self.deleteBvSubject)
-        self.connect(self.ui.bvEditPref, QtCore.SIGNAL('clicked()'), self.editBvPref)
-        self.connect(self.ui.bvUpdateDb, QtCore.SIGNAL('clicked()'), self.updateBvDb)
-        self.connect(self.ui.bvImportBids, QtCore.SIGNAL('clicked()'), self.importFromBids)
+        self.ui.bvProtocolCombo.currentIndexChanged[str].connect(lambda s:self.selectProtocol(s,self.ui.bvSubjectCombo))
+        self.ui.bvSubjectCombo.currentIndexChanged[str].connect(self.selectBvSubject)
+        self.ui.bvSubjectCombo.activated[str].connect(self.setCurrentSubject)
+        self.ui.bvImageList.itemDoubleClicked.connect(self.selectBvImage)
+        self.ui.bvDeleteImageButton.clicked.connect(self.deleteBvImage)
+        self.ui.bvDeleteSubjectButton.clicked.connect(self.deleteBvSubject)
+        self.ui.bvEditPref.clicked.connect(self.editBvPref)
+        self.ui.bvUpdateDb.clicked.connect(self.updateBvDb)
+        self.ui.bvImportBids.clicked.connect(self.importFromBids)
         # TAB2: Add subject
-        self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('activated(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectSiteCombo, QtCore.SIGNAL('editTextChanged(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectYearSpinbox, QtCore.SIGNAL('valueChanged(int)'), self.updatePatientCode)
-        self.connect(self.ui.subjectPatientName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectPatientFirstName, QtCore.SIGNAL('textChanged(QString)'), self.updatePatientCode)
-        self.connect(self.ui.subjectAddSubjectButton, QtCore.SIGNAL('clicked()'), self.storePatientInDB)
+        self.ui.subjectSiteCombo.activated[str].connect(self.updatePatientCode)
+        self.ui.subjectSiteCombo.editTextChanged[str].connect(self.updatePatientCode)
+        self.ui.subjectYearSpinbox.valueChanged.connect(self.updatePatientCode)
+        self.ui.subjectPatientName.textChanged[str].connect(self.updatePatientCode)
+        self.ui.subjectPatientFirstName.textChanged[str].connect(self.updatePatientCode)
+        self.ui.subjectAddSubjectButton.clicked.connect(self.storePatientInDB)
         # TAB3: Patient info
-        self.connect(self.ui.patProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.patSubjectCombo))
-        self.connect(self.ui.patProtocolCombo, QtCore.SIGNAL('activated(QString)'),lambda :pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)) #lambda :pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)) self._pathologyinfo(self.ui.patpatGroupBox,self.currentProtocol)
-        self.connect(self.ui.patSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectPatSubject)
-        self.connect(self.ui.patSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.patInfoValidate,QtCore.SIGNAL('clicked()'),self.ValidatePatInfo)
+        self.ui.patProtocolCombo.currentIndexChanged[str].connect(lambda s:self.selectProtocol(s,self.ui.patSubjectCombo))
+        self.ui.patProtocolCombo.activated[str].connect(lambda :pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)) #lambda :pathologypatientinfo.buildUI(self.ui.patpatGroupBox,self.currentProtocol)) self._pathologyinfo(self.ui.patpatGroupBox,self.currentProtocol)
+        self.ui.patSubjectCombo.currentIndexChanged[str].connect(self.selectPatSubject)
+        self.ui.patSubjectCombo.activated[str].connect(self.setCurrentSubject)
+        self.ui.patInfoValidate.clicked.connect(self.ValidatePatInfo)
         # TAB4: Import to BrainVisa
-        self.connect(self.ui.niftiImportButton, QtCore.SIGNAL('clicked()'), self.importNifti)
-        self.connect(self.ui.niftiSetBraincenterButton, QtCore.SIGNAL('clicked()'), self.setBrainCenter)
-        self.connect(self.ui.ImportFSoutputspushButton, QtCore.SIGNAL('clicked()'),self.importFSoutput)
-        self.connect(self.ui.buttonImportLausanne, QtCore.SIGNAL('clicked()'),self.importLausanne2008)
-        self.connect(self.ui.niftiProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.niftiSubjectCombo))
-        self.connect(self.ui.niftiSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.niftiSeqType, QtCore.SIGNAL('currentIndexChanged(QString)'),self.enable_disable_gadooption)
+        self.ui.niftiImportButton.clicked.connect(self.importNifti)
+        self.ui.niftiSetBraincenterButton.clicked.connect(self.setBrainCenter)
+        self.ui.ImportFSoutputspushButton.clicked.connect(self.importFSoutput)
+        self.ui.buttonImportLausanne.clicked.connect(self.importLausanne2008)
+        self.ui.niftiProtocolCombo.currentIndexChanged[str].connect(lambda s:self.selectProtocol(s,self.ui.niftiSubjectCombo))
+        self.ui.niftiSubjectCombo.activated[str].connect(self.setCurrentSubject)
+        self.ui.niftiSeqType.currentIndexChanged[str].connect(self.enable_disable_gadooption)
         # TAB5: Coregistration
-        self.connect(self.ui.regProtocolCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), lambda s:self.selectProtocol(s,self.ui.regSubjectCombo))
-        self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('currentIndexChanged(QString)'), self.selectRegSubject)
-        self.connect(self.ui.regSubjectCombo, QtCore.SIGNAL('activated(QString)'), self.setCurrentSubject)
-        self.connect(self.ui.regImageList, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage)
-        self.connect(self.ui.regImageList2, QtCore.SIGNAL('itemDoubleClicked(QListWidgetItem*)'), self.selectRegImage2)
-        self.connect(self.ui.registerNormalizeSubjectButton, QtCore.SIGNAL('clicked()'), self.registerNormalizeSubject)
-        self.connect(self.ui.segmentationHIPHOPbutton,QtCore.SIGNAL('clicked()'),self.runPipelineBV)
-        self.connect(self.ui.runMarsAtlasFreesurferButton,QtCore.SIGNAL('clicked()'),self.runPipelineFS)
-        self.connect(self.ui.runHiphopOnly, QtCore.SIGNAL('clicked()'), self.runProcessHiphop)
+        self.ui.regProtocolCombo.currentIndexChanged[str].connect(lambda s:self.selectProtocol(s,self.ui.regSubjectCombo))
+        self.ui.regSubjectCombo.currentIndexChanged[str].connect(self.selectRegSubject)
+        self.ui.regSubjectCombo.activated[str].connect(self.setCurrentSubject)
+        self.ui.regImageList.itemDoubleClicked.connect(self.selectRegImage)
+        self.ui.regImageList2.itemDoubleClicked.connect(self.selectRegImage2)
+        self.ui.registerNormalizeSubjectButton.clicked.connect(self.registerNormalizeSubject)
+        self.ui.segmentationHIPHOPbutton.clicked.connect(self.runPipelineBV)
+        self.ui.runMarsAtlasFreesurferButton.clicked.connect(self.runPipelineFS)
+        self.ui.runHiphopOnly.clicked.connect(self.runProcessHiphop)
         # TAB6: Preferences
-        self.connect(self.ui.prefSpmTemplateButton, QtCore.SIGNAL('clicked()'), self.setSpmTemplatePath)
-        self.connect(self.ui.prefANTsButton, QtCore.SIGNAL('clicked()'), self.setANTsPath)
-        self.connect(self.ui.prefFreesurferButton, QtCore.SIGNAL('clicked()'), self.setFreesurferPath)
-        self.connect(self.ui.prefBidsButton, QtCore.SIGNAL('clicked()'), self.setBidsPath)
-        self.connect(self.ui.prefANTScheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('ANTS'))
-        self.connect(self.ui.prefSPMcheckbox, QtCore.SIGNAL('clicked()'), lambda: self.setPrefCoregister('SPM'))
+        self.ui.prefSpmTemplateButton.clicked.connect(self.setSpmTemplatePath)
+        self.ui.prefANTsButton.clicked.connect(self.setANTsPath)
+        self.ui.prefFreesurferButton.clicked.connect(self.setFreesurferPath)
+        self.ui.prefBidsButton.clicked.connect(self.setBidsPath)
+        self.ui.prefANTScheckbox.clicked.connect(lambda: self.setPrefCoregister('ANTS'))
+        self.ui.prefSPMcheckbox.clicked.connect(lambda: self.setPrefCoregister('SPM'))
         self.ui.radioProjFtract.toggled.connect(self.updatePatientCode)
         self.ui.radioProjFtract.toggled.connect(self.switchProjectButton)
         self.ui.radioOther.toggled.connect(self.switchProjectButton)
@@ -381,11 +381,11 @@ class ImageImport (QtGui.QDialog):
         def setDictValue(d, k, v,button):
             d[k]=v
             button.setStyleSheet("background-color: rgb(90, 255, 95);")
-        self.connect(self.ui.regAcButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'AC',list(self.a.linkCursorLastClickedPosition()),self.ui.regAcButton))
-        self.connect(self.ui.regPcButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'PC',list(self.a.linkCursorLastClickedPosition()),self.ui.regPcButton))
-        self.connect(self.ui.regIhButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'IH',list(self.a.linkCursorLastClickedPosition()),self.ui.regIhButton))
-        self.connect(self.ui.regLhButton, QtCore.SIGNAL('clicked()'), lambda:setDictValue(self.AcPc,'LH',list(self.a.linkCursorLastClickedPosition()),self.ui.regLhButton))
-        self.connect(self.ui.regAcPcValidateButton, QtCore.SIGNAL('clicked()'), self.validateAcPc)
+        self.ui.regAcButton.clicked.connect(lambda:setDictValue(self.AcPc,'AC',list(self.a.linkCursorLastClickedPosition()),self.ui.regAcButton))
+        self.ui.regPcButton.clicked.connect(lambda:setDictValue(self.AcPc,'PC',list(self.a.linkCursorLastClickedPosition()),self.ui.regPcButton))
+        self.ui.regIhButton.clicked.connect(lambda:setDictValue(self.AcPc,'IH',list(self.a.linkCursorLastClickedPosition()),self.ui.regIhButton))
+        self.ui.regLhButton.clicked.connect(lambda:setDictValue(self.AcPc,'LH',list(self.a.linkCursorLastClickedPosition()),self.ui.regLhButton))
+        self.ui.regAcPcValidateButton.clicked.connect(self.validateAcPc)
         
         # Finds the available protocols in brainvisa database and fills the comboboxes
         self.analyseBrainvisaDB()
@@ -394,7 +394,7 @@ class ImageImport (QtGui.QDialog):
         # Show anatomist
         self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
         self.showAnatomist.setIconSize(QtGui.QSize(24, 24))
-        self.connect(self.showAnatomist, QtCore.SIGNAL('clicked()'), self.toggleAnatomistWindow)
+        self.showAnatomist.clicked.connect(self.toggleAnatomistWindow)
 
 
     def __del__ (self):
@@ -492,10 +492,11 @@ class ImageImport (QtGui.QDialog):
         configuration = Application().configuration
         brainvisa_spm12_path = configuration.SPM.spm12_path
         brainvisa_freesurfer_home_path = configuration.freesurfer._freesurfer_home_path
-
+        import pdb;pdb.set_trace()
         if 'spm' in self.prefs:
             if brainvisa_spm12_path != self.prefs['spm']:
                 QtGui.QMessageBox.warning(self, u"SPM", u"SPM path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
+                print("SPM path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
             if os.path.isfile(self.prefs['spm']+os.sep+'Contents.m'):
                 op_cont = open(self.prefs['spm']+os.sep+'Contents.m')
                 line = op_cont.readline()
@@ -505,11 +506,14 @@ class ImageImport (QtGui.QDialog):
                     self.setSpmTemplatePath(self.prefs['spm']) #+os.sep+'toolbox/OldNorm/T1.nii')
                 elif spm_version == '(SPM8)':
                     QtGui.QMessageBox.warning(self, u"SPM", u"SPM version not supported anymore")
+                    print("SPM version not supported anymore")
                     #self.setSpmTemplatePath(self.prefs['spm']) #+os.sep+'templates/T1.nii')
                 else:
-                    QtGui.QMessageBox.warning(self, u"SPM", u"SPM version unknown")
+                    #QtGui.QMessageBox.warning(self, u"SPM", u"SPM version unknown")
+                    print("SPM version unknown")
             else:
                 QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
+                print("SPM path is not defined in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
         else:
             if len(configuration.SPM.spm12_path)>0:
                 print("used brainvisa spm path")
@@ -517,10 +521,12 @@ class ImageImport (QtGui.QDialog):
                 self.prefs['spm']=brainvisa_spm12_path
             else:
                 QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined (or wrong) in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
+                print("SPM path is not defined (or wrong) in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
 
         if 'freesurfer' in self.prefs:
             if brainvisa_freesurfer_home_path != self.prefs['freesurfer']:
                 QtGui.QMessageBox.warning(self, u"Freesurfer", u"Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
+                print("Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
             self.setFreesurferPath(self.prefs['freesurfer'])
         else:
             self.setFreesurferPath(brainvisa_freesurfer_home_path)
@@ -2692,7 +2698,8 @@ class ImageImport (QtGui.QDialog):
 
     def setFreesurferPath(self, path=None):
         if path is None:
-            path = QtGui.QFileDialog.getExistingDirectory(self, u"Select FREESURFER path")
+            #path = QtGui.QFileDialog.getExistingDirectory(self, u"Select FREESURFER path")
+            print("PLEASE SET FREESURFER PATH IN PREFERENCES")
         if path is not None:
             self.ui.prefFreesurferEdit.setText(path)
 
@@ -2884,7 +2891,7 @@ def main():
     # Kill application when windows are closed
     # QtGui.QObject.connect(app, QtCore.SIGNAL('lastWindowClosed()'), app, QtCore.SLOT('quit()'))
     # Debug -> evite un pb entre ipython, pdb et qt
-    # pyqtRemoveInputHook()
+    QtCore.pyqtRemoveInputHook()
     
     # Run the application
     sys.exit(app.exec_())
