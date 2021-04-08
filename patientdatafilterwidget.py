@@ -21,7 +21,7 @@ from brainvisa import axon
 from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
 from readElecLocalCSVFile import readElecLocalCSVFile
-from readSulcusLabelTranslationFile import *
+from readLabels import *
 
 class PatientDataFilterWidget (QtGui.QWidget):
   def __init__(self, app=None):
@@ -655,9 +655,9 @@ class PatientDataFilterWidget (QtGui.QWidget):
         #open MNI filtersAtlases
         #pdb.set_trace()
         
-        Hammers_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_Hammers.txt')
-        AAL_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_AAL.txt')
-        AALDilate_parcels_names = readSulcusLabelTranslationFile('parcels_label_name_AALDilate.txt')
+        Hammers_parcels_names = readLabels('parcels_label_name_Hammers.txt')
+        AAL_parcels_names = readLabels('parcels_label_name_AAL.txt')
+        AALDilate_parcels_names = readLabels('parcels_label_name_AALDilate.txt')
         vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii')
         vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii')
         vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii')

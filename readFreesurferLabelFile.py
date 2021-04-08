@@ -28,7 +28,7 @@ def readFreesurferLabelFile(freesurfer_label_file, nLabels):
                 if (len(info_line) < 5):
                     continue
                 # Get label
-                dict_label.update({info_line[0]:info_line[1:]})
+                dict_label.update({int(info_line[0]):info_line[1]})
                 # Get colors (R,G,B)
                 iColor = 3 * int(info_line[0])
                 colors[iColor] = int(info_line[2])

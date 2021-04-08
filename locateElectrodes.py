@@ -6,11 +6,12 @@
 # License GNU GPL v3
  
 # Standard Python imports
-import sys, os, pickle, numpy, re, string, time, subprocess, json, io
+import sys, os, pickle, csv, numpy, re, string, time, subprocess, json, io
 from numpy import *
 from scipy import ndimage
 from collections import OrderedDict
 from PIL import Image
+from collections import Counter
 
 # BrainVISA/anatomist imports
 from soma import aims
@@ -27,12 +28,12 @@ from brainvisa.data.writediskitem import WriteDiskItem
 # IntrAnat local imports
 from externalprocesses import *
 from referentialconverter import ReferentialConverter
-from readSulcusLabelTranslationFile import readSulcusLabelTranslationFile
+from readLabels import readLabels
 from readFreesurferLabelFile import readFreesurferLabelFile
 from TimerMessageBox import *
 from generate_contact_colors import *
+from electrode import ElectrodeModel
 from bipoleSEEGColors import bipoleSEEGColors
-from DeetoMaison import DeetoMaison
 from DialogCheckbox import DialogCheckbox
 from progressbar import ProgressDialog
 
@@ -40,52 +41,7 @@ from progressbar import ProgressDialog
 # =============================================================================
 # ===== SPM CALLS =============================================================
 # =============================================================================
-# Convert SPM normalization _sn.mat to vector field
-spm_SnToField8 = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-    FileNameSN = '%s';
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.space{1}=['%s' ',1'];
-    matlabbatch{1}.spm.util.defs.ofname='%s';
-    matlabbatch{1}.spm.util.defs.fnames='';
-    matlabbatch{1}.spm.util.defs.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
-    matlabbatch{1}.spm.util.defs.interp=1;
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED'; 
-end
-quit;""" 
-# %(FileNameSN, FileSource, ofname) -> '_sn.mat' file and source image FileSource (normalized with the _sn). 
-# For the Database, we want y_<subject>_inverse.nii, so we need ofname = '<subject>_inverse' --> 
-# Maybe should provide also the output dir ? Right now, same as _sn.mat
-
-# API changed in SPM12...
-spm_SnToField12 = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-    FileNameSN = '%s';
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.matname{1}=FileNameSN;
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.vox=[NaN NaN NaN];
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.comp{1}.sn2def.bb=NaN*ones(2,3);
-    matlabbatch{1}.spm.util.defs.comp{1}.inv.space = {'%s'};
-    matlabbatch{1}.spm.util.defs.out{1}.savedef.ofname = '%s';
-    matlabbatch{1}.spm.util.defs.out{1}.savedef.savedir.saveusr{1}=spm_str_manip(FileNameSN,'h');
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
-
-#spm_SnToField = spm_SnToField12
-
-spm_inverse_y_field12 = """try
+spm12_inverse_y = """try
     addpath(genpath(%s));
     spm('defaults', 'FMRI');
     spm_jobman('initcfg');
@@ -100,10 +56,9 @@ catch
 end
 quit;"""
 
-
-# Read deformation field y_<subject>_inverse.nii, apply the vector field to scanner-based coordinates of electrodes
+# Read deformation field y_<subject>_inverse.nii, apply the vectorf field to scanner-based coordinates of electrodes
 # FT 24-Feb-2019: NEW OPTIMIZED VERSION WITHOUT LOOPS
-spm_normalizePoints = """try
+spm12_normalizePoints = """try
     fprintf('Reading inverse MNI transformation... ');
     addpath(genpath(%s));
     P='%s';
@@ -144,109 +99,17 @@ end
 quit;"""
 
 
-#coregister and reslice and segmentation (for resection estimation)
-spm_resection_estimation = """try
-    addpath(genpath(%s));
-    spm('defaults', 'FMRI');
-    spm_jobman('initcfg');
-    clear matlabbatch;
-
-    final_directory = %s;
-    if isdir(final_directory) == 0
-       mkdir(final_directory)
-    end
-    matlabbatch{1}.spm.spatial.coreg.estwrite.ref = %s;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.source = %s;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.other = {''};
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.cost_fun = 'nmi';
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.sep = [4 2];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.tol = [0.02 0.02 0.02 0.001 0.001 0.001 0.01 0.01 0.01 0.001 0.001 0.001];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.eoptions.fwhm = [7 7];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.interp = 4;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.wrap = [0 0 0];
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.mask = 0;
-    matlabbatch{1}.spm.spatial.coreg.estwrite.roptions.prefix = 'r';
-    matlabbatch{2}.spm.spatial.preproc.channel.vols = %s;
-    matlabbatch{2}.spm.spatial.preproc.channel.biasreg = 0.001;
-    matlabbatch{2}.spm.spatial.preproc.channel.biasfwhm = 60;
-    matlabbatch{2}.spm.spatial.preproc.channel.write = [0 0];
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).tpm = %s;
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).ngaus = 2;
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).native = [1 0];
-    matlabbatch{2}.spm.spatial.preproc.tissue(1).warped = [0 0];
-    matlabbatch{2}.spm.spatial.preproc.warp.mrf = 1;
-    matlabbatch{2}.spm.spatial.preproc.warp.cleanup = 1;
-    matlabbatch{2}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-    matlabbatch{2}.spm.spatial.preproc.warp.affreg = 'mni';
-    matlabbatch{2}.spm.spatial.preproc.warp.fwhm = 0;
-    matlabbatch{2}.spm.spatial.preproc.warp.samp = 3;
-    matlabbatch{2}.spm.spatial.preproc.warp.write = [0 0];
-    matlabbatch{3}.spm.spatial.preproc.channel.vols = %s;
-    matlabbatch{3}.spm.spatial.preproc.channel.biasreg = 0.001;
-    matlabbatch{3}.spm.spatial.preproc.channel.biasfwhm = 60;
-    matlabbatch{3}.spm.spatial.preproc.channel.write = [0 0];
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).tpm = %s;
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).ngaus = 2;
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).native = [1 0];
-    matlabbatch{3}.spm.spatial.preproc.tissue(1).warped = [0 0];
-    matlabbatch{3}.spm.spatial.preproc.warp.mrf = 1;
-    matlabbatch{3}.spm.spatial.preproc.warp.cleanup = 1;
-    matlabbatch{3}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];
-    matlabbatch{3}.spm.spatial.preproc.warp.affreg = 'mni';
-    matlabbatch{3}.spm.spatial.preproc.warp.fwhm = 0;
-    matlabbatch{3}.spm.spatial.preproc.warp.samp = 3;
-    matlabbatch{3}.spm.spatial.preproc.warp.write = [0 0];
-    matlabbatch{4}.spm.util.imcalc.input = {
-                                            %s
-                                            %s
-                                            };
-    matlabbatch{4}.spm.util.imcalc.output = %s;
-    matlabbatch{4}.spm.util.imcalc.outdir = %s;
-    matlabbatch{4}.spm.util.imcalc.expression = 'i1-i2';
-    matlabbatch{4}.spm.util.imcalc.var = struct('name', {}, 'value', {});
-    matlabbatch{4}.spm.util.imcalc.options.dmtx = 0;
-    matlabbatch{4}.spm.util.imcalc.options.mask = 0;
-    matlabbatch{4}.spm.util.imcalc.options.interp = 1;
-    matlabbatch{4}.spm.util.imcalc.options.dtype = 4;
-    spm_jobman('run',matlabbatch);
-catch
-    disp 'AN ERROR OCCURED'; 
-end
-quit;"""
-
-
-region_grow="""try
-    addpath(genpath(%s));
-    imgresec = %s;
-    iSeed = %s;
-    reseccenter = %s;
-    f_orient = %s;
-    f_orient = reshape(f_orient,4,4)';
-    centermatF = eye(4);
-    centermatF(:,4) = f_orient*[reseccenter 1]';
-    VF = spm_vol(imgresec);
-    reseccenter_pix = inv(VF.mat)*centermatF(:,4);
-    mat_to_grow=spm_read_vols(VF);
-    new_image = regiongrowing(mat_to_grow,iSeed,reseccenter_pix(1:3));
-    VF.fname = %s;
-    VF.private.mat0 = VF.mat;
-    spm_write_vol(VF,new_image);
-catch
-    disp 'AN ERROR OCCURED';
-end
-quit;"""
-
-
 #################### READ ATLAS LABELS #########################################
-# FreeSurfer labels (Destrieux)
-lausanne_parcel_names = [None] * 5
-(freesurfer_parcel_names, freesurfer_colormap) = readFreesurferLabelFile('freesurfer_label.txt', 14175)
-(lausanne_parcel_names[0], lausanne33_colormap) = readFreesurferLabelFile('lausanne33_labels.txt', 83)
-(lausanne_parcel_names[1], lausanne60_colormap) = readFreesurferLabelFile('lausanne60_labels.txt', 129)
-(lausanne_parcel_names[2], lausanne125_colormap) = readFreesurferLabelFile('lausanne125_labels.txt', 234)
-(lausanne_parcel_names[3], lausanne250_colormap) = readFreesurferLabelFile('lausanne250_labels.txt', 463)
-(lausanne_parcel_names[4], lausanne500_colormap) = readFreesurferLabelFile('lausanne500_labels.txt', 1015)
-
+labels = dict()
+(labels['Destrieux'], freesurfer_colormap) = readFreesurferLabelFile('labels/freesurfer_labels.txt', 14175)
+labels['DKT'] = labels['Destrieux']
+(labels['HCP-MMP1'], hcp_colormap) = readFreesurferLabelFile('labels/hcp_l0r200_labels.txt', 14175)
+(labels['Lausanne2008-33'], lausanne33_colormap) = readFreesurferLabelFile('labels/lausanne33_labels.txt', 83)
+(labels['Lausanne2008-60'], lausanne60_colormap) = readFreesurferLabelFile('labels/lausanne60_labels.txt', 129)
+(labels['Lausanne2008-125'], lausanne125_colormap) = readFreesurferLabelFile('labels/lausanne125_labels.txt', 234)
+(labels['Lausanne2008-250'], lausanne250_colormap) = readFreesurferLabelFile('labels/lausanne250_labels.txt', 463)
+(labels['Lausanne2008-500'], lausanne500_colormap) = readFreesurferLabelFile('labels/lausanne500_labels.txt', 1015)
+labels['MarsAtlas'] = readLabels('labels/marsatlas_labels.txt')
 
 # Functions to sort the contacts A1,A2...,A10 and not A1, A10, A2..
 def atoi(text):
@@ -255,14 +118,11 @@ def natural_keys(text):
     """alist.sort(key=natural_keys) sorts in human order"""
     return [ atoi(c) for c in re.split('(\d+)', text) ]
 
-##################### Electrode functions (to be exported in another file FIXME needs natural_keys function ##################################
 
-from electrode import ElectrodeModel
-
+##################### Electrode functions ##################################
 def moveElectrode(target, entry, referential, newRef, a, meshes):
     # a is anatomist object
     if entry is None or target is None:
-        print("entry or target is None")
         return
 
     if newRef is None:
@@ -305,7 +165,6 @@ def createElectrode(target, entry, referential, ana=None, windows=None, model = 
 
 
 def createBipole(target, entry, referential, ana=None, windows=None, model = None, dispMode=None, dispParams=None):
-  
     elecModel = ElectrodeModel(ana)
     elecModel.open(str(model),dispMode, dispParams)
     #elecModel.setDisplayReferential(newRef)
@@ -328,35 +187,10 @@ def getPlotsNames(elecModel):
     plots = [n for n in cyls if cyls[n]['type'] == 'Plot']
     return sorted(plots, key=natural_keys)
 
-
 # Récupération des coordonnées des centres des plots dans le référentiel électrode
 def getPlotsCenters(elecModel):
     plots = getPlots(elecModel)
     return dict((p, plots[p]['center']) for p in plots)
-
-
-############################### Useful functions
-
-def createItemDirs(item):
-    """ Create the directories containing the provided WriteDiskItem and insert them in the BrainVisa database """
-    # Copied from brainvisa.processes, in ExecutionContext._processExecution()
-    dirname = os.path.dirname( item.fullPath() )
-    dir=dirname
-    dirs = []
-    while not os.path.exists( dir ):
-        dirs.append(dir)
-        dir=os.path.dirname(dir)
-    if dirs:
-        try:
-            os.makedirs( dirname )
-        except OSError, e:
-            if not e.errno == errno.EEXIST:
-                # filter out 'File exists' exception, if the same dir has
-                # been created concurrently by another instance of BrainVisa or another thread
-                raise e
-        for d in dirs:
-            dirItem=neuroHierarchy.databases.createDiskItemFromFileName(d, None)
-
 
 
 # ==========================================================================
@@ -372,12 +206,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.ui = uic.loadUi("locateElectrodes.ui", self)
             self.setWindowTitle('Localisation des electrodes - NOT FOR MEDICAL USE')
             self.app = app
-            # Widget 0 (buttons panel) will be at minimum size (stretch factor 0), the windows will fill up the rest
-            #self.splitter_2.setStretchFactor(0,0)
-            #self.splitter_2.setStretchFactor(1,1)
-            # Equal size for both views
-            #self.splitter.setStretchFactor(0,1)
-            #self.splitter.setStretchFactor(1,1)
         self.nameEdit.setText('A')
     
         # Load the list of protocols, patients and electrode models from BrainVisa
@@ -398,7 +226,6 @@ class LocateElectrodes(QtGui.QDialog):
         self.referentialCombo.addItems(['Natif',])
         self.dispMode = 'real'
         self.dispParams = None
-        self.t1preMniFieldPath = None
         self.t1pre2ScannerBasedId = None
         self.electrodes = []# {Les objets electrodes avec les coordonnées, les meshes
         self.bipoles = [] #{Les objects bipoles}
@@ -416,10 +243,10 @@ class LocateElectrodes(QtGui.QDialog):
         self.updateComboboxes()
         
         # Start anatomist
-        if (loadAll == True) and self.app:
+        if (loadAll == True):
             self.a = anatomist.Anatomist('-b') #Batch mode (hide Anatomist window)
         # Create Anatomist windows
-        if (loadAll == True) and self.app and isGui:
+        if (loadAll == True) and isGui:
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
             self.a.onCursorNotifier.add(self.clickHandler)
@@ -467,8 +294,6 @@ class LocateElectrodes(QtGui.QDialog):
             # self.connect(self.validateROIresection.clicked.connect(self.ROIResectiontoNiftiResection)
             self.deleteMarsAtlasfiles.clicked.connect(self.DeleteMarsAtlasFiles)
             # Electrodes
-            # self.connect(self.ImportTheoriticalImplantation.clicked.connect(self.importRosaImplantation)
-            # self.connect(self.approximateButton.clicked.connect(self.approximateElectrode)
             self.addElectrodeButton.clicked.connect(self.addElectrode)
             self.removeElectrodeButton.clicked.connect(self.removeElectrode)
             self.nameEdit.editingFinished.connect(self.editElectrodeName)
@@ -524,32 +349,31 @@ class LocateElectrodes(QtGui.QDialog):
         if not hasattr(self, 'wins'):
              self.wins = []
              self.widgetsLoaded = []
-             self.widgetsUnloaded = []
-             
+             self.widgetsUnloaded = []  
             
         # ===== LOAD PREFERENCES =====
-        if (loadAll == True) and self.app:
-            prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
+        if (loadAll == True):
             self.spmpath = None
+            self.bidspath = None
+            prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
             try:
                 if (os.path.exists(prefpath_imageimport)):
                     filein = open(prefpath_imageimport, 'rU')
                     prefs_imageimport = pickle.load(filein)
-                    self.spmpath = prefs_imageimport['spm']
+                    if 'spm' in prefs_imageimport.keys():
+                        self.spmpath = prefs_imageimport['spm']
+                    if 'bids' in prefs_imageimport.keys():
+                        self.bidspath = prefs_imageimport['bids']
                     filein.close()
             except:
                 pass
 
-
-        if self.app:
-            # Get BrainVISA context
-            self.brainvisaContext = defaultContext()
-            
+        # Get BrainVISA context
+        self.brainvisaContext = defaultContext()
         # Get Transformation Manager
         self.transfoManager = registration.getTransformationManager()
         # Get ReferentialConverter (for Talairach, AC-PC...)
         self.refConv = ReferentialConverter()
-
 
 
     # ==========================================================================
@@ -669,134 +493,43 @@ class LocateElectrodes(QtGui.QDialog):
         self.patientList.addItems(sorted(subs))
 
 
-    def getFreeSurferAtlas(self):
-#         # New way of saving FreeSurfer atlas (FreeSurfer=>BrainVISA conversion pipeline)
-#         freesurferdi = ReadDiskItem('Label volume', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-#         rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
-#         iFS = [i for i in range(len(rdi_freesurfer)) if ('FreesurferAtlaspre' in rdi_freesurfer[i].attributes()["acquisition"])]
-#         if iFS:
-#             rdi_freesurfer = [rdi_freesurfer[iFS[0]]]
-#         else:
-#             # Old way of saving FreeSurfer atlas (Pierre)
-#             freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-#             rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
-        
-        # Destrieux atlas is saved in subject/FreesurferAtlas/FreesurferAtlaspre<acq_name>
-        freesurferdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'modality': 'freesurfer_atlas'})
-        rdi_freesurfer = list(freesurferdi.findValues({}, None, False ))
-        iFS = [i for i in range(len(rdi_freesurfer)) if ('FreesurferAtlaspre' in rdi_freesurfer[i].attributes()["acquisition"])]
-        if iFS:
-            return [rdi_freesurfer[iFS[0]]]
-        else:
-            return None
-        
-    
-    def getLausanne2008(self):
-        # Get 5 volumes: modality=FreesurferAtlas, acq=Lausanne2008-*
-        lausannerdi = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        rdi_lausanne = list(lausannerdi.findValues({}, None, False ))
-        iLausanne33 = [i for i in range(len(rdi_lausanne)) if 'Lausanne2008-33' in rdi_lausanne[i].attributes()["acquisition"]]
-        iLausanne60 = [i for i in range(len(rdi_lausanne)) if 'Lausanne2008-60' in rdi_lausanne[i].attributes()["acquisition"]]
-        iLausanne125 = [i for i in range(len(rdi_lausanne)) if 'Lausanne2008-125' in rdi_lausanne[i].attributes()["acquisition"]]
-        iLausanne250 = [i for i in range(len(rdi_lausanne)) if 'Lausanne2008-250' in rdi_lausanne[i].attributes()["acquisition"]]
-        iLausanne500 = [i for i in range(len(rdi_lausanne)) if 'Lausanne2008-500' in rdi_lausanne[i].attributes()["acquisition"]]
-        # Ok only if there are 5 volumes
-        if iLausanne33 and iLausanne60 and iLausanne125 and iLausanne250 and iLausanne500:
-            return [rdi_lausanne[iLausanne33[0]], rdi_lausanne[iLausanne60[0]], rdi_lausanne[iLausanne125[0]], rdi_lausanne[iLausanne250[0]], rdi_lausanne[iLausanne500[0]]]
-        else:
-            return None
-            
-            
     def getT1preMniTransform(self):
-        """Returns the path of the transformation to MNI (vector field) and compute it if necessary (from _sn.mat)"""
-    
-        if self.t1preMniFieldPath is not None:
-            return self.t1preMniFieldPath
-    
-        if 'T1pre' not in self.dispObj:
+        """Returns the path of the MNI transformation and compute it if necessary"""
+        # If not T1pre: error
+        if 'T1pre' not in self.diskItems:
             print "No T1pre loaded : cannot get MNI transform from it"
             return None
-    
-        #look for a y_file_inverse first
-        rdi_inv_read = ReadDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
+        # Look for an existing y inverse file
+        rdi_inv_read = ReadDiskItem('SPM normalization inverse deformation field', 'NIFTI-1 image')
         di_inv_read = rdi_inv_read.findValue(self.diskItems['T1pre'])
-    
-        if di_inv_read is None:
-            print "No inverse deformation field found in database"
-        else:
-            print "inverse deformation field found and used"
-            self.t1preMniFieldPath = di_inv_read.fileName()
-            return self.t1preMniFieldPath
-    
-        #look for a y_file second
+        if di_inv_read:
+            return di_inv_read.fileName()
+        # Look for a y file
         rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image')
         di_y = rdi_y.findValue(self.diskItems['T1pre'])
-        if di_y is None:
-            print "No deformation field found in database"
+        if not di_y:
+            print "SPM MNI deformation field not found: Recompute MNI normalization from ImageImport."
+            return None
+        # Compute y inverse
         else:
-            print "deformation field found and used"
+            # Get y_inverse file path
             wdi_inverse = WriteDiskItem('SPM normalization inverse deformation field','NIFTI-1 image')
             dir_yinv_split = str(di_y.fileName()).split('/')
             name_yinverse = dir_yinv_split.pop()[2:]
-            #name_yinverse.replace('.nii','_inverse.nii')
             dir_yinverse = "/".join(dir_yinv_split)
-            di_inverse = wdi_inverse.findValue(di_y)
-            #on fait l'inversion de la deformation
-            #pour le moment ce bout de code ne marche qu'avec spm12
-            errMsg = matlabRun(spm_inverse_y_field12%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
+            di_inv_write = wdi_inverse.findValue(di_y)
+            # Compute inverse deformation with SPM12
+            errMsg = matlabRun(spm12_inverse_y%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
             if errMsg:
                 print errMsg
                 return None
-
-            self.t1preMniFieldPath = di_inverse.fileName()
-            neuroHierarchy.databases.insertDiskItem( di_inverse, update=True )
-            return self.t1preMniFieldPath
-    
-        #look for a _sn.mat if no y_file
-        rdi = ReadDiskItem( 'SPM2 normalization matrix', 'Matlab file' )
-        di = rdi.findValue(self.diskItems['T1pre'])
-        if di is None:
-            print "SPM deformation _sn.mat not found in database"
-            return None
-    
-        # Convert to field
-        wdi = WriteDiskItem( 'SPM normalization inverse deformation field', 'NIFTI-1 image' )
-        diField = wdi.findValue(di)
-        if diField is None:
-            print "Cannot find path to save MNI vector field in the DB"
-            return None
-        #For a file /database/y_SubjectName_inverse.nii, get SubjectName_inverse
-        ofname = os.path.basename(diField.fullPath()).lstrip('y_').rsplit('.',1)[0]
-    
-        if spm_version == '(SPM12)':
-            print 'SPM12 used'
-            errMsg = matlabRun(spm_SnToField12%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
-            if errMsg:
-                print errMsg
+            # Check that output file exists
+            if os.path.exists(di_inv_write.fileName()):
+                neuroHierarchy.databases.insertDiskItem(di_inv_write, update=True)
+                return di_inv_write.fileName()
+            else:
+                print "Error: Could not compute SPM MNI inverse deformation field"
                 return None
-        if spm_version == '(SPM8)':
-            print 'SPM8 used'
-            errMsg = matlabRun(spm_SnToField8%("'"+self.spmpath+"'",str(di.fullPath()), str(self.diskItems['T1pre'].fullPath()),  ofname) )
-            if errMsg:
-                print errMsg
-                return None
-            
-        if os.path.exists(diField.fullPath()):
-            self.t1preMniFieldPath = diField.fullPath()
-            return self.t1preMniFieldPath
-        else:
-            print "Matlab did not convert the MNI transform to vector field !"
-            return None
-
-
-    def clearT1preMniTransform(self):
-        """Reset MNI transform field if it was generated"""
-        if self.t1preMniFieldPath is not None:
-            try:
-                os.remove(self.t1preMniFieldPath) #to change with: self.removeDiskItems(di,eraseFiles=True)
-            except:
-                pass
-            self.t1preMniFieldPath = None
 
 
     def changePatient(self):
@@ -807,21 +540,16 @@ class LocateElectrodes(QtGui.QDialog):
             w.setEnabled(False)
         # Delete all the graphical objects
         self.a.removeObjects(self.a.getObjects(), self.wins)
-        # self.a.config()[ 'linkedCursor' ] = 0
         # Remove unused referentials
         referentials = self.a.getReferentials()
         for element in referentials:
             if element.getInfos() and (element.getInfos().get('name') not in ('Talairach-MNI template-SPM', 'Talairach-AC/PC-Anatomist')):
                 self.a.deleteElements(element)
-               
+        # Re-initialize the entire window
         self.electrodeList.clear()
         self.contactList.clear()
-        self.currentWindowRef = None
-        self.electrodes = []
         self.currentElectrodes = []
         self.currentContacts = []
-        self.dispObj = {}
-        self.objtokeep = {}
         self.__init__(loadAll=False, isGui=True)
   
   
@@ -839,7 +567,7 @@ class LocateElectrodes(QtGui.QDialog):
         self.windowCombo4.blockSignals(True)
         # Call loading function
         errMsg = ProgressDialog.call(lambda thr:self.loadPatientWorker(patient, thr), True, self, "Processing...", "Load patient: " + patient)
-        # errMsg = self.loadPatientWorker(patient)
+        #errMsg = self.loadPatientWorker(patient)
         # Update enabled/disabled controls
         for w in self.widgetsLoaded:
             w.setEnabled(False)
@@ -859,14 +587,11 @@ class LocateElectrodes(QtGui.QDialog):
                        "If the images and electrodes are still not aligned correctly, you may need to delete the patient and start over."]
             QtGui.QMessageBox.warning(self, u'Database error', "\n".join(errMsg))
     
-        
-  
+
     def loadPatientWorker(self, patient, thread=None, isGui=True):
         errMsg = []
 
         self.t1pre2ScannerBasedTransform = None
-        self.clearT1preMniTransform()
-    
         pre_select_1 = self.windowCombo1.currentText()
         pre_select_2 = self.windowCombo2.currentText()
         pre_select_3 = self.windowCombo3.currentText()
@@ -879,10 +604,11 @@ class LocateElectrodes(QtGui.QDialog):
             volumes.extend(list(rdi2._findValues({}, None, False)))
         # Load all volumes
         dictionnaire_list_images = dict()
-        t1pre = None
         objAtlas = []
         refT1pre = None
         self.vol_destrieux = []
+        self.vol_dkt = []
+        self.vol_hcp = []
         for t in volumes:
             if "skull_stripped" in t.fullName():
                 continue
@@ -979,6 +705,14 @@ class LocateElectrodes(QtGui.QDialog):
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'FreeSurfer Atlas (Destrieux)':['FreesurferAtlaspre', 'electrodes']})
                 self.vol_destrieux = aims.read(str(t))
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('DKT' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'DKT Atlas':['DKT', 'electrodes']})
+                self.vol_dkt = aims.read(str(t))
+                na = 'DKT'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('HCP-MMP1' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'HCP-MMP1 Atlas':['HCP-MMP1', 'electrodes']})
+                self.vol_hcp = aims.read(str(t))
+                na = 'HCP-MMP1'
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('Lausanne2008-33' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'Lausanne2008-33 Atlas':['Lausanne2008-33', 'electrodes']})
                 na = 'Lausanne2008-33'
@@ -1023,7 +757,6 @@ class LocateElectrodes(QtGui.QDialog):
                 if (len(volReferential) == 1):
                     t.setMinf('referential', volReferential[0].uuid())
                     neuroHierarchy.databases.insertDiskItem(t, update=True)
-            
             if ((na == 'preNorm') or (na == 'postOpNorm')) and (not 'referential' in t.attributes().keys()):
                 print "*** DATABASE FIX: Adding the referential "
                 # Look for referential file for this volume
@@ -1033,7 +766,6 @@ class LocateElectrodes(QtGui.QDialog):
                 if (len(volReferential) == 1):
                     t.setMinf('referential', volReferential[0].uuid())
                     neuroHierarchy.databases.insertDiskItem(t, update=True)
-                    
             # Load volume in anatomist
             obj = self.loadAndDisplayObject(t, na)
             
@@ -1042,14 +774,14 @@ class LocateElectrodes(QtGui.QDialog):
                 strVol = 'MRI pre'
                 refT1pre = obj.getReferential()
                 # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
-                self.deleteNormalizedTransformations(obj)
+                self.deleteNormalizedTransf(obj)
                 # Save volume center (in mm)
                 if t.get('brainCenter'):
                     self.t1preCenter = t.get('brainCenter')
                 elif t.get('volume_dimension') and t.get('voxel_size'):
                     volSize = t.get('volume_dimension')
                     voxSize = t.get('voxel_size')
-                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2];
+                    self.t1preCenter = [volSize[0]*voxSize[0]/2, volSize[1]*voxSize[1]/2, volSize[2]*voxSize[2]/2]
                 else:
                     self.t1preCenter = [128, 128, 128]
                 try:
@@ -1081,15 +813,19 @@ class LocateElectrodes(QtGui.QDialog):
                 if (na == 'FreesurferT1pre'):
                     strVol = 'MRI FreeSurfer'
                 # Delete existing transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
-                self.deleteNormalizedTransformations(obj)
+                self.deleteNormalizedTransf(obj)
                 # Load all related transformations
                 self.loadVolTransformations(t)
                 
-            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na):
+            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na) or ('DKT' in na) or ('HCP-MMP1' in na):
                 objAtlas.append(obj)
                 # Create palette adapted to the volume
                 if (na == 'FreesurferAtlaspre'):
                     colors = freesurfer_colormap
+                elif (na == 'DKT'):
+                    colors = freesurfer_colormap
+                elif (na == 'HCP-MMP1'):
+                    colors = hcp_colormap
                 elif (na == 'Lausanne2008-33'):
                     colors = lausanne33_colormap
                 elif (na == 'Lausanne2008-60'):
@@ -1177,16 +913,15 @@ class LocateElectrodes(QtGui.QDialog):
                 if amygHippoMesh:
                     dictionnaire_list_images.update({strVol + ' + hippocampus + amygdala':[na, 'electrodes'] + amygHippoMesh})
 
-        # ===== FREESURFER TRANSFOMRATION =====
+        # ===== FREESURFER TRANSFORMATION =====
         # FreeSurfer atlas was resliced using T1pre: force T1pre referential
         if objAtlas and refT1pre:
             for obj in objAtlas:
                 obj.assignReferential(refT1pre)
-        
         # Update interface
         if isGui:
             # Update list of available items in the combo boxes
-            self.windowContent = dictionnaire_list_images;
+            self.windowContent = dictionnaire_list_images
             self.updateComboboxes(pre_select_1, pre_select_2, pre_select_3, pre_select_4)
             # Display referential informations
             self.setWindowsReferential()
@@ -1196,11 +931,12 @@ class LocateElectrodes(QtGui.QDialog):
         self.loadElectrodes(patient, self.currentProtocol, isGui)
         # Update display
         if isGui:
-            self.refreshAvailableDisplayReferentials()
+            self.refreshReferentials()
             # Center view on AC
             self.centerCursor()
         return errMsg
-            
+
+
     # Chargement d'un objet (MRI, mesh...) dans Anatomist et mise à jour de l'affichage
     def loadAndDisplayObject(self, diskitem, name = None, color=None, palette=None, texture_item = None):
 
@@ -1262,41 +998,45 @@ class LocateElectrodes(QtGui.QDialog):
         if params:
             self.lastClickedPos = params['position']
             self.lastClickedRef = params['window'].getReferential()
-
-        coords = [0.0,0.0,0.0]
-
-        if 'T1pre' in self.dispObj:
-            # pT1Pre = self.a.linkCursorLastClickedPosition(self.dispObj['T1pre'].getReferential()).items()
-            pT1Pre = self.positionPreRef()
-            if not pT1Pre:
-                return
-
-            # Labels
-            if (self.coordsDisplayRef == "FreeSurfer/Destrieux"):
-                info_image = self.diskItems['T1pre'].attributes()
-                plot_pos_pix_indi = [round(pT1Pre[i]/info_image['voxel_size'][i]) for i in range(3)]
-                plot_pos_pixFS = plot_pos_pix_indi
-                fsIndex = self.vol_destrieux.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
-                label_freesurfer_name = freesurfer_parcel_names[str(fsIndex)][0]
-                self.positionLabel.setText(label_freesurfer_name + " (" + str(fsIndex) + ")")
-            # Coordinates
+        # No T1pre
+        if not 'T1pre' in self.dispObj:
+            return
+        # Get coordinates
+        pT1Pre = self.positionPreRef()
+        if not pT1Pre:
+            return
+        # Labels
+        if (self.coordsDisplayRef == "Destrieux") or (self.coordsDisplayRef == "DKT") or (self.coordsDisplayRef == "HCP-MMP1"):
+            info_image = self.diskItems['T1pre'].attributes()
+            pos_SB = [round(pT1Pre[i]/info_image['voxel_size'][i]) for i in range(3)]
+            pos_fs = pos_SB
+            if (self.coordsDisplayRef == "Destrieux"):
+                fsIndex = self.vol_destrieux.value(pos_fs[0],pos_fs[1],pos_fs[2])
+                self.positionLabel.setText(labels['Destrieux'][fsIndex])
+            elif (self.coordsDisplayRef == "DKT"):
+                fsIndex = self.vol_dkt.value(pos_fs[0],pos_fs[1],pos_fs[2])
+                self.positionLabel.setText(labels['DKT'][fsIndex])
+            elif (self.coordsDisplayRef == "HCP-MMP1"):
+                fsIndex = self.vol_hcp.value(pos_fs[0],pos_fs[1],pos_fs[2])
+                self.positionLabel.setText(labels['HCP-MMP1'][fsIndex])
+        # Coordinates
+        else:
+            if self.coordsDisplayRef == 'Natif':
+                coords = pT1Pre
+            elif self.coordsDisplayRef == 'Scanner-based':
+                infos = self.t1pre2ScannerBased().getInfos()
+                rot = infos['rotation_matrix']
+                trans = infos['translation']
+                m = aims.Motion(rot[:3]+[trans[0]]+rot[3:6]+[trans[1]]+rot[6:]+[trans[2]]+[0,0,0,1])
+                coords = m.transform(pT1Pre)
             else:
-                if self.coordsDisplayRef == 'Natif':
-                    coords = pT1Pre
-                elif self.coordsDisplayRef == 'Scanner-based':
-                    infos = self.t1pre2ScannerBased().getInfos()
-                    rot = infos['rotation_matrix']
-                    trans = infos['translation']
-                    m = aims.Motion(rot[:3]+[trans[0]]+rot[3:6]+[trans[1]]+rot[6:]+[trans[2]]+[0,0,0,1])
-                    coords = m.transform(pT1Pre)
-                else:
-                    try:
-                        coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
-                    except:
-                        coords = [0.0,0.0,0.0]
-                if coords is None:
+                try:
+                    coords = self.refConv.real2AnyRef(pT1Pre, self.coordsDisplayRef)
+                except:
                     coords = [0.0,0.0,0.0]
-                self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
+            if coords is None:
+                coords = [0.0,0.0,0.0]
+            self.positionLabel.setText("%.2f, %.2f, %.2f" % tuple(coords))
 
 
     def preReferential(self):
@@ -1304,6 +1044,7 @@ class LocateElectrodes(QtGui.QDialog):
             return self.dispObj['T1pre'].getReferential()
         else:
             return None
+  
   
     def positionPreRef(self):
         # MAY 2018: Not using linkCursorLastClickedPosition anymore because of a bug in BrainVISA 4.6
@@ -1338,7 +1079,6 @@ class LocateElectrodes(QtGui.QDialog):
         allTransf = list (rdi._findValues( {}, None, False ) )
         for trsf in allTransf:
             if trsf.attributes()['acquisition'].startswith(u'T1pre'):
-                # print repr(trsf.attributes())
                 srcrDiskItem = self.transfoManager.referential( trsf.attributes()['source_referential'] )
                 srcr = self.a.createReferential(srcrDiskItem)
                 dstrDiskItem = self.transfoManager.referential(trsf.attributes()['destination_referential'])
@@ -1372,7 +1112,7 @@ class LocateElectrodes(QtGui.QDialog):
             loadedTrm += [self.a.loadTransformation(trm.fullPath(), srcr, dstr)]
         return loadedTrm
     
-    def deleteNormalizedTransformations(self, obj):
+    def deleteNormalizedTransf(self, obj):
         # Delete existing normalized transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
         for trm in self.a.getTransformations():
             if trm.getInfos()\
@@ -1392,7 +1132,7 @@ class LocateElectrodes(QtGui.QDialog):
     def mniReferential(self):
         return self.a.mniTemplateRef
 
-    def refreshAvailableDisplayReferentials(self):
+    def refreshReferentials(self):
         curr = str(self.referentialCombo.currentText())
         self.referentialCombo.clear()
         # Add items from the referential converter
@@ -1400,10 +1140,12 @@ class LocateElectrodes(QtGui.QDialog):
         self.referentialCombo.addItems(refs)
         # Add available atlases
         if ('FreesurferAtlaspre' in self.dispObj.keys()):
-            self.referentialCombo.addItems(["FreeSurfer/Destrieux"])
+            self.referentialCombo.addItems(["Destrieux"])
             self.referentialCombo.setCurrentIndex( self.referentialCombo.count() - 1 )
-        
-        print self.dispObj.keys()
+        if ('DKT' in self.dispObj.keys()):
+            self.referentialCombo.addItems(["DKT"])
+        if ('HCP-MMP1' in self.dispObj.keys()):
+            self.referentialCombo.addItems(["HCP-MMP1"])
 
     def updateCoordsDisplay(self, text):
         self.coordsDisplayRef = str(text)
@@ -1465,15 +1207,11 @@ class LocateElectrodes(QtGui.QDialog):
                     fout = open(str(di_seeg),'w')
                     fout.write(json.dumps({'title':new_label['title'],'contacts':new_label['contacts']}))
                     fout.close()                
-                    
                     neuroHierarchy.databases.insertDiskItem(di_seeg, update=True )
                     
                 elif os.path.basename(str(fichierseegLabel)).split('.')[-1] == 'xlsx':
-                    
                     contact_label_class = generate_contact_colors()
-                    
                     inter_label = contact_label_class.from_excel_files(str(fichierseegLabel))
-                    
                     #write the json and include it in the database
                     try:
                         os.mkdir(os.path.dirname(str(di_seeg)))
@@ -1482,7 +1220,6 @@ class LocateElectrodes(QtGui.QDialog):
                     fout = open(str(di_seeg),'w')
                     fout.write(json.dumps({'title':inter_label[0],'contacts':inter_label[1]}))
                     fout.close() 
-                    
                     neuroHierarchy.databases.insertDiskItem(di_seeg, update=True )
                     new_label = {'title':inter_label[0],'contacts':inter_label[1]}
               
@@ -1492,12 +1229,12 @@ class LocateElectrodes(QtGui.QDialog):
                 fin.close()
     
             bipole_label_sorted = sorted(new_label['contacts'].keys(),key=natural_keys)
-            plotsT1preRef = self.getAllPlotsCentersT1preRef()
+            plotsT1preRef = self.getPlotsT1preRef()
             info_plotsT1Ref= []
             for k,v in plotsT1preRef.iteritems():
                 plot_name_split = k.split('-$&_&$-')
                 info_plotsT1Ref.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v.list()))
-    
+                
             plotsT1Ref_sorted = dict(sorted(info_plotsT1Ref, key=lambda plot_number: plot_number[0]))
               
             #remplir self.bipole
@@ -1520,7 +1257,6 @@ class LocateElectrodes(QtGui.QDialog):
             self.configureColors()
     
         if mode == self.dispMode and params == self.dispParams:
-            print "already using the right display mode"
             return
         self.updateElectrodeMeshes(clear=True)
         for elec in self.electrodes:
@@ -1539,7 +1275,6 @@ class LocateElectrodes(QtGui.QDialog):
         if clear:
             if 'electrodes' not in self.dispObj.keys():
                 return
-            print "UPDATE CLEAR -> remove electrodes from windows and delete them"
             self.a.removeObjects(self.dispObj['electrodes'], self.wins)
             self.dispObj['electrodes'] = []
             return
@@ -1549,7 +1284,6 @@ class LocateElectrodes(QtGui.QDialog):
         elif bipole:
             self.dispObj['electrodes'] = [mesh for elec in self.bipoles for mesh in elec['elecModel'].getAnatomistObjects() if mesh is not None]
             self.setBipoleMeshesNames()
-#        self.updateAllWindows()
 
 
     # Add an electrode from a template
@@ -1590,7 +1324,6 @@ class LocateElectrodes(QtGui.QDialog):
         # Redraw electrodes
         if isUpdate and isGui:
             self.updateElectrodeMeshes()
-            #self.updateAllWindows(True)
             self.updateAllWindows(False)
         
 
@@ -1659,7 +1392,6 @@ class LocateElectrodes(QtGui.QDialog):
 
     def currentElectrode(self):
         idx = self.electrodeList.currentRow()
-        print "Electrode %i is selected"%idx
         if idx < 0:
           return None
         return self.electrodes[idx]
@@ -1843,7 +1575,6 @@ class LocateElectrodes(QtGui.QDialog):
             else:
                 transf = self.a.getTransformation(el['ref'], self.wins[0].getReferential())
                 xyz = transf.transform(xyz)
-                # print "Warning : Current window referential is not T1pre referential ! Cannot set the linkedCursor on the selected electrode contact..."
             self.wins[0].moveLinkedCursor(xyz)
         except:
             print "Error moving the cursor to the contact"
@@ -1860,7 +1591,7 @@ class LocateElectrodes(QtGui.QDialog):
         return self.electrodeTemplateStubs
 
 
-    def fitElectrodeModelToLength(self, target, entry):
+    def fitElecModelToLength(self, target, entry):
         """ Tries to find a match between the length of the electrode and a model, but prefering uniform electrodes (no variable spacing between contacts"""
         length = linalg.norm(array(entry) - array(target))
     
@@ -1882,7 +1613,7 @@ class LocateElectrodes(QtGui.QDialog):
             return [m for m, l in largerModels.iteritems() if l == min(largerModels.values())][0]
 
 
-    def fitElectrodeModelToPlots(self, plots):
+    def fitElecModelToPlots(self, plots):
         """ Tries to find a match between a list of plots [[numPlot, x, y, z],[...], ...] and available electrode templates.
           Return None if it fail, [ModelName, [targetX, targetY, targetZ], [entryX, entryY, entryZ]] if it works
         """
@@ -1939,40 +1670,10 @@ class LocateElectrodes(QtGui.QDialog):
         msgBox.layout().addWidget(combo, 1, 0)
         msgBox.addButton(QtGui.QPushButton('Ok'), QtGui.QMessageBox.AcceptRole)
         msgBox.addButton(QtGui.QPushButton('Annuler'), QtGui.QMessageBox.RejectRole)
-        ret = msgBox.exec_();
+        ret = msgBox.exec_()
         if ret == QtGui.QMessageBox.Cancel:
             return None
         return str(combo.currentText())
-
-
-    def loadPTSbasic(self, path):
-        """Load a PTS file, creating an 'electrode model' for each contact (VERY slow with > 50 contacts) """
-        refId = self.preReferential().uuid()
-        els = []
-        elecs = {}
-        try:
-            f = open(path, 'r')
-            lines = f.readlines()
-            f.close()
-            lines.reverse()
-            if not lines.pop().startswith('ptsfile'):
-                print 'This is not a valid PTS file !'
-                return (refId, [])
-            lines.pop() # Useless line 1 1 1
-            nb = int(lines.pop()) # Number of contacts
-            for i in range(nb):
-                l = lines.pop().rstrip().split("\t") # name x y z 0 0 0 2 2.0 (last ones may be contact length/diameter ?)
-                name = ''.join(e for e in l[0] if not e.isdigit())
-                if name not in elecs:
-                  elecs[name]=[]
-                plot = int(''.join(e for e in l[0] if e.isdigit()))
-                coords = list(self.refConv.anyRef2Real([float(l[1]), float(l[2]),float(l[3])], 'Scanner-based'))
-                nameplot = l[0]
-                elecs[name].append ( [plot,] + coords)
-                els.append( {'name':nameplot, 'model':'plot2mmD1mmCentered', 'target': coords, 'entry':coords[0:2]+[coords[2]+1.0,]} )
-        except:
-          print "Error reading PTS file %s"%path
-        return (refId, els)
 
 
     def loadPTS(self, path):
@@ -2015,7 +1716,7 @@ class LocateElectrodes(QtGui.QDialog):
         # Iterate over all electrodes
         for k,l in elecs.iteritems():
             # Try to get a real model from l [[numPlot, x,y,z], [...], ...]
-            res = self.fitElectrodeModelToPlots(l)
+            res = self.fitElecModelToPlots(l)
             if res is not None:
                 els.append( {'name':k.lower(), 'model':res[0], 'target': res[1], 'entry':res[2]} )
             else:
@@ -2050,7 +1751,7 @@ class LocateElectrodes(QtGui.QDialog):
                 if len(targ) == 3 and len(entr) == 3 and len(name)>0:
                     targ = list(self.refConv.anyRef2Real(targ, refOfTxt))
                     entr = list(self.refConv.anyRef2Real(entr, refOfTxt))
-                    els.append( {'name':name.lower(), 'model':fitElectrodeModelToLength(targ, entr), 'target': targ, 'entry':entr} )
+                    els.append( {'name':name.lower(), 'model':fitElecModelToLength(targ, entr), 'target': targ, 'entry':entr} )
                 else:
                     print "Invalid lines in electrode txt file : %s, %s, %s"%(repr(name), repr(targ), repr(entr))
             except:
@@ -2124,7 +1825,6 @@ class LocateElectrodes(QtGui.QDialog):
         els = [dict((k,el[k]) for k in ['name', 'target', 'entry', 'model']) for el in self.electrodes]
         # Save Referential UID which is the base of electrode coordinates
         refId = self.preReferential().uuid()
-        print 'Sauvegarde electrodes'+repr(els)+"\nReferential UUID : "+refId
         path = None
         di = None
         if self.brainvisaPatientAttributes is not None:
@@ -2144,7 +1844,7 @@ class LocateElectrodes(QtGui.QDialog):
         if os.path.splitext(path)[1] == '':
             path = path+'.elecimplant'
     
-        plotsT1preRef = self.getAllPlotsCentersT1preRef()
+        plotsT1preRef = self.getPlotsT1preRef()
         info_plotsT1Ref= []
         for k,v in plotsT1preRef.iteritems():
             plot_name_split = k.split('-$&_&$-')
@@ -2179,15 +1879,16 @@ class LocateElectrodes(QtGui.QDialog):
         # Ask which options needed to be executed before the export
         dialog = DialogCheckbox([\
             "Compute MNI coordinates for all contacts",\
-            "Compute MarsAtlas contacts positions",\
+            "Compute parcels for all contacts",\
             "Compute MarsAtlas resection position",\
             "Compute parcel metrics",\
             "Save contact coordinates (.pts/.txt files)",\
             "Save contact info (CSV file)",\
+            "Save contact info (BIDS .tsv)", \
             "Save screenshots",\
             "Save video (MP4)"],\
             "Export", "Select options to run:",\
-            [True, True, False, False, True, True, False, False])
+            [True, True, False, False, True, True, self.bidspath != None, False, False])
         selOptions = dialog.exec_()
         # If user cancelled the selection
         if selOptions is None:
@@ -2247,29 +1948,30 @@ class LocateElectrodes(QtGui.QDialog):
         newFiles = []
         errMsg = []
         # Get coordinates of SEEG contact centers
-        plots = self.getAllPlotsCentersT1preScannerBasedRef()
+        plots = self.getPlotsT1preScannerBasedRef()
         if not plots:
             errMsg += ["No electrodes available."]
             return [newFiles, errMsg]
 
         # Get options from selection
         isComputeMni = selOptions[0]
-        isMarsatlasContacts = selOptions[1]
+        isComputeParcels = selOptions[1]
         isMarsatlasResection = selOptions[2]
         isParcelMetrics = selOptions[3]
         isSavePts = selOptions[4]
         isSaveCsv = selOptions[5]
-        isScreenshot = selOptions[6]
-        isVideo = selOptions[7]
+        isSaveTsv = selOptions[6]
+        isScreenshot = selOptions[7]
+        isVideo = selOptions[8]
 
         # ===== MNI COORDINATES =====
-        dict_plotsMNI = None
+        plots_MNI = None
         if isComputeMni:
             if (self.getT1preMniTransform() is not None):
                 if thread:
                     thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
                     thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
-                [dict_plotsMNI, mniFiles] = self.computeMniPlotsCenters()
+                [plots_MNI, mniFiles] = self.computeMniCoord()
                 newFiles += mniFiles
             else:
                 errMsg += ["Cannot compute MNI coordinates for the contacts."]
@@ -2307,10 +2009,10 @@ class LocateElectrodes(QtGui.QDialog):
             # ===== MNI referential =====
             # Get MNI coordinates if computation was not enforced previously
             if not isComputeMni:
-                dict_plotsMNI = self.getAllPlotsCentersMNIRef(False)
-                if dict_plotsMNI is None:
+                plots_MNI = self.getPlotsMNIRef(False)
+                if plots_MNI is None:
                     errMsg += ["Cannot compute MNI coordinates for the contacts."]
-            if dict_plotsMNI is not None:
+            if plots_MNI is not None:
                 # Get output files from the database
                 wdiptsmni = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
                 wditxtmnipos = WriteDiskItem('Electrode Implantation Position TXT', 'Text file', requiredAttributes={'ref_name':'MNI'}).findValue(self.diskItems['T1pre'])
@@ -2318,12 +2020,12 @@ class LocateElectrodes(QtGui.QDialog):
                 # Save PTS and TXT files
                 if (wdiptsmni is not None) and (wditxtmnipos is not None) and (wditxtmniname is not None):
                     # Save PTS
-                    self.savePTS(path = wdiptsmni.fullPath(), contacts = dict_plotsMNI)
+                    self.savePTS(path = wdiptsmni.fullPath(), contacts = plots_MNI)
                     wdiptsmni.setMinf('referential', self.mniReferentialId())
                     wdiptsmni.setMinf('timestamp', timestamp)
                     neuroHierarchy.databases.insertDiskItem(wdiptsmni, update=True )
                     # Save TXT files
-                    self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = dict_plotsMNI)
+                    self.saveTXT(pathPos=wditxtmnipos.fullPath(), pathName=wditxtmniname.fullPath(), contacts = plots_MNI)
                     neuroHierarchy.databases.insertDiskItem(wditxtmniname, update=True )
                     wditxtmnipos.setMinf('referential', self.mniReferentialId())
                     wditxtmnipos.setMinf('timestamp', timestamp)
@@ -2339,7 +2041,7 @@ class LocateElectrodes(QtGui.QDialog):
                 wdiptsacpc = WriteDiskItem('Electrode Implantation PTS', 'PTS format', requiredAttributes={'ref_name':'ACPC'}).findValue(self.diskItems['T1pre'])
                 # Save PTS
                 if (wdiptsacpc is not None):
-                    plotsACPC = self.getAllPlotsCentersAnyReferential('AC-PC')
+                    plotsACPC = self.getPlotsAnyReferential('AC-PC')
                     self.savePTS(path = wdiptsacpc.fullPath(), contacts=plotsACPC)
                     wdiptsacpc.setMinf('referential', 'AC-PC')
                     wdiptsacpc.setMinf('timestamp', timestamp)
@@ -2351,12 +2053,12 @@ class LocateElectrodes(QtGui.QDialog):
                 
                 
         # ===== MARS ATLAS =====
-        # Compute MarsAtlas parcels 
-        if isMarsatlasContacts:
+        # Compute parcels 
+        if isComputeParcels:
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
-            res = self.exportParcels()
+            res = self.computeParcels(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Compute MarsAtlas resection
@@ -2364,21 +2066,29 @@ class LocateElectrodes(QtGui.QDialog):
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing resection parcels...")
-            newFiles += self.marsatlasExportResection()
-        # Compute MarsAtlas parcel metrics
+            newFiles += self.computeMarsatlasResection()
+        # Compute parcel metrics
         if isParcelMetrics:
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing parcel metrics...")
-            newFiles += self.calculParcel()
+            newFiles += self.computeParcelMetrics()
             
         # ===== OTHER EXPORTS =====
         # Save CSV
         if isSaveCsv:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 60)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
-            res = self.exportCSVdictionaries()
+            res = self.saveCSV(self.diskItems['T1pre'])
+            newFiles += res[0]
+            errMsg += res[1]
+        # Save TSV
+        if isSaveTsv:
+            if thread:
+                thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
+                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating BIDS TSV files...")
+            res = self.saveBidsTsv(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Save screenshots
@@ -2386,19 +2096,18 @@ class LocateElectrodes(QtGui.QDialog):
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 80)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating screenshots...")
-            newFiles += self.screenshot()
+            newFiles += self.saveScreenshot()
         # Save video
         if isVideo:
             if thread:
                 thread.emit(QtCore.SIGNAL("PROGRESS"), 90)
                 thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
-            newFiles += self.makeMP4()
+            newFiles += self.saveMP4()
 
         return [newFiles, errMsg]
     
 
-
-    def screenshot(self):
+    def saveScreenshot(self):
         #Check if all the volumes are available.
         #self.verifParcel allows us to know if the verification has already been made, in that case we won't do it again
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
@@ -2529,7 +2238,7 @@ class LocateElectrodes(QtGui.QDialog):
         return [di.fullPath()]
           
           
-    def makeMP4(self):
+    def saveMP4(self):
         from brainvisa import quaternion
         
         newFiles = []
@@ -2669,8 +2378,7 @@ class LocateElectrodes(QtGui.QDialog):
             line1 = runCmd(cmd1)
             neuroHierarchy.databases.insertDiskItem(di, update=True )
             newFiles.append(di.fullPath())
-            
-        #mpegConfig.mpegFormats[3]    
+
         #Mars Atlas GIF
         #Check if all the volumes are available.
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
@@ -2758,28 +2466,18 @@ class LocateElectrodes(QtGui.QDialog):
             new_list_image = []
             j=0
             while j<350:
-                #print 'j', j
                 images = map(Image.open,[os.path.join(getTmpDir(),"gifL%03i.png"%(j)), os.path.join(getTmpDir(),"gifR%03i.png"%(j))])
-                
                 widths, heights = zip(*(i.size for i in images))
-          
                 total_width = sum(widths)
                 max_height = max(heights)
-          
                 new_im = Image.new('RGB', (total_width, max_height))
-
                 x_offset = 0
                 for im in images:
                     new_im.paste(im, (x_offset,0))
                     x_offset += im.size[0]
-                
                 new_im.save(os.path.join(getTmpDir(),'gifF%03i.jpg'%(j)), quality=70)
                 new_list_image.append(os.path.join(getTmpDir(), 'gifF%03i.jpg'%(j)))
-                
                 j+=1    
-            #cmd1 = ['convert','-delay', '50', '-loop','0','/tmp/gif*.png','/home/gin11_stage/animation.gif']
-            #os.system('convert -delay 50 -loop 0 /tmp/gif*.png /tmp/animation.gif')
-            #line1 = runCmd(cmd1)
             
             self.brainvisaContext.runProcess('mpegEncode_avconv', animation=os.path.join(getTmpDir(),'animationMA.mp4'),images = new_list_image,encoding='h264',quality=50,passes=1)
             wdi = WriteDiskItem('MP4 of Mars Atlas','MP4 film')
@@ -2808,25 +2506,19 @@ class LocateElectrodes(QtGui.QDialog):
     
 
     def fitvolumebyellipse(self,volumeposition):
-
-        #cut the hippocampus in two:
         # from https://github.com/minillinim/ellipsoid/blob/master/ellipsoid.py
         tolerance = 0.025
         if len(volumeposition)>16000:
             volumeposition = [volumeposition[x] for x in range(len(volumeposition)) if x & 1 ==0]
-
         volumeposition=numpy.array(volumeposition)
         (N, dd) = numpy.shape(volumeposition)
         dd = float(dd)
-
         # Q will be our working array
         Q = numpy.vstack([numpy.copy(volumeposition.T), numpy.ones(N)])
         QT = Q.T
-
         # initializations
         err = 1.0 + tolerance
         u = (1.0 / N) * numpy.ones(N)
-
         # Khachiyan Algorithm
         while err > tolerance:
             V = numpy.dot(Q, numpy.dot(numpy.diag(u), QT))
@@ -2838,21 +2530,17 @@ class LocateElectrodes(QtGui.QDialog):
             new_u[j] += step_size
             err = numpy.linalg.norm(new_u - u)
             u = new_u
-
         # center of the ellipse
         center = numpy.dot(volumeposition.T, u)
-
         # the A matrix for the ellipse
         AA = numpy.linalg.inv(numpy.dot(volumeposition.T, numpy.dot(numpy.diag(u), volumeposition)) - numpy.array([[a * b for b in center] for a in center])) / dd
-
         # Get the values we'd like to return
         UU, ss, rotation = numpy.linalg.svd(AA)
         radii = 1.0/numpy.sqrt(ss)
-
-        return radii   #UU, ss, rotation, center, 
+        return radii
    
           
-    def calculParcel(self):
+    def computeParcelMetrics(self):
         import copy
         
         infos={}
@@ -2866,9 +2554,7 @@ class LocateElectrodes(QtGui.QDialog):
         Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
         
-        #take the parcels names in one list
-        parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
-        
+        #take the parcels names in one list       
         try:
             #transform the images to matrices
             Maskleft = aims.read(diMaskleft.fullPath())
@@ -2883,9 +2569,8 @@ class LocateElectrodes(QtGui.QDialog):
         volume = aims.read(str(self.diskItems['T1pre']))
         sizeT1=volume.getVoxelSize()
         
-        print 'verif done'
         #calculate the total volume of the parcels
-        for key, value in parcels_names.items():
+        for key, value in labels['MarsAtlas'].items():
             if value[0].lower()=='l':
                 parcel1 = numpy.where(npleftMarsAtlas == key)
             else:
@@ -2897,7 +2582,7 @@ class LocateElectrodes(QtGui.QDialog):
         
         t=1
         #we do the computations for each parcel
-        for key, value in parcels_names.items():
+        for key, value in labels['MarsAtlas'].items():
             print 'doing parcel ' ,value ,t
             t+=1
             par=0
@@ -2975,8 +2660,7 @@ class LocateElectrodes(QtGui.QDialog):
         tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
-        errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
-        # errMsg = self.normalizePoints(field, points)
+        errMsg = matlabRun(spm12_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
         if errMsg:
             print errMsg
             return []
@@ -3002,198 +2686,198 @@ class LocateElectrodes(QtGui.QDialog):
         print "parcel metrics done"
         return [di.fullPath()]
     
-    
-    def normalizePoints(self, mniInvFile, points):
-        # Initialize returned value
-        mniPoints = []
-        # Load inverse MNI transformation
-        mniInv = aims.read(mniInvFile)
-        # Get voxel-world transformation
-        T = mniInv.header()["transformations"][0].arraydata().reshape(4,4)
-        # Invert this transformation
-        Tinv = linalg.inv(T)
-    
 
     # ===== EXPORT CSV FILES =====
-    def exportCSVdictionaries(self, useDatabase=True, fileEleclabel=None, fileResecLabel=None, fileCsv=None, dict_plotMNI=None):
-        import csv
-        newFiles = []
-        errMsg = []
-
+    def saveCSV(self, diT1pre, plots_MNI=None):
         # === GET DATABASE FILES === 
         # eleclabel
-        if useDatabase and not fileEleclabel:
-            rdi_eleclabel = ReadDiskItem('Electrodes Labels','Electrode Label Format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
-            di_eleclabel = rdi_eleclabel.findValue(self.diskItems['T1pre'])
-            if di_eleclabel:
-                fileEleclabel = di_eleclabel.fullPath()
+        rdi_eleclabel = ReadDiskItem('Electrodes Labels','Electrode Label Format',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        di_eleclabel = rdi_eleclabel.findValue(diT1pre)
+        if not di_eleclabel:
+            return [[], ["File eleclabel not found."]]
+        fileEleclabel = di_eleclabel.fullPath()
         # reseclabel
-        if useDatabase and not fileResecLabel:
-            rdi_reseclabel = ReadDiskItem('Resection Description','Resection json',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
-            di_reseclabel = rdi_reseclabel.findValue(self.diskItems['T1pre'])
-            if di_reseclabel:
-                fileResecLabel = di_reseclabel.fullPath()
+        rdi_reseclabel = ReadDiskItem('Resection Description','Resection json',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        di_reseclabel = rdi_reseclabel.findValue(diT1pre)
+        if di_reseclabel:
+            fileResecLabel = di_reseclabel.fullPath()
+        else:
+            fileResecLabel = None
         # Exported CSV
-        if useDatabase and not fileCsv:
-            wdi = WriteDiskItem('Final Export Dictionaries','CSV file')
-            di = wdi.findValue(self.diskItems['T1pre'])
-            if di:
-                fileCsv = di.fullPath()
-    
-        # === GENERATE CSV ===
-        # eleclabel
-        if fileEleclabel:            
-            fin = open(fileEleclabel, 'r')
-            info_label_elec = json.loads(fin.read())
-            fin.close()
-
-            # Get contact coordinates
-            if useDatabase and not dict_plotMNI:
-                # MNI coordinates
-                dict_plotMNI = self.getAllPlotsCentersMNIRef(False)
-                # No contacts available
-                if dict_plotMNI is None:
-                    errMsg += ["MNI coordinates are not available."]
-                    return [newFiles, errMsg]
-                # Sort contacts by name and index
-                plotMNI_sorted = self.sortContacts(dict_plotMNI)
-                # Get scanner-based coordinates
-                plotsSB = self.getAllPlotsCentersT1preScannerBasedRef()
-                plotSB_sorted = self.sortContacts(plotsSB)
-            # Function called from convert_mni2csv, only MNI coordinates, already sorted
-            else:
-                plotMNI_sorted = []
-                for k,v in dict_plotMNI.iteritems():
-                    plotMNI_sorted.append((k, numpy.array(v)))
-                plotSB_sorted = copy.deepcopy(plotMNI_sorted)
-
-            # Bipolar montage: MNI coordinates
-            info_plotMNI_bipolaire= []
-            for pindex in range(1,len(plotMNI_sorted)):
-                previous_electrode = "".join([i for i in plotMNI_sorted[pindex-1][0] if not i.isdigit()])
-                current_electrode = "".join([i for i in plotMNI_sorted[pindex][0] if not i.isdigit()])
-                previous_index = int("".join([i for i in plotMNI_sorted[pindex-1][0] if i.isdigit()]))
-                current_index = int("".join([i for i in plotMNI_sorted[pindex][0] if i.isdigit()]))
-                if (previous_electrode == current_electrode) and (previous_index == current_index - 1):
-                    info_plotMNI_bipolaire.append((plotMNI_sorted[pindex-1][0] + '-' + plotMNI_sorted[pindex][0],(numpy.array(plotMNI_sorted[pindex][1])+numpy.array(plotMNI_sorted[pindex-1][1]))/2 ))
-            plotMNI_sorted = dict(plotMNI_sorted)
-            info_plotMNI_bipolaire = dict(info_plotMNI_bipolaire)
-
+        wdi = WriteDiskItem('Final Export Dictionaries','CSV file')
+        di = wdi.findValue(diT1pre)
+        if not di:
+            return [[], ["Could not find where to save .csv file."]]
+        fileCsv = di.fullPath()
+        
+        # ===== GET COORDINATES =====
+        # Get scanner-based coordinates
+        if not plots_MNI:
+            plots_SB = self.getPlotsT1preScannerBasedRef()
+            plots_SB = self.sortContacts(plots_SB)
             # Bipolar montage: Scanner-based coordinates
-            info_plotSB_bipolaire = []
-            for pindex in range(1,len(plotSB_sorted)):
-                previous_electrode = "".join([i for i in plotSB_sorted[pindex-1][0] if not i.isdigit()])
-                current_electrode = "".join([i for i in plotSB_sorted[pindex][0] if not i.isdigit()])
-                previous_index = int("".join([i for i in plotSB_sorted[pindex-1][0] if i.isdigit()]))
-                current_index = int("".join([i for i in plotSB_sorted[pindex][0] if i.isdigit()]))
-                if (previous_electrode == current_electrode) and (previous_index == current_index - 1):
-                    info_plotSB_bipolaire.append((plotSB_sorted[pindex-1][0] + '-' + plotSB_sorted[pindex][0],(numpy.array(plotSB_sorted[pindex][1])+numpy.array(plotSB_sorted[pindex-1][1]))/2 ))
-            plotSB_sorted = dict(plotSB_sorted)
-            info_plotSB_bipolaire = dict(info_plotSB_bipolaire)
+            bip_SB = []
+            for pindex in range(1,len(plots_SB)):
+                prev_elec = "".join([i for i in plots_SB[pindex-1][0] if not i.isdigit()])
+                cur_elec = "".join([i for i in plots_SB[pindex][0] if not i.isdigit()])
+                prev_ind = int("".join([i for i in plots_SB[pindex-1][0] if i.isdigit()]))
+                cur_ind = int("".join([i for i in plots_SB[pindex][0] if i.isdigit()]))
+                if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
+                    bip_SB.append((plots_SB[pindex-1][0] + '-' + plots_SB[pindex][0],(numpy.array(plots_SB[pindex][1])+numpy.array(plots_SB[pindex-1][1]))/2 ))
+            plots_SB = dict(plots_SB)
+            bip_SB = dict(bip_SB)
+        else:
+            plots_SB = {}
+            bip_SB = {}
             
-            # Write file
-            with open(fileCsv, 'w') as fout:
-                # Get new field InitialSegmentation
-                if 'InitialSegmentation' in info_label_elec['Template'].keys():
-                    InitialSegmentation = info_label_elec['Template']['InitialSegmentation']
+        # MNI coordinates
+        if not plots_MNI:
+            plots_MNI = self.getPlotsMNIRef(False)
+            if plots_MNI is None:
+                return [[], ["MNI coordinates are not available."]]
+            # Sort contacts by name and index
+            plots_MNI = self.sortContacts(plots_MNI)
+        else:
+            # Convert from dict to list
+            plots_MNI = [(pname, plots_MNI[pname]) for pname in sorted(plots_MNI.keys())]
+        # Bipolar montage: MNI coordinates
+        bip_MNI = []
+        for pindex in range(1,len(plots_MNI)):
+            prev_elec = "".join([i for i in plots_MNI[pindex-1][0] if not i.isdigit()])
+            cur_elec = "".join([i for i in plots_MNI[pindex][0] if not i.isdigit()])
+            prev_ind = int("".join([i for i in plots_MNI[pindex-1][0] if i.isdigit()]))
+            cur_ind = int("".join([i for i in plots_MNI[pindex][0] if i.isdigit()]))
+            if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
+                bip_MNI.append((plots_MNI[pindex-1][0] + '-' + plots_MNI[pindex][0],(numpy.array(plots_MNI[pindex][1])+numpy.array(plots_MNI[pindex-1][1]))/2 ))
+        plots_MNI = dict(plots_MNI)
+        bip_MNI = dict(bip_MNI)
+        
+        
+        # === GENERATE CSV ===
+        # Read eleclabel file            
+        fin = open(fileEleclabel, 'r')
+        eleclabel = json.loads(fin.read())
+        fin.close()
+        # Write file
+        with open(fileCsv, 'w') as fout:
+            # Get new field InitialSegmentation
+            if 'InitialSegmentation' in eleclabel['Template'].keys():
+                InitialSegmentation = eleclabel['Template']['InitialSegmentation']
+            else:
+                InitialSegmentation = 'missing_info'
+            # Write file header
+            writer = csv.writer(fout, delimiter='\t')
+            writer.writerow([u'Contacts Positions'])
+            writer.writerow([u'Use of MNI Template', \
+                'MarsAtlas', eleclabel['Template']['MarsAtlas'], \
+                'Freesurfer', eleclabel['Template']['Freesurfer'], \
+                'InitialSegmentation', InitialSegmentation])
+            
+            # List of parcel names to print
+            parcelNames = [\
+                'MarsAtlas', \
+                'Destrieux', \
+                'DKT', \
+                'HCP-MMP1', \
+                'Lausanne2008-33', \
+                'Lausanne2008-60', \
+                'Lausanne2008-125', \
+                'Lausanne2008-250', \
+                'Lausanne2008-500', \
+                'GreyWhite', \
+                'IntrAnat-MarsAtlas', \
+                'MNI-MarsAtlas', \
+                'MNI-Destrieux', \
+                'MNI-DKT', \
+                'MNI-Lausanne2008-33', \
+                'MNI-Lausanne2008-60', \
+                'MNI-Lausanne2008-125', \
+                'MNI-Lausanne2008-250', \
+                'MNI-Lausanne2008-500', \
+                'MNI-AAL', \
+                'MNI-AALDilate', \
+                'MNI-AAL1_2018', \
+                'MNI-AAL2', \
+                'MNI-AAL3', \
+                'MNI-Brodmann', \
+                'MNI-BrodmannDilate', \
+                'MNI-Hammers', \
+                'MNI-HCP-MMP1', \
+                'MNI-AICHA', \
+                'MNI-JulichBrain', \
+                'Resection rate']
+            # Add list of column names
+            colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlasFull'] + parcelNames
+            # Print column names
+            writer.writerow(colNames)
+            
+            # Print all contacts
+            dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label'].items()))
+            for kk,vv in dict_sorted_tmp.iteritems():
+                # Upper case for all the letters except from "p" that stand for ' (prime)
+                contact_label = list(kk)
+                for i in range(len(contact_label)):
+                    # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+                    # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
+                    # Convention: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+                    # "p" in the .csv files
+                    if contact_label[i].isalpha():
+                        contact_label[i] = contact_label[i].upper()
+                    elif (contact_label[i] == "'"):
+                        contact_label[i] = 'p'
+                contact_label = "".join(contact_label)
+                listwrite = [contact_label]
+                listwrite.append([float(format(plots_MNI[kk][i],'.3f')) for i in range(3)])
+                if plots_SB:
+                    listwrite.append([float(format(plots_SB[kk][i],'.3f')) for i in range(3)])
                 else:
-                    InitialSegmentation = 'missing_info'
-                # Write file header
-                writer = csv.writer(fout, delimiter='\t')
-                writer.writerow([u'Contacts Positions'])
-                # writer.writerow([u'Use of MNI Template','MarsAtlas',info_label_elec['Template']['MarsAtlas'],'Freesurfer',info_label_elec['Template']['Freesurfer'],'HippoSubfieldFreesurfer',info_label_elec['Template']['HippocampalSubfield Freesurfer']])
-                writer.writerow([u'Use of MNI Template', 'MarsAtlas', info_label_elec['Template']['MarsAtlas'], 'Freesurfer', info_label_elec['Template']['Freesurfer'], 'InitialSegmentation', InitialSegmentation])
-                
-                # Add list of column names
-                # colNames = set([u'contact','MarsAtlas','MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
-                colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlas','MarsAtlasFull', 'Freesurfer', 'GreyWhite', 'AAL', 'AALDilate', 'Broadmann','BroadmannDilate', 'Hammers', 'HCP-MMP1', 'AICHA', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Resection rate', 'JulichBrain']
-                list_to_write = set(info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys())
-                diff_list = list(list_to_write.difference(set(colNames)))
-                full_list = colNames
-                full_list.extend(diff_list)
-                writer.writerow(full_list)
-                
-                dict_sorted_tmp = OrderedDict(sorted(info_label_elec['plots_label'].items()))
-                
-                for kk,vv in dict_sorted_tmp.iteritems():
-                    # Upper case for all the letters except from "p" that stand for ' (prime)
-                    contact_label = list(kk)
-                    for i in range(len(contact_label)):
-                        # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
-                        # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
-                        # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
-                        # "p" in the .csv files
-                        if contact_label[i].isalpha():
-                            contact_label[i] = contact_label[i].upper()
-                        elif (contact_label[i] == "'"):
-                            contact_label[i] = 'p'
-                    contact_label = "".join(contact_label)
-                    listwrite = [contact_label]
-                    listwrite.append([float(format(plotMNI_sorted[kk][i],'.3f')) for i in range(3)])
-                    listwrite.append([float(format(plotSB_sorted[kk][i],'.3f')) for i in range(3)])
-                    listwrite.append(vv['MarsAtlas'][1])
+                    listwrite.append("N/A")
+                if 'MarsAtlasFull' in vv.keys():
                     listwrite.append(vv['MarsAtlasFull'])
-                    listwrite.append(vv['Freesurfer'][1])
-                    #listwrite.append(vv['Hippocampal Subfield'][1])
-                    listwrite.append(vv['GreyWhite'][1])
-                    listwrite.append(vv['AAL'][1])
-                    listwrite.append(vv['AALDilate'][1])
-                    listwrite.append(vv['Broadmann'][1])
-                    listwrite.append(vv['BroadmannDilate'][1])            
-                    listwrite.append(vv['Hammers'][1])
-                    listwrite.append(vv['HCP-MMP1'][1])
-                    listwrite.append(vv['AICHA'][1])
-                    listwrite.append(vv['Lausanne2008-33'][1])
-                    listwrite.append(vv['Lausanne2008-60'][1])
-                    listwrite.append(vv['Lausanne2008-125'][1])
-                    listwrite.append(vv['Lausanne2008-250'][1])
-                    listwrite.append(vv['Lausanne2008-500'][1])
-                    listwrite.append(vv['Resection rate'][1])
-                    listwrite.append(vv['JulichBrain'][1])
-                    writer.writerow(listwrite)
-                writer.writerow([])
-                writer.writerow([])
-                
-                dict_sorted_tmp = OrderedDict(sorted(info_label_elec['plots_label_bipolar'].items()))
-                
-                for kk,vv in dict_sorted_tmp.iteritems():
-                    # Upper case for all the letters except from "p" that stand for ' (prime)
-                    contact_label = list(kk)
-                    for i in range(len(contact_label)):
-                        # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
-                        # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
-                        # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
-                        # "p" in the .csv files
-                        if contact_label[i].isalpha():
-                            contact_label[i] = contact_label[i].upper()
-                        elif (contact_label[i] == "'"):
-                            contact_label[i] = 'p'
-                    contact_label = "".join(contact_label)
-                    listwrite = [contact_label]
-                    listwrite.append([float(format(info_plotMNI_bipolaire[kk][i],'.3f')) for i in range(3)])
-                    listwrite.append([float(format(info_plotSB_bipolaire[kk][i],'.3f')) for i in range(3)])
-                    listwrite.append(vv['MarsAtlas'][1])
+                else:
+                    listwrite.append("N/A")
+                for p in parcelNames:
+                    if p in vv.keys():
+                        listwrite.append(vv[p][1])
+                    else:
+                        listwrite.append("N/A")
+                writer.writerow(listwrite)
+            writer.writerow([])
+            writer.writerow([])
+            
+            # Print all dipoles contacts
+            dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label_bipolar'].items()))
+            for kk,vv in dict_sorted_tmp.iteritems():
+                # Upper case for all the letters except from "p" that stand for ' (prime)
+                contact_label = list(kk)
+                for i in range(len(contact_label)):
+                    # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+                    # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
+                    # Convetion: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+                    # "p" in the .csv files
+                    if contact_label[i].isalpha():
+                        contact_label[i] = contact_label[i].upper()
+                    elif (contact_label[i] == "'"):
+                        contact_label[i] = 'p'
+                contact_label = "".join(contact_label)
+                listwrite = [contact_label]
+                listwrite.append([float(format(bip_MNI[kk][i],'.3f')) for i in range(3)])
+                if bip_SB:
+                    listwrite.append([float(format(bip_SB[kk][i],'.3f')) for i in range(3)])
+                else:
+                    listwrite.append("N/A")
+                if 'MarsAtlasFull' in vv.keys():
                     listwrite.append(vv['MarsAtlasFull'])
-                    listwrite.append(vv['Freesurfer'][1])
-                    #listwrite.append(vv['Hippocampal Subfield'][1])
-                    listwrite.append(vv['GreyWhite'][1])
-                    listwrite.append(vv['AAL'][1])
-                    listwrite.append(vv['AALDilate'][1])
-                    listwrite.append(vv['Broadmann'][1])
-                    listwrite.append(vv['BroadmannDilate'][1])   
-                    listwrite.append(vv['Hammers'][1])
-                    listwrite.append(vv['HCP-MMP1'][1])
-                    listwrite.append(vv['AICHA'][1])
-                    listwrite.append(vv['Lausanne2008-33'][1])
-                    listwrite.append(vv['Lausanne2008-60'][1])
-                    listwrite.append(vv['Lausanne2008-125'][1])
-                    listwrite.append(vv['Lausanne2008-250'][1])
-                    listwrite.append(vv['Lausanne2008-500'][1])
-                    listwrite.append(vv['Resection rate'][1])
-                    listwrite.append(vv['JulichBrain'][1])
-                    writer.writerow(listwrite)
-                writer.writerow([])
-                writer.writerow([])
+                else:
+                    listwrite.append("N/A")
+                for p in parcelNames:
+                    if p in vv.keys():
+                        listwrite.append(vv[p][1])
+                    else:
+                        listwrite.append("N/A")
+                writer.writerow(listwrite)
+            writer.writerow([])
+            writer.writerow([])
 
         # resecLabel
         if fileResecLabel:
@@ -3215,13 +2899,178 @@ class LocateElectrodes(QtGui.QDialog):
                             writer.writerow(listwrite)
 
         # Reference csv file in the database
-        if fileEleclabel and fileCsv:
-            if useDatabase:
-                neuroHierarchy.databases.insertDiskItem(di, update=True)
-            # Return new file names
-            print "export csv done"
-            newFiles += [fileCsv]
-        return [newFiles, errMsg]
+        neuroHierarchy.databases.insertDiskItem(di, update=True)
+        print "Export csv done."
+        return [[fileCsv], []]
+    
+    
+    # ===== EXPORT CSV FILES =====
+    def saveBidsTsv(self, diT1pre):
+        # === GET BIDS SUBJECT ===
+        # If BIDS database not set
+        if not self.bidspath:
+            return [[], ["BIDS database not set: Open ImageImport preferences and select BIDS folder."]]
+        # Parse subject name: SIT_SESS_SUBj
+        splitName = diT1pre['subject'].split('_')
+        if (len(splitName) != 3):
+            return [[], ["Subject '" + diT1pre['subject'] + "' not formatted as SIT_SESS_SUBj."]]
+        bidsSes = 'ses-' + splitName[1].lower()
+        bidsSub = 'sub-' + splitName[2].lower()
+        # Check if folder exists
+        sesPath = os.path.join(self.bidspath, bidsSub, bidsSes)
+        if not os.path.exists(sesPath):
+            return [[], ["Session does not exist in BIDS database: " + sesPath]]
+        # Create ieeg folder if missing
+        ieegPath = os.path.join(sesPath, 'ieeg')
+        if not os.path.exists(ieegPath):
+            try:
+                os.mkdir(ieegPath)
+            except:
+                return [[], ["Could not create folder: " + ieegPath]]
+        # Get T1pre file
+        bidsT1w = 'N/A'
+        anatPath = os.path.join(sesPath, 'anat')
+        if os.path.exists(anatPath):
+            anatDir = os.listdir(anatPath)
+            anatNii = [x for x in anatDir if ('_T1w.nii' in x) and ('_acq-pre_' in x)]
+            if len(anatNii) == 1:
+                bidsT1w = os.path.join(bidsSub, bidsSes, 'anat', anatNii[0])
+        # Target tsv spaces
+        T1 = 'Other'
+        MNI = 'IXI549Space'
+          
+        # === GET ELEC FILE === 
+        # Find eleclabel
+        rdi_eleclabel = ReadDiskItem('Electrodes Labels','Electrode Label Format',requiredAttributes={'subject':diT1pre['subject'], 'center':diT1pre['center']})
+        di_eleclabel = rdi_eleclabel.findValue(diT1pre)
+        if not di_eleclabel:
+            return [[], ["File eleclabel not found."]]
+        # Read eleclabel file            
+        fin = open(di_eleclabel.fullPath(), 'r')
+        eleclabel = json.loads(fin.read())
+        fin.close()
+        
+        # === GET COORDINATES ===
+        # Scanner-based coordinates
+        plots = dict()
+        plots[T1] = self.getPlotsT1preScannerBasedRef()
+        plots[T1] = dict(self.sortContacts(plots[T1]))
+        # MNI coordinates
+        plots[MNI] = self.getPlotsMNIRef(False)
+        if plots[MNI] is None:
+            return [[], ["MNI coordinates are not available."]]
+        plots[MNI] = dict(self.sortContacts(plots[MNI]))
+        
+        # === GENERATE ALL TSV ===
+        outfiles = []
+        for space in plots.keys():
+            # Output TSV filename
+            fileTsv = os.path.join(ieegPath, bidsSub + '_' + bidsSes + '_acq-intranat_space-' + space + '_electrodes.tsv')
+            fileJson = os.path.join(ieegPath, bidsSub + '_' + bidsSes + '_acq-intranat_space-' + space + '_coordsystem.json')
+            # List of parcel names to print
+            if space == T1:
+                parcelNames = [\
+                    'MarsAtlas', \
+                    'MarsAtlasFull', \
+                    'Destrieux', \
+                    'DKT', \
+                    'HCP-MMP1', \
+                    'Lausanne2008-33', \
+                    'Lausanne2008-60', \
+                    'Lausanne2008-125', \
+                    'Lausanne2008-250', \
+                    'Lausanne2008-500', \
+                    'GreyWhite']
+                jsonCoord = {\
+                        "iEEGCoordinateSystem": space, \
+                        "iEEGCoordinateSystemDescription": "(x,y,z) in the scanner-based coordinate system of the pre-implantation T1w (.nii qform)", \
+                        "iEEGCoordinateUnits": "mm", \
+                        "iEEGCoordinateProcessingDescription": "SEEG contacts were positioned manually on the post-implantation T1w/CT with the IntrAnat software. Pre- and post-implantation images were coregistered using SPM12.", \
+                        "IntendedFor": bidsT1w}
+            elif space == MNI:
+                parcelNames = [\
+                    'IntrAnat-MarsAtlas', \
+                    'MNI-MarsAtlas', \
+                    'MNI-Destrieux', \
+                    'MNI-DKT', \
+                    'MNI-Lausanne2008-33', \
+                    'MNI-Lausanne2008-60', \
+                    'MNI-Lausanne2008-125', \
+                    'MNI-Lausanne2008-250', \
+                    'MNI-Lausanne2008-500', \
+                    'MNI-AAL', \
+                    'MNI-AALDilate', \
+                    'MNI-AAL1_2018', \
+                    'MNI-AAL2', \
+                    'MNI-AAL3', \
+                    'MNI-Brodmann', \
+                    'MNI-BrodmannDilate', \
+                    'MNI-Hammers', \
+                    'MNI-HCP-MMP1', \
+                    'MNI-AICHA', \
+                    'MNI-JulichBrain']
+                jsonCoord = {\
+                        "iEEGCoordinateSystem": space, \
+                        "iEEGCoordinateUnits": "mm", \
+                        "iEEGCoordinateProcessingDescription": "SEEG contacts were positioned manually on the post-implantation T1w/CT with the IntrAnat software. Pre- and post-implantation images were coregistered using SPM12. Pre-implantation T1w image was normalized to IXI549Space using SPM12.", \
+                        "IntendedFor": bidsT1w}
+            # Write electrodes.tsv file
+            with open(fileTsv, 'w') as fout:
+                # Write file header
+                writer = csv.writer(fout, delimiter='\t')
+                # Add list of column names
+                colNames = ['name', 'x', 'y', 'z', 'size', 'type'] + [p.replace('MNI-','') for p in parcelNames]
+                # Print column names
+                writer.writerow(colNames)
+                # Print all contacts
+                dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label'].items()))
+                for kk,vv in dict_sorted_tmp.iteritems():
+                    # name
+                    listwrite = [self.fixContactLabel(kk)]
+                    # x y z
+                    for i in range(3):
+                        listwrite.append(format(plots[space][kk][i],'.3f'))
+                    # size
+                    listwrite.append('N/A')
+                    # type
+                    listwrite.append('N/A')
+                    # List parcel names
+                    for p in parcelNames:
+                        if not vv[p]:
+                            listwrite.append('N/A')
+                        elif p == 'MarsAtlasFull':
+                            listwrite.append(str(vv[p]))
+                        elif isinstance(vv[p], list) and (len(vv[p]) == 2):
+                            listwrite.append(vv[p][1])
+                        else:
+                            listwrite.append(str(vv[p]))
+                    # Write line in TSV file
+                    writer.writerow(listwrite)
+                # Write coordsystem.json
+                with open(fileJson, 'w') as fout:
+                    json.dump(jsonCoord, fout, indent=2)
+                # List of output files
+                outfiles += [fileTsv]
+                outfiles += [fileJson]
+        # Return success
+        print "Export BIDS TSV done."
+        return [outfiles, []]
+    
+    
+    # Convert between naming conventions (' or p for left/right electrodes)
+    def fixContactLabel(self, contact_label):
+        # Upper case for all the letters except from "p" that stand for ' (prime)
+        contact_label = list(contact_label)
+        for i in range(len(contact_label)):
+            # if not kk[i].isdigit() and ((i == 0) or (kk[i] != 'p')):
+            # We cannot consider that "Tp" should be kept unchanged, otherwise, "t'" is also converted to "Tp"
+            # Convention: In IntrAnat, all chars are upper case and electrode names can include "'", converted to 
+            # "p" in the .csv files
+            if contact_label[i].isalpha():
+                contact_label[i] = contact_label[i].upper()
+            elif (contact_label[i] == "'"):
+                contact_label[i] = 'p'
+        return "".join(contact_label)
     
 
     def sortContacts(self, dict_contacts):
@@ -3239,40 +3088,37 @@ class LocateElectrodes(QtGui.QDialog):
         return contacts_sorted
     
 
-    def marsatlasExportResection(self):
-            
+    def computeMarsatlasResection(self):
         wdi_resec = ReadDiskItem('Resection', 'NIFTI-1 image', requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         di_resec = list(wdi_resec.findValues({}, None, False ))
-        
         if len(di_resec)==0:
             print('Warning: No resection image found')
             return []
-        
+        print "TODO: computeMarsatlasResection: Use the FreeSurfer segmentation when available"
+        # MarsAtlas left
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
-        print "TODO: marsatlasExportResection: Use the FreeSurfer segmentation when available"
-        
-        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
-        
-        # Get FreeSurfer atlas
-        diFreesurferMask = self.getFreeSurferAtlas()
-
         if diMaskleft is None:
             print('left gyri volume failed, perform export mars atlas export contact first')
-            #return []
         else:
             vol_left = aims.read(diMaskleft.fileName())
-        
+        # MarsAltas right
+        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskright = Mask_right.findValue(self.diskItems['T1pre'])
         if diMaskright is None:
             print('right gyri volume failed, perform export mars atlas export contact first')
-            #return []
         else:
             vol_right = aims.read(diMaskright.fileName())
-        
+        # Get FreeSurfer atlas:  saved in subject/FreesurferAtlas/FreesurferAtlaspre<acq_name>
+        diFreesurfer = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'modality': 'freesurfer_atlas'})
+        rdiFreesurfer = list(diFreesurfer.findValues({}, None, False ))
+        iFS = [i for i in range(len(rdiFreesurfer)) if ('FreesurferAtlaspre' in rdiFreesurfer[i].attributes()["acquisition"])]
+        if iFS:
+            rdiFreesurfer = [rdiFreesurfer[iFS[0]]]
+        else:
+            rdiFreesurfer = None
+        # Load resection volume
         Vol_resec = aims.read(di_resec[0].fileName())
-        
-        
         Vox_size_resection = Vol_resec.getVoxelSize().arraydata()
         Vol_resection_mm = Vol_resec.arraydata().sum()*Vox_size_resection.prod() #choppe les trois premiers
         
@@ -3280,1120 +3126,533 @@ class LocateElectrodes(QtGui.QDialog):
         if diMaskleft is not None and diMaskright is not None:
             Vol_mask_tot = vol_left.arraydata()+vol_right.arraydata()
             Vol_resec_rsz = numpy.resize(Vol_resec.arraydata(), (len(Vol_mask_tot),len(Vol_mask_tot[0]),len(Vol_mask_tot[0][0]),len(Vol_mask_tot[0][0][0]))) #to make vol_resec of the same size as Vol_mask_tot
-            
             inter_resec_mars_atlas = numpy.multiply(Vol_resec_rsz, Vol_mask_tot)
             label_resec_mars_atlas = numpy.histogram(inter_resec_mars_atlas,bins = 255, range = (0,255))
             total_label_mars_atlas = numpy.histogram(Vol_mask_tot,bins = 255)
             percent_resec_mars_atlas = numpy.divide(label_resec_mars_atlas[0],total_label_mars_atlas[0],dtype=float)*100
             non_zero_inter = numpy.add(numpy.nonzero(label_resec_mars_atlas[0][1:-1]),1)
-            
-            parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
-            
-            #list1 = [parcels_names[label_resec_mars_atlas[1][x]] for x in non_zero_inter.tolist()[0]]
-            #list2 = [(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]]
-            #resection_mars_atlas_info = dict(zip(list1,list2)) #{parcels_names[label_resec_mars_atlas[1][x]]:(label_resec_mars_atlas[1][x],percent_resec_mars_atlas[x]) for x in non_zero_inter.tolist()[0]}
-        
-        #else:
-            #resection_mars_atlas_info = {"MarsAtlas not calculated":[0,0]}
-        
-        if len(diFreesurferMask)>0:
-            vol_FS = aims.read(diFreesurferMask[0].fileName())
+        if rdiFreesurfer:
+            vol_FS = aims.read(rdiFreesurfer[0].fileName())
             inter_resec_FS = numpy.multiply(Vol_resec.arraydata(),vol_FS.arraydata())
             label_resec_FS = numpy.histogram(inter_resec_FS,bins = 20000, range = (0,20000))
             total_label_FS = numpy.histogram(vol_FS.arraydata(),bins = 20000, range = (0,20000))
             percent_resec_FS = numpy.divide(label_resec_FS[0],total_label_FS[0],dtype=float)*100
             #we keep only value between 1 and 100 to not display the thousands freesurfer parcels...
             interesting_percent_resec_FS = numpy.where((percent_resec_FS >1) & (percent_resec_FS < 100))
-
-            #list1 = [freesurfer_parcel_names[unicode(x)][0] for x in interesting_percent_resec_FS[0]]
-            #list2 = [(float(x),percent_resec_FS[x]) for x in interesting_percent_resec_FS[0]]
-            
-            #resection_freesurfer_info = dict(zip(list1,list2))
-
-        #else:
-            #resection_freesurfer_info = {"Freesurfer not calculated": [0,0]}
-        
-        #write into database
+        # Write into database
         wdi = WriteDiskItem('Resection Description','Resection json')
         di = wdi.findValue(self.diskItems['Resection'])
         if di is None:
             print("Can't generate files")
             return []
-        
         fout = open(di.fullPath(),'w')
-        #fout.write(json.dumps({'mars_atlas':resection_mars_atlas_info,'Volume resection (mm3): ':Vol_resection_mm,'Freesurfer':resection_freesurfer_info})) #ici il faut ajouter l'ajout de la key volume mais je sais pas pourquoi des fois ca fait planter l'export en csv
         fout.write(json.dumps({'Volume resection (mm3): ': Vol_resection_mm}))
-        fout.close()
-        
+        fout.close() 
         neuroHierarchy.databases.insertDiskItem(di, update=True )
-        
         print "export resection info done"
         return [di.fullPath()]
 
 
-    # ===== EXPORT PARCELS: PART I =====
-    def exportParcels(self, Callback = None):
-        from datetime import datetime
-        
-        newFiles = []
+    # ===== GET VOXELS WITHIN SPHERE =====
+    def getSphVoxels(self, vol, pos, Nsph, sphere_size):
+        if (not pos) or (len(pos) < 3) or \
+           (pos[0]-Nsph[2] < 0) or (pos[0]+Nsph[2] >= vol.getSizeX()) or \
+           (pos[1]-Nsph[2] < 0) or (pos[1]+Nsph[2] >= vol.getSizeY()) or \
+           (pos[2]-Nsph[2] < 0) or (pos[2]+Nsph[2] >= vol.getSizeZ()):
+            return []
+        else:
+            vox = [vol.value(pos[0]+vox_i, pos[1]+vox_j, pos[2]+vox_k) \
+                for vox_k in range(-Nsph[2], Nsph[2]+1) \
+                for vox_j in range(-Nsph[1], Nsph[1]+1) \
+                for vox_i in range(-Nsph[0], Nsph[0]+1) \
+                if math.sqrt(vox_i**2 + vox_j**2 + vox_k**2) < sphere_size]
+            return [int(round(x)) for x in vox if not math.isnan(x)]
+
+
+    # ===== COMPUTE PARCELS =====
+    def computeParcels(self, diT1pre, plots_MNI_dict=None):
         errMsg = []
-        # Check marsatlas
-        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={ 'side': 'left' ,'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'parcellation_type':'marsAtlas' })
-        LeftGyri = list(LeftGyri.findValues(self.diskItems['T1pre'], None, False))
-        if not LeftGyri:
-            print('Error: No hemisphere parcellation texture found')
-            errMsg += ["Export CSV: MarsAtlas not found"]
-            TemplateMarsAtlas = True
-        else:
-            # If there are multiple files, use the most recent one
-            if (len(LeftGyri) > 1):
-                # Get file creation dates
-                fileTimes = [os.path.getmtime(str(f)) for f in LeftGyri]
-                # Display warning
-                print("Warning: Multiple marsAtlas segmentation folders for the same subject, using the most recent one:")
-                for i in range(len(LeftGyri)):
-                    print("    " + str(LeftGyri[i]) + "  (" + datetime.utcfromtimestamp(fileTimes[i]).strftime('%Y-%m-%d %H:%M:%S') +  ")")
-                # Select newest file 
-                iMax = numpy.array(fileTimes).argmax()
-                LeftGyri = LeftGyri[1]
-            else:
-                LeftGyri = LeftGyri[0]
-            TemplateMarsAtlas = False
-
-        # Check freesurfer
-        rdi_freesurfer = self.getFreeSurferAtlas()
-        if not rdi_freesurfer or len(rdi_freesurfer) == 0:
-            print('Error: No freesurfer atlas found')
-            errMsg += ["Export CSV: FreeSurfer atlas not found"]
-            TemplateFreeSurfer = True
-        else:
-            TemplateFreeSurfer = False
+        # Get subject and protocol
+        subject = diT1pre['subject']
+        center = diT1pre['center']
         
-#         # Check Hippo subfield freesurfer data
-#         HippoSubfielddi = ReadDiskItem('HippoFreesurferAtlas', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'] })
-#         rdi_HippoSubfield = list(HippoSubfielddi.findValues({},None,False))
-#         if len(rdi_HippoSubfield)  == 0:
-#             print('Error: No hippo subfield atlas found')
-#             TemplateHippoSubfieldFreesurfer = True
-#         else:
-#             TemplateHippoSubfieldFreesurfer = False
-#         TemplateHippoSubfieldFreesurfer = False
-        
-        # Get MNI coordinates for all the plots
-        dict_plotsMNI = self.getAllPlotsCentersMNIRef()
-        if dict_plotsMNI is None:
-            errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
-            return [newFiles, errMsg]
-
-        ######################
-        # Asynchronous process
-        ######################
-        #pour que lorsque le thread Brainvisa ça appelle parcellationdone ET les autres export si il y a besoin
-        #if Callback is not None:
-        #    Callback2= lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:[self.exportParcels2(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI),Callback()]
-        #else:
-        #    Callback2 = lambda x=None,plotMNI = dict_plotsMNI, templateHPSub = TemplateHippoSubfieldFreesurfer, templateMA = TemplateMarsAtlas,templateFS=TemplateFreeSurfer:self.exportParcels2(useTemplateMarsAtlas = templateMA,useTemplateFreeSurfer=templateFS,useTemplateHippoSubFreesurfer=templateHPSub,plot_dict_MNI=plotMNI)
-        #try:
-        #    self.brainvisaContext.runInteractiveProcess(Callback2,'2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)  #, sulcus_identification ='label')
-        #except:
-        #    Callback2()
-            
-        ######################
-        # Synchronous process
-        ######################
-        # Generate 3D version of the MarsAtlas surface-based atlas
-        if LeftGyri:
-            try:
-                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = LeftGyri)
-                acq = LeftGyri.attributes()['acquisition']
-            except Exception, e:
-                errMsg += "Could not interpolate MarsAtlas in 3D: " + repr(e)
-                acq = self.diskItems['T1pre']['acquisition']
-        else:
-            acq = self.diskItems['T1pre']['acquisition']
-        print "===== ACQ: " + acq
-        # Continue export
-        # newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, TemplateHippoSubfieldFreesurfer, dict_plotsMNI)
-        newFiles += self.exportParcels2(TemplateMarsAtlas, TemplateFreeSurfer, dict_plotsMNI, acq)
-        # Call additional function at the end
-        if Callback is not None:
-            Callback()
-        return [newFiles, errMsg]
-        
-
-    # ===== EXPORT PARCELS: PART II =====
-    # def exportParcels2(self,useTemplateMarsAtlas = False, useTemplateFreeSurfer = False, useTemplateHippoSubFreesurfer = False, plot_dict_MNI=None):
-    def exportParcels2(self, useTemplateMarsAtlas, useTemplateFreeSurfer, plot_dict_MNI, acq, fileEleclabel=None):
-
-        print "export electrode start"
-        timestamp = time.time()
-                    
-        # ===== READ: MARS ATLAS =====
-        # Get left hemisphere
-        if not useTemplateMarsAtlas:
-            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
-            if diMaskleft is None:
-                print('Error: left gyri conversion surface to volume failed')
-                useTemplateMarsAtlas = True
-                initSegmentation = "N/A"
-                item_segment = 'T1pre'
-            else:
-                if ('FreesurferAtlaspre' in diMaskleft['acquisition']):
-                    initSegmentation = "FreeSurfer"
-                    item_segment = 'FreesurferT1pre'
-                else:
-                    initSegmentation = "BrainVISA"
-                    item_segment = 'T1pre'
-        else:
-            initSegmentation = "N/A"
-            item_segment = 'T1pre'
-        # Get right hemisphere
-        if not useTemplateMarsAtlas:
-            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskright = Mask_right.findValue(self.diskItems[item_segment])
-            if diMaskright is None:
-                print('right gyri conversion surface to volume failed')
-                useTemplateMarsAtlas = True
-        # Read volumes
-        if not useTemplateMarsAtlas:
-            vol_left = aims.read(diMaskleft.fileName())
-            vol_right = aims.read(diMaskright.fileName())
-        else:
-            # vol_left = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_L_gyriVolume.nii.gz')
-            # vol_right = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_R_gyriVolume.nii.gz')
-            vol_left = aims.read('MNI_Brainvisa/Gre_2016_MNI1_L_gyriVolume.nii.gz')
-            vol_right = aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
-        
-        # ===== READ: GREY/WHITE =====
-        if acq:
-            GWAtlas = True
-            # Left hemisphere
-            MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskGW_left = MaskGW_left.findValue(self.diskItems[item_segment])
-            if diMaskGW_left is None:
-                print('Error: Left grey/white mask not found')
-                GWAtlas = False
-            else:
-                volGW_left = aims.read(diMaskGW_left.fileName())
-            # Right hemisphere
-            MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq })
-            diMaskGW_right = MaskGW_right.findValue(self.diskItems[item_segment])
-            if diMaskGW_right is None:
-                print('Error: Right grey/white mask not found')
-                GWAtlas = False
-            else:
-                volGW_right = aims.read(diMaskGW_right.fileName())
-        else:
-            GWAtlas = True
-            volGW_left = aims.read('MNI_Brainvisa/Lgrey_white_Gre_2016_MNI1.nii.gz')
-            volGW_right = aims.read('MNI_Brainvisa/Rgrey_white_Gre_2016_MNI1.nii.gz')
-        
-        # ===== READ: FREESURFER =====
-        useTemplateLausanne = True
-        # Subject data
-        if not useTemplateFreeSurfer:
-            # Read FreeSurfer Destrieux atlas
-            rdi_freesurfer = self.getFreeSurferAtlas()
-            vol_freesurfer = aims.read(str(rdi_freesurfer[0]))
-            # Read Lausanne2008 parcellations
-            rdi_lausanne = self.getLausanne2008()
-            if rdi_lausanne:
-                vol_lausanne = [None]  * 5
-                for iVol in range(5):
-                    vol_lausanne[iVol] = aims.read(str(rdi_lausanne[iVol]))
-                useTemplateLausanne = False
-            else:
-                vol_lausanne = None
-            # FreeSurfer hippocampus atlas (generated by ImageImport)
-            # LEFT
-            freesurfHippoAntPostleft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
-            difreesurfHippoAntPostleft = list(freesurfHippoAntPostleft.findValues({}, None, False ))
-            if not difreesurfHippoAntPostleft:
-                # If file is not properly registered in DB, try to search volume by filename directly
-                lhippoFile = os.path.dirname(str(self.diskItems['T1pre'])) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'leftHippocampus' + os.path.basename(str(self.diskItems['T1pre']))
-                if os.path.isfile(lhippoFile):
-                    difreesurfHippoAntPostleft = [lhippoFile]
-            # RIGHT
-            freesurfHippoAntPostright = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'center':self.currentProtocol, 'subject':self.brainvisaPatientAttributes['subject'], 'acquisition':acq })
-            difreesurfHippoAntPostright = list(freesurfHippoAntPostright.findValues({}, None, False ))
-            if not difreesurfHippoAntPostright:
-                # If file is not properly registered in DB, try to search volume by filename directly
-                rhippoFile = os.path.dirname(str(self.diskItems['T1pre'])) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'rightHippocampus' + os.path.basename(str(self.diskItems['T1pre']))
-                if os.path.isfile(rhippoFile):
-                    difreesurfHippoAntPostright = [rhippoFile]
-            # Merge multiple volumes
-            if len(difreesurfHippoAntPostright)>0:
-                vol_hippoanteropostright = aims.read(str(difreesurfHippoAntPostright[0]))
-                if len(difreesurfHippoAntPostleft)>0:
-                    vol_hippoanteropostleft = aims.read(str(difreesurfHippoAntPostleft[0]))
-                    vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
-                else:
-                    vol_hippoanteropost = vol_hippoanteropostright
-            else:
-                if len(difreesurfHippoAntPostleft)>0:
-                    vol_hippoanteropostleft = aims.read(str(difreesurfHippoAntPostleft[0]))
-                    vol_hippoanteropost = vol_hippoanteropostleft
-            if len(difreesurfHippoAntPostleft) == 0 and len(difreesurfHippoAntPostright) == 0:
-                vol_hippoanteropost = False
-        # MNI template
-        else:
-            #vol_hippoanteropostleft = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/leftHippocampusGre_2016_MNI1.nii')
-            #vol_hippoanteropostright = aims.read('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/rightHippocampusGre_2016_MNI1.nii')
-            vol_hippoanteropostleft = aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
-            vol_hippoanteropostright = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz')
-            vol_hippoanteropost = vol_hippoanteropostright + vol_hippoanteropostleft
-            #vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii')
-            vol_freesurfer = aims.read('MNI_Freesurfer/mri/freesurfer_parcelisation_mni2.nii.gz')
-            vol_lausanne = None
-        # Read template lausanne2008 volumes
-        if not vol_lausanne:
-            if os.path.exists('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'):
-                vol_lausanne = [aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale250.nii.gz'), \
-                                aims.read('MNI_Freesurfer/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz')]
-            else:
-                print("ERROR: Missing Lausanne2008 in MNI_Freesurfer folder - Update the MNI templates.")
-
-        # ===== READ: RESECTION =====
-        if acq:
-            wdi_resec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'center':self.brainvisaPatientAttributes['center'], 'subject':self.brainvisaPatientAttributes['subject'] })
-            di_resec = list(wdi_resec.findValues({}, None, False ))
-            #careful, if we use templates, the resection has to be deformed in the mni template
-            if len(di_resec)==0:
-                print('Warning: No resection image found')
-                DoResection = False
-            else:
-                DoResection = True
-                vol_resec = aims.read(di_resec[0].fileName())
-        else:
-            DoResection = False
-        
-        # ===== READ: STATISTICS =====
-        if acq:
-            # Is there any statistic-Data
-            wdi_stat = ReadDiskItem('Statistic-Data','NIFTI-1 image',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol, 'acquisition':acq})
-            di_stat = list(wdi_stat.findValues({}, None, False ))
-            # Different subacquisition
-            subacq_existing = [di_stat[i].attributes()['subacquisition'] for i in range(len(di_stat))]
-            if len(subacq_existing) >0:
-                subacq_stat=[]
-                for i_subacq in range(len(subacq_existing)):
-                    subacq_stat.append(aims.read(di_stat[i_subacq].fileName()))
-        else:
-            subacq_existing = []
-        
-        # ===== GET: CONTACT COORDINATES =====
-        info_fs = None
-        # Get contact coordinates in T1pre coordinates
-        if acq:
-            plots = self.getAllPlotsCentersT1preRef()
+        # ===== GET: NATIVE COORDINATES =====
+        if plots_MNI_dict is None:
+            # Get contact coordinates in T1pre coordinates
+            plots = self.getPlotsT1preRef()
             if len(plots)==0:
-                print("no contact found")
-                return []
+                errMsg += ['No contact found']
+                return [[], errMsg]
             # Sort by contact names
             info_plot = []
             for k,v in plots.iteritems():
                 plot_name_split = k.split('-$&_&$-')
                 info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
-            plot_sorted = sorted(info_plot, key=lambda plot_number: plot_number[0])
-            
-            # Convert to FreeSurfer coordinates if necessary
-            plot_fs_sorted = copy.deepcopy(plot_sorted)
-            if not useTemplateMarsAtlas and ('FreesurferAtlaspre' in diMaskleft['acquisition']):
-                # Get T1pre volume
-                diT1 = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center']} )
-                allT1 = list(diT1.findValues({},None,False))
-                idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
-                rdiT1 = allT1[idxT1pre[0]]
-                # Get FreeSurfer => Scanner-based transformation
-                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diMaskleft['modality'], 'subject':diMaskleft['subject'], 'center':diMaskleft['center'], 'acquisition':diMaskleft['acquisition']})
-                rdiTransFS = list(rdi.findValues({}, None, False ))
-                TransFS = aims.read(rdiTransFS[0].fullName())
-                # Get T1pre => Scanner-based transformation
-                rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':rdiT1['modality'], 'subject':rdiT1['subject'], 'center':rdiT1['center'], 'acquisition':rdiT1['acquisition']})
-                rdiTransT1 = list(rdi.findValues({}, None, False ))
-                TransT1 = aims.read(rdiTransT1[0].fullName())
-                # Compute transformation: T1pre=>FreeSurfer
-                Transf = TransFS.inverse() * TransT1
-                # Apply to contact coordinates
-                for i in range(len(plot_fs_sorted)):
-                    plot_fs_sorted[i] = (plot_fs_sorted[i][0], Transf.transform(plot_fs_sorted[i][1]))
-                # Get FS image information
-                info_fs = diMaskleft.attributes()
-        # Export function called from convert_mni2csv, only MNI coordinates, already sorted
+            plots = sorted(info_plot, key=lambda plot_number: plot_number[0])
         else:
-            plot_sorted = []
-            for k,v in plot_dict_MNI.iteritems():
-                plot_sorted.append((k, numpy.array(v)))
-            plot_fs_sorted = copy.deepcopy(plot_sorted)
-            
-
-        # ===== READ: MNI ATLASES =====
-        # Chargement des atlas dans le MNI (broadman, aal etc ...)
-        vol_AAL = aims.read('MNI_Atlases/rAALSEEG12.nii.gz')
-        vol_AALDilate = aims.read('MNI_Atlases/rAALSEEG12Dilate.nii.gz')
-        vol_BroadmannDilate = aims.read('MNI_Atlases/rBrodmannSEEG3spm12.nii.gz')
-        vol_Broadmann = aims.read('MNI_Atlases/rbrodmann.nii.gz')
-        vol_Hammers = aims.read('MNI_Atlases/rHammersSEEG12.nii.gz')
-        vol_HCP = aims.read('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.nii.gz')
-        vol_AICHA = aims.read('MNI_Atlases/AICHA_resliced.nii.gz')
-        vol_JulichBrain = aims.read('MNI_Atlases/JuBrain_Map_icbm_v30_lr_resliced.nii.gz')
+            plots = dict()
+        # List of loaded volumes
+        vol = {}
+        # Get image voxel size
+        info_image = diT1pre.attributes()
+        # Default freesurfer coordinates
+        plots_fs = copy.deepcopy(plots)
+        info_fs = info_image
+        
+        # ===== GET: MNI COORDINATES =====
+        if plots_MNI_dict is None:
+            plots_MNI_dict = self.getPlotsMNIRef()
+            if plots_MNI_dict is None:
+                errMsg += ["No MNI coordinates available, please go back to ImageImport and compute the SPM normalization first."]
+                return [[], errMsg]
+            missingMni = list(set([i[0] for i in plots]) - set(plots_MNI_dict.keys()))
+            if missingMni:
+                errMsg += ["Recomputing MNI coordinates is required. Missing contacts: " + " ".join(missingMni)]
+                return [[], errMsg]
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
-        plot_dict_MNI_Native = {}
-        for vv,kk in plot_dict_MNI.iteritems():
+        plots_MNI = {}
+        for vv,kk in plots_MNI_dict.iteritems():
             inter_pos = [kk[0], kk[1], kk[2], 1]
             inter_pos = numpy.matrix(inter_pos).reshape([4,1])
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
-            plot_dict_MNI_Native.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
-        # Read parcel names
-        parcels_names = readSulcusLabelTranslationFile('parcels_label_name.txt')
-        Hammers_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rHammersSEEG12_labels.txt')
-        AAL_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12_labels.txt')
-        AALDilate_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/rAALSEEG12Dilate_labels.txt')
-        HCP_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/HCP-MMP1_on_MNI305_resliced.txt')
-        AICHA_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/AICHA_resliced_labels.txt')
-        JulichBrain_parcels_names = readSulcusLabelTranslationFile('MNI_Atlases/JuBrain_Map_icbm_v30_lr_resliced_labels.txt')
-        # Lausanne2008 parcel names
-        Lausanne33_parcels_names = {i:"{}".format(i) for i in range(1,100)}
-        Lausanne60_parcels_names = {i:"{}".format(i) for i in range(1,150)}
-        Lausanne125_parcels_names = {i:"{}".format(i) for i in range(1,300)}
-        Lausanne250_parcels_names = {i:"{}".format(i) for i in range(1,550)}
-        Lausanne500_parcels_names = {i:"{}".format(i) for i in range(1,1100)}
+            plots_MNI.update({vv:[result_pos.tolist()[0][0],result_pos.tolist()[1][0],result_pos.tolist()[2][0]]})
         
-        # ===== BIPOLAR MONTAGE =====
-        # Native coordinates
-        info_plot_bipolaire = []
-        for pindex in range(1,len(plot_sorted)):
-            previous_electrode = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
-            current_electrode = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
-            previous_index = int("".join([i for i in plot_sorted[pindex-1][0] if i.isdigit()]))
-            current_index = int("".join([i for i in plot_sorted[pindex][0] if  i.isdigit()]))
-            if (previous_electrode == current_electrode) and (previous_index == current_index - 1):
-                 info_plot_bipolaire.append((plot_sorted[pindex-1][0] + '-' + plot_sorted[pindex][0],(plot_sorted[pindex][1]+plot_sorted[pindex-1][1])/2 ))
-        # FreeSurfer coordinates
-        info_plot_bipolaire_fs = []
-        for pindex in range(1,len(plot_fs_sorted)):
-            previous_electrode = "".join([i for i in plot_fs_sorted[pindex-1][0] if not i.isdigit()])
-            current_electrode = "".join([i for i in plot_fs_sorted[pindex][0] if not i.isdigit()])
-            previous_index = int("".join([i for i in plot_fs_sorted[pindex-1][0] if i.isdigit()]))
-            current_index = int("".join([i for i in plot_fs_sorted[pindex][0] if  i.isdigit()]))
-            if (previous_electrode == current_electrode) and (previous_index == current_index - 1):
-                 info_plot_bipolaire_fs.append((plot_fs_sorted[pindex-1][0] + '-' + plot_fs_sorted[pindex][0],(plot_fs_sorted[pindex][1]+plot_fs_sorted[pindex-1][1])/2 ))
-        # MNI coordinates
-        info_plot_bipolaire_MNI = {}
-        for pindex in range(1,len(plot_sorted)):
-            previous_electrode = "".join([i for i in plot_sorted[pindex-1][0] if not i.isdigit()])
-            current_electrode = "".join([i for i in plot_sorted[pindex][0] if not i.isdigit()])
-            previous_index = int("".join([i for i in plot_sorted[pindex-1][0] if i.isdigit()]))
-            current_index = int("".join([i for i in plot_sorted[pindex][0] if  i.isdigit()]))
-            if (previous_electrode == current_electrode) and (previous_index == current_index - 1):
-                info_plot_bipolaire_MNI.update({plot_sorted[pindex-1][0] + '-' + plot_sorted[pindex][0]:(numpy.array(plot_dict_MNI_Native[plot_sorted[pindex][0]])+numpy.array(plot_dict_MNI_Native[plot_sorted[pindex-1][0]]))/2})
-
-        
-        # ===== VOXEL COORDINATES =====
-        if acq:
-            info_image = self.diskItems['T1pre'].attributes()
+        # ===== READ: MARSATLAS =====
+        # Get surface MarsAtlas: Only to (re-)compute the volume version
+        LeftGyri = ReadDiskItem('hemisphere parcellation texture','Aims texture formats',requiredAttributes={'side':'left' ,'subject':subject, 'center':center, 'parcellation_type':'marsAtlas' })
+        diLeftGyri = list(LeftGyri.findValues({}, None, False))
+        if diLeftGyri:
+            # If there are multiple files, use the most recent one
+            if (len(diLeftGyri) > 1):
+                errMsg += ["Export CSV: Multiple MarsAtlas segmentations found: using the first one."]
+            diLeftGyri = diLeftGyri[0]
+            # Generate 3D version of the MarsAtlas surface-based atlas
+            try:
+                self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = diLeftGyri)
+            except Exception, e:
+                errMsg += ["Could not interpolate MarsAtlas in 3D: " + repr(e)]
+            # Get volume MarsAtlas
+            Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            diMaskleft = Mask_left.findValue(diLeftGyri)
+            Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            diMaskright = Mask_right.findValue(diLeftGyri)
+            # Read volumes
+            if diMaskleft and diMaskright:
+                vol['MarsAtlas'] = aims.read(diMaskleft.fileName())\
+                                 + aims.read(diMaskright.fileName())
+            else:
+                errMsg += ["MarsAtlas not found (volume)"]
         else:
-            info_image = {'voxel_size':[1,1,1]}
-        if not info_fs:
-            info_fs = info_image
+            errMsg += ["MarsAtlas not found"]
         
-        #conversion x mm en nombre de voxel:
-        sphere_size_stat = 10
-        nb_voxel_sphere_stat = [int(round(sphere_size_stat/info_image['voxel_size'][i])) for i in range(3)]
-        
-        sphere_size = 3 #en mm
-        nb_voxel_sphere = [int(round(sphere_size/info_image['voxel_size'][i])) for i in range(3)]
-        nb_voxel_sphere_fs = [int(round(sphere_size/info_fs['voxel_size'][i])) for i in range(3)]
-        nb_voxel_sphere_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution
-        
-        
-        # ===== PROCESS ALL CONTACTS ===== 
-        print("start contact estimation")
-        plots_label = {}
-        plot_name = []
-        for pindex in range(len(plot_sorted)):
-
-            plot_pos_pix_indi = [round(plot_sorted[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
-            plot_pos_pix_fs = [round(plot_fs_sorted[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
-            plot_pos_pix_MNI = [round(plot_dict_MNI_Native[plot_sorted[pindex][0]][i]) for i in range(3)]
+        # ===== READ: GREY/WHITE =====
+        # If MarsAtlas available: Find MarsAtlas grey-white segmentation
+        if diLeftGyri:
+            MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
+            diMaskGW_left = MaskGW_left.findValue(diLeftGyri)
+            diMaskGW_right = MaskGW_right.findValue(diLeftGyri)
+        # Otherwise: Look for grey-white anywhere in the subject
+        else:
+            MaskGW_left = ReadDiskItem('Left Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center})
+            MaskGW_right = ReadDiskItem('Right Grey White Mask','Aims writable volume formats',requiredAttributes={'subject':subject, 'center':center})
+            diMaskGW_left = list(MaskGW_left.findValues({}, None, False))
+            diMaskGW_right = list(MaskGW_right.findValues({}, None, False))
+            # If segmentations found: pick the first ones
+            if diMaskGW_left and diMaskGW_right:
+                diMaskGW_left = diMaskGW_left[0]
+                diMaskGW_right = diMaskGW_right[0]
+        # Read gray-white volume segmentation
+        if diMaskGW_left and diMaskGW_right:
+            vol['GW'] = aims.read(diMaskGW_left.fileName()) \
+                      + aims.read(diMaskGW_right.fileName())
+        else:
+            errMsg += ['Grey-white mask not found']
             
-            if isnan(plot_pos_pix_indi[0]) or isnan(plot_pos_pix_fs[0]):
-                print("ERROR: Invalid coordinates for contact: " + plot_sorted[pindex][0])
-                continue
-            if isnan(plot_pos_pix_MNI[0]):
-                print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
-                continue
-                
-            # === PROCESS: MARS ATLAS ===
-            if not useTemplateMarsAtlas:
-                if initSegmentation == "FreeSurfer":
-                    plot_pos_pixMA = plot_pos_pix_fs
-                    nb_voxel_sphereMA = nb_voxel_sphere_fs
+        # ===== INITIAL SEGMENTATION =====        
+        # Initial segmentation not identified
+        if not diMaskGW_left:
+            initSegmentation = 'N/A'
+        # Initial segmentation: FreeSurfer =>  Compute FreeSurfer coordinates
+        elif ('FreesurferAtlaspre' in diMaskGW_left['acquisition']):
+            initSegmentation = "FreeSurfer"
+            # Get FreeSurfer => Scanner-based transformation
+            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diMaskGW_left['modality'], 'subject':subject, 'center':center, 'acquisition':diMaskGW_left['acquisition']})
+            rdiTransFS = list(rdi.findValues({}, None, False ))
+            TransFS = aims.read(rdiTransFS[0].fullName())
+            # Get T1pre => Scanner-based transformation
+            rdi = ReadDiskItem('Transformation to Scanner Based Referential', 'Transformation matrix', exactType=True, requiredAttributes={'modality':diT1pre['modality'], 'subject':subject, 'center':center, 'acquisition':diT1pre['acquisition']})
+            rdiTransT1 = list(rdi.findValues({}, None, False ))
+            TransT1 = aims.read(rdiTransT1[0].fullName())
+            # Compute transformation: T1pre=>FreeSurfer
+            Transf = TransFS.inverse() * TransT1
+            # Apply to contact coordinates
+            for i in range(len(plots_fs)):
+                plots_fs[i] = (plots_fs[i][0], Transf.transform(plots_fs[i][1]))
+            # Get FS image information
+            info_fs = diMaskGW_left.attributes()
+        else:
+            initSegmentation = "BrainVISA"
+
+        # ===== READ: HIPPOCAMPUS =====
+        # HIPPOCAMPUS: LEFT
+        diHipLeft = ReadDiskItem('leftHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
+        rdiHipLeft = list(diHipLeft.findValues({}, None, False ))
+        if not rdiHipLeft:
+            # If file is not properly registered in DB, try to search volume by filename directly
+            lhippoFile = os.path.dirname(str(diT1pre)) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'leftHippocampus' + os.path.basename(str(diT1pre))
+            if os.path.isfile(lhippoFile):
+                rdiHipLeft = [lhippoFile]
+        # HIPPOCAMPUS: RIGHT
+        diHipRight = ReadDiskItem('rightHippocampusNII', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
+        rdiHipRight = list(diHipRight.findValues({}, None, False ))
+        if not rdiHipRight:
+            # If file is not properly registered in DB, try to search volume by filename directly
+            rhippoFile = os.path.dirname(str(diT1pre)) + os.path.sep + 'default_analysis' + os.path.sep + 'segmentation' + os.path.sep + 'rightHippocampus' + os.path.basename(str(diT1pre))
+            if os.path.isfile(rhippoFile):
+                rdiHipRight = [rhippoFile]
+        # HIPPOCAMPUS: Merge left+right
+        if rdiHipLeft and rdiHipRight:
+            vol['hip'] = aims.read(str(rdiHipLeft[0])) \
+                       + aims.read(str(rdiHipRight[0]))
+            
+        # ===== READ: LAUSANNE2008 =====
+        # Get all the FreeSurfer atlases:
+        diFs = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':subject, 'center':center})
+        rdiFs = list(diFs.findValues({}, None, False))
+        for name in ['FreesurferAtlaspre', 'DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+            iFile = [i for i in range(len(rdiFs)) if name in rdiFs[i].attributes()["acquisition"]]
+            if iFile:
+                if name == 'FreesurferAtlaspre':
+                    vol['Destrieux'] = aims.read(rdiFs[iFile[0]].fileName())
                 else:
-                    plot_pos_pixMA = plot_pos_pix_indi
-                    nb_voxel_sphereMA = nb_voxel_sphere
-            elif useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution
-                nb_voxel_sphereMA = nb_voxel_sphere_MNI
+                    vol[name] = aims.read(rdiFs[iFile[0]].fileName())
+        if not 'Destrieux' in vol.keys():
+            errMsg += ["Freesurfer atlas not found"]
             
-            #on regarde si une sphère de x mm de rayon touche une parcel
-            if plot_pos_pixMA:
-                voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0], nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
-            else:
-                voxel_to_keep = []
-                
-            if GWAtlas:
-                if acq:
-                    voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                    voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+        # ===== READ: RESECTION =====
+        diResec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
+        rdiResec = list(diResec.findValues({}, None, False ))
+        if rdiResec:
+            vol['resec'] = aims.read(di_resec[0].fileName())
+
+        # ===== READ: MNI ATLASES =====
+        # Define all atlases to generate
+        files_MNI = {}
+        files_MNI['IntrAnat-MarsAtlas']   = {'vol':None,                                                 'labels':labels['MarsAtlas']}
+        files_MNI['MNI-MarsAtlas']        = {'vol':'MNI_Atlases/colin27_MNI_MarsAtlas_reslice.nii.gz',   'labels':labels['MarsAtlas']}
+        files_MNI['MNI-AAL']              = {'vol':'MNI_Atlases/rAALSEEG12.nii.gz',                      'labels':'MNI_Atlases/rAALSEEG12_labels.txt'}
+        files_MNI['MNI-AALDilate']        = {'vol':'MNI_Atlases/rAALSEEG12Dilate.nii.gz',                'labels':'MNI_Atlases/rAALSEEG12Dilate_labels.txt'}
+        files_MNI['MNI-AAL1_2018']        = {'vol':'MNI_Atlases/AAL1_2018_reslice.nii.gz',               'labels':'MNI_Atlases/AAL1_2018_labels.txt'}
+        files_MNI['MNI-AAL2']             = {'vol':'MNI_Atlases/AAL2_reslice.nii.gz',                    'labels':'MNI_Atlases/AAL2_labels.txt'}
+        files_MNI['MNI-AAL3']             = {'vol':'MNI_Atlases/AAL3_reslice.nii.gz',                    'labels':'MNI_Atlases/AAL3_labels.txt'}
+        files_MNI['MNI-BrodmannDilate']   = {'vol':'MNI_Atlases/rBrodmannSEEG3spm12.nii.gz',             'labels':None}
+        files_MNI['MNI-Brodmann']         = {'vol':'MNI_Atlases/rbrodmann.nii.gz',                       'labels':None}
+        files_MNI['MNI-Hammers']          = {'vol':'MNI_Atlases/rHammersSEEG12.nii.gz',                  'labels':'MNI_Atlases/rHammersSEEG12_labels.txt'}
+        files_MNI['MNI-HCP-MMP1']         = {'vol':'MNI_Atlases/HCP-MMP1_on_MNI305_reslice.nii.gz',      'labels':'MNI_Atlases/HCP-MMP1_on_MNI305_labels.txt'}
+        files_MNI['MNI-AICHA']            = {'vol':'MNI_Atlases/AICHA_reslice.nii.gz',                   'labels':'MNI_Atlases/AICHA_labels.txt'}
+        files_MNI['MNI-JulichBrain']      = {'vol':'MNI_Atlases/JuBrain_Map_icbm_v25_lr_reslice.nii.gz', 'labels':'MNI_Atlases/JuBrain_Map_icbm_v25_lr_labels.txt'}
+        files_MNI['MNI-Destrieux']        = {'vol':'MNI_Atlases/freesurfer_parcelisation_mni2.nii.gz',   'labels':labels['Destrieux']}
+        files_MNI['MNI-DKT']              = {'vol':'MNI_Atlases/DKT40_reslice.nii.gz',                   'labels':labels['DKT']}
+        files_MNI['MNI-Lausanne2008-33']  = {'vol':'MNI_Atlases/Lausanne2008-33.nii.gz',                 'labels':labels['Lausanne2008-33']}
+        files_MNI['MNI-Lausanne2008-60']  = {'vol':'MNI_Atlases/Lausanne2008-60.nii.gz',                 'labels':labels['Lausanne2008-60']}
+        files_MNI['MNI-Lausanne2008-125'] = {'vol':'MNI_Atlases/Lausanne2008-125.nii.gz',                'labels':labels['Lausanne2008-125']}
+        files_MNI['MNI-Lausanne2008-250'] = {'vol':'MNI_Atlases/Lausanne2008-250.nii.gz',                'labels':labels['Lausanne2008-250']}
+        files_MNI['MNI-Lausanne2008-500'] = {'vol':'MNI_Atlases/Lausanne2008-500.nii.gz',                'labels':labels['Lausanne2008-500']}
+        # Load: all MNI volumes and atlases
+        for atlas in files_MNI:
+            if files_MNI[atlas]['vol']:
+                vol[atlas] = aims.read(files_MNI[atlas]['vol'])
+            if files_MNI[atlas]['labels']:
+                if isinstance(files_MNI[atlas]['labels'], dict):
+                    labels[atlas] = files_MNI[atlas]['labels']
                 else:
-                    voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                    voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                voxelGW_to_keep = [x for x in voxelGW_within_sphere_left+voxelGW_within_sphere_right if x !=255 and x !=0]
-            else:
-                GW_label = 255
-            
-            # === PROCESS: FREESURFER ===
-            # Destrieux Atlas is reinterpolated in the t1pre space 
-            if not useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_indi
-                nb_voxel_sphereFS = nb_voxel_sphere
-            elif useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_MNI  #I have to apply the transfo Scanner-Based to Native #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
-                nb_voxel_sphereFS = nb_voxel_sphere_MNI
-            voxel_within_sphere_FS = [vol_freesurfer.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
-            
-            # === PROCESS: LAUSANNE2008 ===
-            if not useTemplateLausanne:
-                plot_pos_pixLAU = plot_pos_pix_indi
-                nb_voxel_sphereLAU = nb_voxel_sphere
-            else:
-                plot_pos_pixLAU = plot_pos_pix_MNI
-                nb_voxel_sphereLAU = nb_voxel_sphere_MNI
-            # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
-            if vol_lausanne:
-                voxel_to_keep_Laus = [None] * 5
-                for iVol in range(5):
-                    voxel_within_sphere_Laus = [vol_lausanne[iVol].value(plot_pos_pixLAU[0]+vox_i,plot_pos_pixLAU[1]+vox_j,plot_pos_pixLAU[2]+vox_k) for vox_k in range(-nb_voxel_sphereLAU[2],nb_voxel_sphereLAU[2]+1) for vox_j in range(-nb_voxel_sphereLAU[1],nb_voxel_sphereLAU[1]+1) for vox_i in range(-nb_voxel_sphereLAU[0],nb_voxel_sphereLAU[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                    voxel_to_keep_Laus[iVol] = [x for x in voxel_within_sphere_Laus if x != 0]
+                    labels[atlas] = readLabels(files_MNI[atlas]['labels'])
+        # Load: IntrAnat-MarsAtlas
+        vol['IntrAnat-MarsAtlas'] = aims.read('MNI_Brainvisa/Gre_2016_MNI1_L_gyriVolume.nii.gz') \
+                                  + aims.read('MNI_Brainvisa/Gre_2016_MNI1_R_gyriVolume.nii.gz')
+        # Load: MNI-Hippocampus
+        vol['IntrAnat-hip'] = aims.read('MNI_Brainvisa/rightHippocampusGre_2016_MNI1.nii.gz') \
+                            + aims.read('MNI_Brainvisa/leftHippocampusGre_2016_MNI1.nii.gz')
 
-            # === PROCESS: MNI ATLASES ===
-            # AAL
-            voxel_within_sphere_AAL = [round(vol_AAL.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepAAL = [x for x in voxel_within_sphere_AAL if x != 0 and not math.isnan(x)]
-            # AALDilate
-            voxel_within_sphere_AALdilate = [round(vol_AALDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepAALDilate = [x for x in voxel_within_sphere_AALdilate if x != 0 and not math.isnan(x)]
-            # Broadmann
-            voxel_within_sphere_Broadmann = [round(vol_Broadmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmann = [x for x in voxel_within_sphere_Broadmann if x != 0 and not math.isnan(x)]
-            # Brodmann dilate
-            voxel_within_sphere_Broadmanndilate = [round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmannDilate = [x for x in voxel_within_sphere_Broadmanndilate if x != 0 and not math.isnan(x)]
-            # Hammers
-            voxel_within_sphere_Hammers = [round(vol_Hammers.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepHammers = [x for x in voxel_within_sphere_Hammers if x != 0 and not math.isnan(x)]
-            # HCP-MMP1
-            voxel_within_sphere_HCP = [round(vol_HCP.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepHCP = [x for x in voxel_within_sphere_HCP if x != 0 and not math.isnan(x)]
-            # AICHA
-            voxel_within_sphere_AICHA = [round(vol_AICHA.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepAICHA = [x for x in voxel_within_sphere_AICHA if x != 0 and not math.isnan(x)]
-            # JulichBrain
-            voxel_within_sphere_JulichBrain = [round(vol_JulichBrain.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepJulichBrain = [x for x in voxel_within_sphere_JulichBrain if x != 0 and not math.isnan(x)]
+        # ===== PROCESS ALL CONTACTS =====
+        # Define sphere size
+        sphere_size = 3
+        # All the computation happends in this subfunction
+        plots_label, plots_name = self.computeParcelsSub(plots, plots_fs, plots_MNI, sphere_size, info_image, info_fs, vol, labels, files_MNI, initSegmentation)
 
-            if DoResection:
-                voxel_resec = [vol_resec.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            
-            if len(subacq_existing)>0:
-                voxel_substat=[]
-                for i_substat in range(len(subacq_stat)):
-                    voxel_substat_all = [subacq_stat[i_substat].value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere_stat[2],nb_voxel_sphere_stat[2]+1) for vox_j in range(-nb_voxel_sphere_stat[1],nb_voxel_sphere_stat[1]+1) for vox_i in range(-nb_voxel_sphere_stat[0],nb_voxel_sphere_stat[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_stat]
-                    voxel_substat.append(numpy.mean([x for x in voxel_substat_all if abs(x) >= 0.1]))
-            
-            #prendre le label qui revient le plus en dehors de zero (au cas où il y en ait plusieurs)
-            from collections import Counter
-            
-            # MarsAtlas
-            if not voxel_to_keep:
-                label_name = 'not in a mars atlas parcel'
-                label = max(vol_left.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]), vol_right.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]))
-                full_infoMAcomputed = []
-            else:
-                most_common,num_most_common = Counter(voxel_to_keep).most_common(1)[0]
-                full_infoMA = Counter(voxel_to_keep).most_common()
-                label = most_common
-                full_infoMAcomputed = [(parcels_names[iLabel[0]],float(iLabel[1])/len(voxel_within_sphere_left)*100) for iLabel in full_infoMA]
-                label_name = parcels_names[label]
-            
-            # FreeSurfer
-            if not voxel_to_keep_FS:
-                label_freesurfer_name = 'not in a freesurfer parcel'
-                label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
-            else:
-                most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
-                #check if it's in the hippocampus
-                if (most_common == 53 or most_common == 17) and vol_hippoanteropost != False:
-                    voxel_within_sphere_FS = [vol_hippoanteropost.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                    voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
-                    try:
-                        most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
-                        label_freesurfer = most_common
-                        if label_freesurfer == 3403:
-                            raise Exception("?????")
-                        label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
-                    except:
-                        print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
-                        label_freesurfer_name = 'ERROR hipp/amyg surfaces not aligned with MRI'
-                        label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
-                else:
-                    label_freesurfer = most_common
-                    label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
-            
-            # Lausanne2008
-            label_lausanne_name = ['N/A'] * 5
-            label_lausanne = [0] * 5
-            if vol_lausanne:
-                for iVol in range(5):
-                    if not voxel_to_keep_Laus[iVol]:
-                        label_lausanne_name[iVol] = 'not in a lausanne2008 parcel'
-                        label_lausanne[iVol] = vol_lausanne[iVol].value(plot_pos_pixLAU[0],plot_pos_pixLAU[1],plot_pos_pixLAU[2])
-                    else:
-                        most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
-                        label_lausanne[iVol] = most_common
-                        label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
+        # ===== BIPOLAR MONTAGE =====
+        # Scanner-based coordinates
+        bip_SB = []
+        for pindex in range(1,len(plots)):
+            prev_elec = "".join([i for i in plots[pindex-1][0] if not i.isdigit()])
+            cur_elec = "".join([i for i in plots[pindex][0] if not i.isdigit()])
+            prev_ind = int("".join([i for i in plots[pindex-1][0] if i.isdigit()]))
+            cur_ind = int("".join([i for i in plots[pindex][0] if  i.isdigit()]))
+            if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
+                 bip_SB.append((plots[pindex-1][0] + '-' + plots[pindex][0],(plots[pindex][1]+plots[pindex-1][1])/2 ))
+        # FreeSurfer coordinates
+        bip_fs = []
+        for pindex in range(1,len(plots_fs)):
+            prev_elec = "".join([i for i in plots_fs[pindex-1][0] if not i.isdigit()])
+            cur_elec = "".join([i for i in plots_fs[pindex][0] if not i.isdigit()])
+            prev_ind = int("".join([i for i in plots_fs[pindex-1][0] if i.isdigit()]))
+            cur_ind = int("".join([i for i in plots_fs[pindex][0] if  i.isdigit()]))
+            if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
+                 bip_fs.append((plots_fs[pindex-1][0] + '-' + plots_fs[pindex][0],(plots_fs[pindex][1]+plots_fs[pindex-1][1])/2 ))
+        # MNI coordinates
+        bip_MNI = {}
+        if not plots:  # Reconstruct missing list of contact names
+            plots = []
+            for k in sorted(plots_MNI.keys()):
+                plots.append((k, plots_MNI[k]))
+        for pindex in range(1,len(plots)):
+            prev_elec = "".join([i for i in plots[pindex-1][0] if not i.isdigit()])
+            cur_elec = "".join([i for i in plots[pindex][0] if not i.isdigit()])
+            prev_ind = int("".join([i for i in plots[pindex-1][0] if i.isdigit()]))
+            cur_ind = int("".join([i for i in plots[pindex][0] if  i.isdigit()]))
+            if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
+                bip_MNI.update({plots[pindex-1][0] + '-' + plots[pindex][0]:(numpy.array(plots_MNI[plots[pindex][0]])+numpy.array(plots_MNI[plots[pindex-1][0]]))/2})
+        # Search sphere size
+        sphere_size = 5
+        # Compute all parcels
+        bip_label, bip_name = self.computeParcelsSub(bip_SB, bip_fs, bip_MNI, sphere_size, info_image, info_fs, vol, labels, files_MNI, initSegmentation)
 
-            if GWAtlas:
-                if not voxelGW_to_keep:
-                    if acq:
-                        GW_label = max(volGW_left.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]), volGW_right.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]))
-                    else:
-                        GW_label = max(volGW_left.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]), volGW_right.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-                else:
-                    most_common2,num_most_common2 = Counter(voxelGW_to_keep).most_common(1)[0]
-                    GW_label = most_common2
-                
-            if not voxel_to_keepAAL:
-                label_AAL_name = "not in a AAL parcel" 
-                label_AAL = round(vol_AAL.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepAAL).most_common(1)[0]
-                label_AAL = most_common
-                label_AAL_name = AAL_parcels_names[label_AAL]
-                
-            if not voxel_to_keepAALDilate:
-                label_AALDilate_name = "not in a AALDilate parcel" 
-                label_AALDilate = round(vol_AALDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepAALDilate).most_common(1)[0]
-                label_AALDilate = most_common
-                label_AALDilate_name = AALDilate_parcels_names[label_AALDilate]
-            
-            if not voxel_to_keepBroadmann:
-                label_Broadmann_name = "not in a Broadmann parcel" 
-                label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-                label_Broadmann = int(round(most_common))
-                if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = "%d" % (label_Broadmann)
-                else:
-                    label_Broadmann_name = "%d" % (label_Broadmann+100)
-                  
-            if not voxel_to_keepBroadmannDilate:
-                label_BroadmannDilate_name = "not in a Broadmann parcel" 
-                label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = int(round(most_common))     
-                if label_BroadmannDilate>48:
-                    label_BroadmannDilate_name = "%d" % (label_BroadmannDilate-48+100)
-                else:
-                    label_BroadmannDilate_name = "%d" % (label_BroadmannDilate)
-                
-            if not voxel_to_keepHammers:
-                label_Hammers_name = "not in a Hammers parcel" 
-                label_Hammers = round(vol_Hammers.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:    
-                most_common,num_most_common = Counter(voxel_to_keepHammers).most_common(1)[0]
-                label_Hammers = most_common
-                label_Hammers_name = Hammers_parcels_names[label_Hammers]
-            
-            if not voxel_to_keepHCP:
-                label_HCP_name = "not in a HCP-MMP1 parcel" 
-                label_HCP = round(vol_HCP.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:    
-                most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
-                label_HCP = most_common
-                label_HCP_name = HCP_parcels_names[label_HCP]
-                  
-            if not voxel_to_keepAICHA:
-                label_AICHA_name = "not in a AICHA parcel" 
-                label_AICHA = round(vol_AICHA.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:    
-                most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
-                label_AICHA = most_common
-                label_AICHA_name = AICHA_parcels_names[label_AICHA]
-
-            if not voxel_to_keepJulichBrain:
-                label_JulichBrain_name = "not in a JulichBrain parcel"
-                label_JulichBrain = round(vol_JulichBrain.value(plot_pos_pix_MNI[0], plot_pos_pix_MNI[1], plot_pos_pix_MNI[2]))
-            else:
-                most_common, num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
-                label_JulichBrain = most_common
-                label_JulichBrain_name = JulichBrain_parcels_names[label_JulichBrain]
-
-            if DoResection:
-                most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
-                Resec_label = max(voxel_resec) 
-                per_mc = (float(num_most_common_res)/float(size(voxel_resec)))*100 #percentage of most_common value inside the sphere created for that contact
-                if Resec_label ==0:
-                    per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
-            else:
-                Resec_label = 255
-                per_mc = 0
-
-            GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
-            Resec_label_value = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
-            plots_label[plot_sorted[pindex][0]]={ \
-                'MarsAtlas'        : (label, label_name), \
-                'MarsAtlasFull'    : full_infoMAcomputed, \
-                'Freesurfer'       : (label_freesurfer, label_freesurfer_name), \
-                'GreyWhite'        : (GW_label, GW_label_name), \
-                'AAL'              : (label_AAL, label_AAL_name), \
-                'AALDilate'        : (label_AALDilate, label_AALDilate_name), \
-                'Broadmann'        : (label_Broadmann, label_Broadmann_name), \
-                'BroadmannDilate'  : (label_BroadmannDilate, label_BroadmannDilate_name), \
-                'Hammers'          : (label_Hammers, label_Hammers_name), \
-                'HCP-MMP1'         : (label_HCP, label_HCP_name), \
-                'AICHA'            : (label_AICHA, label_AICHA_name), \
-                'Lausanne2008-33'  : (label_lausanne[0], label_lausanne_name[0]), \
-                'Lausanne2008-60'  : (label_lausanne[1], label_lausanne_name[1]), \
-                'Lausanne2008-125' : (label_lausanne[2], label_lausanne_name[2]), \
-                'Lausanne2008-250' : (label_lausanne[3], label_lausanne_name[3]), \
-                'Lausanne2008-500' : (label_lausanne[4], label_lausanne_name[4]), \
-                'Resection rate'   : (Resec_label, Resec_label_value), \
-                'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
-                }
-            
-            # add subacq_stat dictionnaries
-            if len(subacq_existing)>0:
-                for i_substat in range(len(subacq_stat)):
-                    plots_label[plot_sorted[pindex][0]].update({di_stat[i_substat].attributes()['subacquisition']:float(format( voxel_substat[i_substat],'.3f'))})
-            # Add to list of exported plot names
-            plot_name += [plot_sorted[pindex][0]]
-
-        plots_by_label = dict([(Lab,[p for p in plot_name if plots_label[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
-        plots_by_label_FS = dict([(Lab,[p for p in plot_name if plots_label[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
-        plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
-        plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_by_label_HCP = dict([(Lab,[p for p in plot_name if plots_label[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
-        plots_by_label_AICHA = dict([(Lab,[p for p in plot_name if plots_label[p]['AICHA'][1]==Lab]) for Lab in AICHA_parcels_names.values()])
-        plots_by_label_JulichBrain = dict([(Lab,[p for p in plot_name if plots_label[p]['JulichBrain'][1]==Lab]) for Lab in JulichBrain_parcels_names.values()])
-        plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
-        plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
-        plots_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
-        plots_by_label_Lausanne60 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-60'][1]==Lab]) for Lab in Lausanne60_parcels_names.values()])
-        plots_by_label_Lausanne125 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-125'][1]==Lab]) for Lab in Lausanne125_parcels_names.values()])
-        plots_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-250'][1]==Lab]) for Lab in Lausanne250_parcels_names.values()])
-        plots_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name if plots_label[p]['Lausanne2008-500'][1]==Lab]) for Lab in Lausanne500_parcels_names.values()])
-        
-        
-        # ===== BIPOLE =====
-        print("Start bipole estimation")
-        #conversion x mm en nombre de voxel:
-        sphere_size_bipole = 5
-        nb_voxel_sphere = [int(round(sphere_size_bipole/info_image['voxel_size'][i])) for i in range(0,3)]
-        nb_voxel_sphere_fs = [int(round(sphere_size_bipole/info_fs['voxel_size'][i])) for i in range(0,3)]
-        nb_voxel_sphere_MNI = [sphere_size_bipole, sphere_size_bipole, sphere_size_bipole] 
-
-        plots_label_bipolar = {}
-        plot_name_bip = []
-        for pindex in range(len(info_plot_bipolaire)):
-            plot_pos_pix_indi = [round(info_plot_bipolaire[pindex][1][i]/info_image['voxel_size'][i]) for i in range(3)]
-            plot_pos_pix_fs = [round(info_plot_bipolaire_fs[pindex][1][i]/info_fs['voxel_size'][i]) for i in range(3)]
-            plot_pos_pix_MNI = [round(info_plot_bipolaire_MNI[info_plot_bipolaire[pindex][0]][i]) for i in range(3)]
-            
-            if isnan(plot_pos_pix_indi[0]) or isnan(plot_pos_pix_fs[0]):
-                print("ERROR: Invalid coordinates for contact: " + plot_sorted[pindex][0])
-                continue
-            if isnan(plot_pos_pix_MNI[0]):
-                print("ERROR: Invalid MNI coordinates for contact: " + plot_sorted[pindex][0])
-                continue
-            
-            #on regarde si une sphère de x mm de rayon touche une parcel
-            #mars atlas:
-            if not useTemplateMarsAtlas:
-                if initSegmentation == "FreeSurfer":
-                    plot_pos_pixMA = plot_pos_pix_fs
-                    nb_voxel_sphereMA = nb_voxel_sphere_fs
-                else:
-                    plot_pos_pixMA = plot_pos_pix_indi
-                    nb_voxel_sphereMA = nb_voxel_sphere
-            elif useTemplateMarsAtlas:
-                plot_pos_pixMA = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
-                nb_voxel_sphereMA = nb_voxel_sphere_MNI
-            
-            voxel_within_sphere_left = [vol_left.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-            voxel_within_sphere_right = [vol_right.value(plot_pos_pixMA[0]+vox_i,plot_pos_pixMA[1]+vox_j,plot_pos_pixMA[2]+vox_k) for vox_k in range(-nb_voxel_sphereMA[2],nb_voxel_sphereMA[2]+1) for vox_j in range(-nb_voxel_sphereMA[1],nb_voxel_sphereMA[1]+1) for vox_i in range(-nb_voxel_sphereMA[0],nb_voxel_sphereMA[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-            
-            voxel_to_keep = [x for x in voxel_within_sphere_left+voxel_within_sphere_right if x != 0 and x !=255 and x != 100]
-            
-            if GWAtlas:
-                if acq:
-                    voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-                    voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_fs[0]+vox_i,plot_pos_pix_fs[1]+vox_j,plot_pos_pix_fs[2]+vox_k) for vox_k in range(-nb_voxel_sphere_fs[2],nb_voxel_sphere_fs[2]+1) for vox_j in range(-nb_voxel_sphere_fs[1],nb_voxel_sphere_fs[1]+1) for vox_i in range(-nb_voxel_sphere_fs[0],nb_voxel_sphere_fs[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-                else:
-                    voxelGW_within_sphere_left = [volGW_left.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-                    voxelGW_within_sphere_right = [volGW_right.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]                    
-                voxelGW_to_keep = [x for x in voxelGW_within_sphere_left+voxelGW_within_sphere_right if x !=255 and x !=0]
-            else:
-                GW_label = 255
-            
-            # === PROCESS: FREESURFER ===
-            # Destrieux Atlas is reinterpolated in the t1pre space 
-            if not useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_indi
-                nb_voxel_sphereFS = nb_voxel_sphere
-            elif useTemplateFreeSurfer:
-                plot_pos_pixFS = plot_pos_pix_MNI #because MNI has a 1 mm istropic resolution #/info_image['voxel_size'][i]) for i in range(3)]
-                nb_voxel_sphereFS = nb_voxel_sphere_MNI
-            
-            voxel_within_sphere_FS = [vol_freesurfer.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
-            
-            # === PROCESS: LAUSANNE2008 ===
-            if not useTemplateLausanne:
-                plot_pos_pixLAU = plot_pos_pix_indi
-                nb_voxel_sphereLAU = nb_voxel_sphere
-            else:
-                plot_pos_pixLAU = plot_pos_pix_MNI
-                nb_voxel_sphereLAU = nb_voxel_sphere_MNI
-            # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
-            if vol_lausanne:
-                voxel_to_keep_Laus = [None] * 5
-                for iVol in range(5):
-                    voxel_within_sphere_Laus = [vol_lausanne[iVol].value(plot_pos_pixLAU[0]+vox_i,plot_pos_pixLAU[1]+vox_j,plot_pos_pixLAU[2]+vox_k) for vox_k in range(-nb_voxel_sphereLAU[2],nb_voxel_sphereLAU[2]+1) for vox_j in range(-nb_voxel_sphereLAU[1],nb_voxel_sphereLAU[1]+1) for vox_i in range(-nb_voxel_sphereLAU[0],nb_voxel_sphereLAU[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                    voxel_to_keep_Laus[iVol] = [x for x in voxel_within_sphere_Laus if x != 0]
-            
-            #MNI Atlases
-            #AAL
-            voxel_within_sphere_AAL = [round(vol_AAL.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepAAL = [x for x in voxel_within_sphere_AAL if x != 0 and not math.isnan(x)]
-            
-            #AALDilate
-            voxel_within_sphere_AALdilate = [round(vol_AALDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepAALDilate = [x for x in voxel_within_sphere_AALdilate if x != 0 and not math.isnan(x)]
-            
-            #Broadmann
-            voxel_within_sphere_Broadmann = [round(vol_Broadmann.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmann = [x for x in voxel_within_sphere_Broadmann if x != 0 and not math.isnan(x)]
-            
-            #Brodmann dilate
-            voxel_within_sphere_Broadmanndilate = [round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepBroadmannDilate = [x for x in voxel_within_sphere_Broadmanndilate if x != 0 and not math.isnan(x)]
-            
-            #Hammers
-            voxel_within_sphere_Hammers = [round(vol_Hammers.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepHammers = [x for x in voxel_within_sphere_Hammers if x != 0 and not math.isnan(x)]
-            
-            #HCP
-            voxel_within_sphere_HCP = [round(vol_HCP.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepHCP = [x for x in voxel_within_sphere_HCP if x != 0 and not math.isnan(x)]
-            
-            #AICHA
-            voxel_within_sphere_AICHA = [round(vol_AICHA.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepAICHA = [x for x in voxel_within_sphere_AICHA if x != 0 and not math.isnan(x)]
-            
-            #JulichBrain
-            voxel_within_sphere_JulichBrain = [round(vol_JulichBrain.value(plot_pos_pix_MNI[0]+vox_i,plot_pos_pix_MNI[1]+vox_j,plot_pos_pix_MNI[2]+vox_k)) for vox_k in range(-nb_voxel_sphere_MNI[2],nb_voxel_sphere_MNI[2]+1) for vox_j in range(-nb_voxel_sphere_MNI[1],nb_voxel_sphere_MNI[1]+1) for vox_i in range(-nb_voxel_sphere_MNI[0],nb_voxel_sphere_MNI[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-            voxel_to_keepJulichBrain = [x for x in voxel_within_sphere_JulichBrain if x != 0 and not math.isnan(x)]
-
-            if DoResection:
-                voxel_resec = [vol_resec.value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_bipole]
-            
-            if len(subacq_existing)>0:
-                voxel_substat=[]
-                for i_substat in range(len(subacq_stat)):
-                    voxel_substat_all = [subacq_stat[i_substat].value(plot_pos_pix_indi[0]+vox_i,plot_pos_pix_indi[1]+vox_j,plot_pos_pix_indi[2]+vox_k) for vox_k in range(-nb_voxel_sphere_stat[2],nb_voxel_sphere_stat[2]+1) for vox_j in range(-nb_voxel_sphere_stat[1],nb_voxel_sphere_stat[1]+1) for vox_i in range(-nb_voxel_sphere_stat[0],nb_voxel_sphere_stat[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size_stat]
-                    voxel_substat.append(numpy.mean([x for x in voxel_substat_all if abs(x) >= 0.1]))
-            
-            #prendre le label qui revient le plus en dehors de zero (au cas où il y en ait plusieurs)
-            from collections import Counter
-            
-            # MarsAtlas
-            if not voxel_to_keep:
-                label_name = 'not in a mars atlas parcel'
-                label = max(vol_left.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]), vol_right.value(plot_pos_pixMA[0],plot_pos_pixMA[1],plot_pos_pixMA[2]))
-                full_infoMAcomputed = []
-            else:
-                most_common,num_most_common = Counter(voxel_to_keep).most_common(1)[0]
-                label = most_common
-                full_infoMA = Counter(voxel_to_keep).most_common()
-                full_infoMAcomputed = [(parcels_names[iLabel[0]],float(iLabel[1])/len(voxel_within_sphere_left)*100) for iLabel in full_infoMA]
-                label_name = parcels_names[label]
-            
-            # FreeSurfer
-            if not voxel_to_keep_FS:
-                label_freesurfer_name = 'not in a freesurfer parcel'
-                label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
-            else:
-                most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
-                #check if it's in the hippocampus
-                if (most_common == 53 or most_common == 17) and vol_hippoanteropost != False:
-                    voxel_within_sphere_FS = [vol_hippoanteropost.value(plot_pos_pixFS[0]+vox_i,plot_pos_pixFS[1]+vox_j,plot_pos_pixFS[2]+vox_k) for vox_k in range(-nb_voxel_sphereFS[2],nb_voxel_sphereFS[2]+1) for vox_j in range(-nb_voxel_sphereFS[1],nb_voxel_sphereFS[1]+1) for vox_i in range(-nb_voxel_sphereFS[0],nb_voxel_sphereFS[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
-                    voxel_to_keep_FS = [x for x in voxel_within_sphere_FS if x != 0 and x != 2 and x != 41]
-                    try:
-                        most_common,num_most_common = Counter(voxel_to_keep_FS).most_common(1)[0]
-                        label_freesurfer = most_common
-                        label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
-                    except:
-                        print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
-                        label_freesurfer_name = 'ERROR hipp/amyg surfaces not aligned with MRI'
-                        label_freesurfer = vol_freesurfer.value(plot_pos_pixFS[0],plot_pos_pixFS[1],plot_pos_pixFS[2])
-                else:
-                    label_freesurfer = most_common
-                    label_freesurfer_name = freesurfer_parcel_names[str(label_freesurfer)][0]
-            
-            # Lausanne2008
-            label_lausanne_name = ['N/A'] * 5
-            label_lausanne = [0] * 5
-            if vol_lausanne:
-                for iVol in range(5):
-                    if not voxel_to_keep_Laus[iVol]:
-                        label_lausanne_name[iVol] = 'not in a lausanne2008 parcel'
-                        label_lausanne[iVol] = vol_lausanne[iVol].value(plot_pos_pixLAU[0],plot_pos_pixLAU[1],plot_pos_pixLAU[2])
-                    else:
-                        most_common, num_most_common = Counter(voxel_to_keep_Laus[iVol]).most_common(1)[0]
-                        label_lausanne[iVol] = most_common
-                        label_lausanne_name[iVol] = lausanne_parcel_names[iVol][str(int(label_lausanne[iVol]))][0]
-
-            if GWAtlas:
-                if not voxelGW_to_keep:
-                    if acq:
-                        GW_label = max(volGW_left.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]), volGW_right.value(plot_pos_pix_fs[0],plot_pos_pix_fs[1],plot_pos_pix_fs[2]))
-                    else:
-                        GW_label = max(volGW_left.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]), volGW_right.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-                else:
-                    most_common2,num_most_common2 = Counter(voxelGW_to_keep).most_common(1)[0]
-                    GW_label = most_common2
-            
-            if not voxel_to_keepAAL:
-                label_AAL_name = "not in a AAL parcel" 
-                label_AAL = round(vol_AAL.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepAAL).most_common(1)[0]
-                label_AAL = most_common
-                label_AAL_name = AAL_parcels_names[label_AAL]
-                
-            if not voxel_to_keepAALDilate:
-                label_AALDilate_name = "not in a AALDilate parcel" 
-                label_AALDilate = round(vol_AALDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepAALDilate).most_common(1)[0]
-                label_AALDilate = most_common              
-                label_AALDilate_name = AALDilate_parcels_names[label_AALDilate]
-            
-            if not voxel_to_keepBroadmann:
-                label_Broadmann_name = "not in a Broadmann parcel" 
-                label_Broadmann = round(vol_Broadmann.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmann).most_common(1)[0]
-                label_Broadmann = int(round(most_common))
-                if plot_pos_pix_MNI[0]>90:
-                    label_Broadmann_name = str(label_Broadmann)
-                else:
-                    label_Broadmann_name = str(label_Broadmann+100)
-
-            if not voxel_to_keepBroadmannDilate:
-                label_BroadmannDilate_name = "not in a Broadmann parcel" 
-                label_BroadmannDilate = round(vol_BroadmannDilate.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepBroadmannDilate).most_common(1)[0]
-                label_BroadmannDilate = int(round(most_common))
-                if label_BroadmannDilate>48:
-                    label_BroadmannDilate_name = str(label_BroadmannDilate-48+100)
-                else:
-                    label_BroadmannDilate_name = str(label_BroadmannDilate)
-            
-            if not voxel_to_keepHammers:
-                label_Hammers_name = "not in a Hammers parcel" 
-                label_Hammers = round(vol_Hammers.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:    
-                most_common,num_most_common = Counter(voxel_to_keepHammers).most_common(1)[0]
-                label_Hammers = most_common
-                label_Hammers_name = Hammers_parcels_names[label_Hammers]
-            
-            if not voxel_to_keepHCP:
-                label_HCP_name = "not in a HCP-MMP1 parcel" 
-                label_HCP = round(vol_HCP.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:    
-                most_common,num_most_common = Counter(voxel_to_keepHCP).most_common(1)[0]
-                label_HCP = most_common
-                label_HCP_name = HCP_parcels_names[label_HCP]
-            
-            if not voxel_to_keepAICHA:
-                label_AICHA_name = "not in a AICHA parcel" 
-                label_AICHA = round(vol_AICHA.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:    
-                most_common,num_most_common = Counter(voxel_to_keepAICHA).most_common(1)[0]
-                label_AICHA = most_common
-                label_AICHA_name = AICHA_parcels_names[label_AICHA]
-
-            if not voxel_to_keepJulichBrain:
-                label_JulichBrain_name = "not in a JulichBrain parcel"
-                label_JulichBrain = round(vol_JulichBrain.value(plot_pos_pix_MNI[0],plot_pos_pix_MNI[1],plot_pos_pix_MNI[2]))
-            else:
-                most_common,num_most_common = Counter(voxel_to_keepJulichBrain).most_common(1)[0]
-                label_JulichBrain = most_common
-                label_JulichBrain_name = JulichBrain_parcels_names[label_JulichBrain]
-
-            if DoResection:
-                most_common_res,num_most_common_res = Counter(voxel_resec).most_common(1)[0]
-                Resec_label = max(voxel_resec) 
-                per_mc = (float(num_most_common_res)/float(size(voxel_resec)))*100 #percentage of most_common value inside the sphere created for that contact
-                if Resec_label == 0:
-                    per_mc = 100 - per_mc
-            else:
-                Resec_label = 255
-                per_mc = 0
-
-            GW_label_name={0:'not in brain matter',100:'GreyMatter',200:'WhiteMatter',255:'Not Calculated'}[GW_label]
-            Resec_label_value = {0:str(round(per_mc,2)) , 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'resection not calculated'}[Resec_label]
-            
-            plots_label_bipolar[info_plot_bipolaire[pindex][0]]={\
-                'MarsAtlas'        : (label, label_name), \
-                'MarsAtlasFull'    : full_infoMAcomputed, \
-                'Freesurfer'       : (label_freesurfer, label_freesurfer_name), \
-                'GreyWhite'        : (GW_label, GW_label_name), \
-                'AAL'              : (label_AAL, label_AAL_name), \
-                'AALDilate'        : (label_AALDilate, label_AALDilate_name), \
-                'Broadmann'        : (label_Broadmann, label_Broadmann_name), \
-                'BroadmannDilate'  : (label_BroadmannDilate, label_BroadmannDilate_name), \
-                'Hammers'          : (label_Hammers, label_Hammers_name), \
-                'HCP-MMP1'         : (label_HCP, label_HCP_name), \
-                'AICHA'            : (label_AICHA, label_AICHA_name), \
-                'Lausanne2008-33'  : (label_lausanne[0], label_lausanne_name[0]), \
-                'Lausanne2008-60'  : (label_lausanne[1], label_lausanne_name[1]), \
-                'Lausanne2008-125' : (label_lausanne[2], label_lausanne_name[2]), \
-                'Lausanne2008-250' : (label_lausanne[3], label_lausanne_name[3]), \
-                'Lausanne2008-500' : (label_lausanne[4], label_lausanne_name[4]), \
-                'Resection rate'   : (Resec_label, Resec_label_value), \
-                'JulichBrain'      : (label_JulichBrain, label_JulichBrain_name), \
-                }
-            
-            # add subacq_stat dictionnaries
-            if len(subacq_existing)>0:
-                for i_substat in range(len(subacq_stat)):
-                    plots_label_bipolar[info_plot_bipolaire[pindex][0]].update({di_stat[i_substat].attributes()['subacquisition']:float(format( voxel_substat[i_substat],'.3f'))})
-            # Add to list of exported plot names
-            plot_name_bip += [info_plot_bipolaire[pindex][0]]
-            
-        plots_bipolar_by_label = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['MarsAtlas'][1]==Lab]) for Lab in parcels_names.values()])
-        #do the same for freesurfer, broadmann, hammers, all and alldilate
-        plots_bipolar_by_label_FS = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Freesurfer'][1]==Lab]) for Lab in [x[0] for x in freesurfer_parcel_names.values()]])
-        plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
-        plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_bipolar_by_label_HCP = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['HCP-MMP1'][1]==Lab]) for Lab in HCP_parcels_names.values()])
-        plots_bipolar_by_label_AICHA = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AICHA'][1]==Lab]) for Lab in AICHA_parcels_names.values()])
-        plots_bipolar_by_label_JulichBrain = dict([(Lab, [p for p in plot_name_bip if plots_label_bipolar[p]['JulichBrain'][1] == Lab]) for Lab in JulichBrain_parcels_names.values()])
-        plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
-        plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne33 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-33'][1]==Lab]) for Lab in Lausanne33_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne60 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-60'][1]==Lab]) for Lab in Lausanne60_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne125 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-125'][1]==Lab]) for Lab in Lausanne125_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne250 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-250'][1]==Lab]) for Lab in Lausanne250_parcels_names.values()])
-        plots_bipolar_by_label_Lausanne500 = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Lausanne2008-500'][1]==Lab]) for Lab in Lausanne500_parcels_names.values()])
-        
-        if acq:
-            wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
-            di = wdi.findValue(self.diskItems['T1pre'])
-            if di is None:
-                print('Can t generate files')
-                return []
-            fileEleclabel = di.fullPath()
-        
-        UseTemplateOrPatient = {'MarsAtlas':useTemplateMarsAtlas,'Freesurfer':useTemplateFreeSurfer, 'InitialSegmentation':initSegmentation}
-        
+        # ===== SAVE ELEC FILE =====
+        # Get electrodes label file
+        wdi = WriteDiskItem('Electrodes Labels','Electrode Label Format')
+        di = wdi.findValue(diT1pre)
+        if di is None:
+            errMsg += ["Could not find where to save file .eleclabel"]
+            return [[], errMsg]
+        fileEleclabel = di.fullPath()
+        # Create folder if it doesn't exist
+        createItemDirs(di)
+        # Write file
         fout = open(fileEleclabel,'w')
         fout.write(json.dumps({ \
-            'Template' : UseTemplateOrPatient, \
+            'Template' : {\
+                'MarsAtlas' : str(not 'MarsAtlas' in vol.keys()), \
+                'Freesurfer' : str(not 'Freesurfer' in vol.keys()), \
+                'InitialSegmentation' : initSegmentation}, \
             'plots_label' : plots_label, \
-            'plots_by_label' : plots_by_label, \
-            'plots_by_label_FS' : plots_by_label_FS, \
-            'plots_by_label_BM' : plots_by_label_BM, \
-            'plots_by_label_HM' : plots_by_label_HM, \
-            'plots_by_label_HCP' : plots_by_label_HCP, \
-            'plots_by_label_AICHA' : plots_by_label_AICHA, \
-            'plots_by_label_AAL' : plots_by_label_AAL, \
-            'plots_by_label_AALDilate' : plots_by_label_AALDilate, \
-            'plots_by_label_Lausanne33' : plots_by_label_Lausanne33, \
-            'plots_by_label_Lausanne60' : plots_by_label_Lausanne60, \
-            'plots_by_label_Lausanne125' : plots_by_label_Lausanne125, \
-            'plots_by_label_Lausanne250' : plots_by_label_Lausanne250, \
-            'plots_by_label_Lausanne500' : plots_by_label_Lausanne500, \
-            'plots_by_label_JulichBrain': plots_by_label_JulichBrain, \
-            'plots_label_bipolar' : plots_label_bipolar, \
-            'plots_bipolar_by_label' : plots_bipolar_by_label, \
-            'plots_bipolar_by_label_FS' : plots_bipolar_by_label_FS, \
-            'plots_bipolar_by_label_BM' : plots_bipolar_by_label_BM, \
-            'plots_bipolar_by_label_HM' : plots_bipolar_by_label_HM, \
-            'plots_bipolar_by_label_HCP' : plots_bipolar_by_label_HCP, \
-            'plots_bipolar_by_label_AICHA' : plots_bipolar_by_label_AICHA, \
-            'plots_bipolar_by_label_AAL' : plots_bipolar_by_label_AAL, \
-            'plots_bipolar_by_label_AALDilate' : plots_bipolar_by_label_AALDilate, \
-            'plots_bipolar_by_label_Lausanne33' : plots_bipolar_by_label_Lausanne33, \
-            'plots_bipolar_by_label_Lausanne60' : plots_bipolar_by_label_Lausanne60, \
-            'plots_bipolar_by_label_Lausanne125' : plots_bipolar_by_label_Lausanne125, \
-            'plots_bipolar_by_label_Lausanne250' : plots_bipolar_by_label_Lausanne250, \
-            'plots_bipolar_by_label_Lausanne500' : plots_bipolar_by_label_Lausanne500, \
-            'plots_bipolar_by_label_JulichBrain': plots_bipolar_by_label_JulichBrain, \
+            'plots_label_bipolar' : bip_label, \
             }))
         fout.close()
+        # Reference file in database
+        neuroHierarchy.databases.insertDiskItem(di, update=True )
+        return [[fileEleclabel], errMsg]
         
-        if acq:
-            neuroHierarchy.databases.insertDiskItem(di, update=True )
+    
+    # ===== COMPUTE PARCES: SUBFUNCTION =====
+    # Warning:  plots is a list
+    #           plots_MNI is a dict
+    def computeParcelsSub(self, plots, plots_fs, plots_MNI, sphere_size, info_image, info_fs, vol, labels, files_MNI, initSegmentation):
+        # Size of search sphere in voxels
+        if plots:
+            Nsph = [int(round(sphere_size/info_image['voxel_size'][i])) for i in range(3)]
+            Nsph_fs = [int(round(sphere_size/info_fs['voxel_size'][i])) for i in range(3)]
+        if plots_MNI:
+            Nsph_MNI = [sphere_size, sphere_size, sphere_size] #because mni has a 1 mm isotropic resolution
             
-        print "Export electrode done"
-        return [fileEleclabel]
+        # Process all the contacts (patient space and/or MNI space)
+        plots_label = {}
+        plots_name = []
+        for pindex in range(max(len(plots), len(plots_MNI))):
+            
+            # === PATIENT SPACE ===
+            if plots:
+                # Contact name
+                pname = plots[pindex][0]
+                plots_label[pname] = {}
+                # Contact positions in voxels in the different types of volumes (ScannerBased, FreeSurfer, MNI)
+                pos_SB = [round(plots[pindex][1][i] / info_image['voxel_size'][i]) for i in range(3)]
+                pos_fs = [round(plots_fs[pindex][1][i] / info_fs['voxel_size'][i]) for i in range(3)]
+                if math.isnan(pos_SB[0]) or math.isnan(pos_fs[0]):
+                    print("ERROR: Invalid coordinates for contact: " + plots[pindex][0])
+                    continue
+                # Positions depending on the segmentation: MarsAtlas, Grey-White
+                if initSegmentation == "FreeSurfer":
+                    pos_seg = pos_fs
+                    Nsph_seg = Nsph_fs
+                else:
+                    pos_seg = pos_SB
+                    Nsph_seg = Nsph
+                    
+                # === PROCESS: MARS ATLAS ===
+                value = 0
+                label = 'N/A'
+                full_MA = 'N/A'
+                if 'MarsAtlas' in vol.keys():
+                    vox = self.getSphVoxels(vol['MarsAtlas'], pos_seg, Nsph_seg, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x != 0 and x !=255 and x != 100]
+                        if vox:
+                            value,N = Counter(vox).most_common(1)[0]
+                            label = labels['MarsAtlas'][value]
+                            full_count = Counter(vox).most_common()
+                            full_MA = [(labels['MarsAtlas'][iLabel[0]],float(iLabel[1])/len(vox)*100) for iLabel in full_count]
+                    else:
+                        print pname + '-MarsAtlas: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])
+                plots_label[pname]['MarsAtlas'] = (value, label)
+                plots_label[pname]['MarsAtlasFull'] = full_MA          
+                
+                # === PROCESS GREY/WHITE ===
+                value = 255
+                if ('GW' in vol.keys()):
+                    vox = self.getSphVoxels(vol['GW'], pos_seg, Nsph_seg, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x !=255 and x !=0]
+                        if vox:
+                            most_common2,num_most_common2 = Counter(vox).most_common(1)[0]
+                            value = most_common2
+                        else:
+                            value = vol['GW'].value(pos_seg[0],pos_seg[1],pos_seg[2])
+                    else:
+                        print pname + '-GW: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])                
+                GW_label_name = {0:'N/A',100:'GreyMatter',200:'WhiteMatter',255:'N/A'}[value]
+                plots_label[pname]['GreyWhite'] = (value, GW_label_name)
+                
+                # === PROCESS: DESTRIEUX ===
+                value = 0
+                label = 'N/A'
+                if ('Destrieux' in vol.keys()):
+                    # Destrieux Atlas is reinterpolated in the t1pre space 
+                    vox = self.getSphVoxels(vol['Destrieux'], pos_SB, Nsph, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x != 0 and x != 2 and x != 41] #et 2 et 41 ? left and right white cerebral matter
+                        if vox:
+                            value,N = Counter(vox).most_common(1)[0]
+                            # Check if it's in the hippocampus
+                            if (value == 53 or value == 17) and ('hip' in vol.keys()):
+                                vox = self.getSphVoxels(vol['hip'], pos_SB, Nsph, sphere_size)
+                                vox = [x for x in vox if x != 0 and x != 2 and x != 41]
+                                try:
+                                    value,N = Counter(vox).most_common(1)[0]
+                                    if value == 3403:
+                                        raise Exception("?????")
+                                    label = labels['Destrieux'][value]
+                                except:
+                                    print("ERROR: Hippocampus/Amygdala surfaces not aligned with MRI")
+                                    label = 'ERROR hipp/amyg surfaces not aligned with MRI'
+                                    value = vol['Destrieux'].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                            else:
+                                label = labels['Destrieux'][value]
+                    else:
+                        print pname + '-Destrieux: Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
+                plots_label[pname]['Destrieux'] = (value, label)
+    
+                # === PROCESS: OTHER FREESURFER ATLASES ===
+                for name in ['DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+                    value = 0
+                    label = 'N/A'
+                    if (name in vol.keys()):
+                        # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
+                        vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
+                        if vox:
+                            vox = [x for x in vox if x != 0]
+                            if vox:
+                                value,N = Counter(vox).most_common(1)[0]
+                                label = labels[name][value]
+                            else:
+                                value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
+                        else:
+                            print pname + '-' + name + ': Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
+                    plots_label[pname][name] = (value, label)
+    
+                # === PROCESS: RESECTION ===
+                if ('resec' in vol.keys()):
+                    vox = self.getSphVoxels(vol['resec'], pos_SB, Nsph, sphere_size)
+                    valResec,N = Counter(vox).most_common(1)[0]
+                    value = max(vox) 
+                    per_mc = (float(N)/float(size(vox)))*100 #percentage of most_common value inside the sphere created for that contact
+                    if value == 0:
+                        per_mc = 100 - per_mc  #because the per_mc previously calculated was the percentage of voxels with value 0
+                else:
+                    value = 255
+                    per_mc = 0
+                label = {0:str(round(per_mc,2)), 1:str(round(per_mc,2)), 2:str(round(per_mc,2)), 255:'N/A'}[value]
+                plots_label[pname]['Resection rate'] = (value, label)
+            else:
+                pname = None
+
+
+            # === PROCESS: MNI ATLASES ===
+            if plots_MNI:
+                # Contact name
+                if not pname:
+                    pname = plots_MNI.keys()[pindex]
+                    plots_label[pname] = {}
+                # Get MNI coordinates
+                pos_MNI = [round(plots_MNI[pname][i]) for i in range(3)]
+                if math.isnan(pos_MNI[0]):
+                    print("ERROR: Invalid MNI coordinates for contact: " + pname)
+                    continue
+                # Process all MNI volumes
+                for atlas in files_MNI:
+                    value = 0
+                    label = 'N/A'
+                    vox = self.getSphVoxels(vol[atlas], pos_MNI, Nsph_MNI, sphere_size)
+                    if vox:
+                        vox = [x for x in vox if x != 0]
+                        if vox:
+                            most_common,N = Counter(vox).most_common(1)[0]
+                            value = int(round(most_common))
+                            if atlas == 'MNI-Brodmann':
+                                if pos_MNI[0]>90:
+                                    label = "%d" % (value)
+                                else:
+                                    label = "%d" % (value+100)
+                            elif atlas == 'MNI-BrodmannDilate':
+                                if value>48:
+                                    label = "%d" % (value-48+100)
+                                else:
+                                    label = "%d" % (value)
+                            else:
+                                if value in labels[atlas].keys():
+                                    label = labels[atlas][value]
+                                else:
+                                    print atlas + '-' + pname + ": Missing label: " + str(value)
+                                    label = 'N/A'
+                    else:
+                        print pname + '-' + atlas + ': Invalid coordinates (%d,%d,%d)'%(pos_MNI[0],pos_MNI[1],pos_MNI[2])
+                    plots_label[pname][atlas] = (value, label)
+
+            # Add to list of exported plot names
+            plots_name += [pname]
+        return plots_label, plots_name
         
 
-    def getAllPlotsCentersT1preRef(self):
+    def getPlotsT1preRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the T1pre native referential"""
         return dict((el['name']+'-$&_&$-'+plotName, el['transf'].transform(plotCoords)) for el in self.electrodes for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems())
 
-    def getAllPlotsCentersT1preScannerBasedRef(self):
+    def getPlotsT1preScannerBasedRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the T1pre scanner-based referential"""
         transfo = self.t1pre2ScannerBased()
-        return dict((key, transfo.transform(coords)) for key, coords in self.getAllPlotsCentersT1preRef().iteritems())
+        return dict((key, transfo.transform(coords)) for key, coords in self.getPlotsT1preRef().iteritems())
 
-    def getAllPlotsCentersAnyReferential(self, referential):
+    def getPlotsAnyReferential(self, referential):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the provided referential (must be available in referential converter self.refConv)"""
         if not self.refConv.isRefAvailable(referential):
             print "Trying to convert to unknown referential %s"%repr(referential)
             return None
-        return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getAllPlotsCentersT1preRef().iteritems())
+        return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getPlotsT1preRef().iteritems())
 
-    def getAllPlotsCentersMNIRef(self, isShortName=True):
+    def getPlotsMNIRef(self, isShortName=True):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential"""
 
         # Get elecimplant file
         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol})
         impl = list(rdi.findValues({},None,False))
         if len(impl) == 0:
-            QtGui.QMessageBox.critical(self, "Error", "Can't find implantation, you have to add electrodes and save your modifications first.")
+            #QtGui.QMessageBox.critical(self, "Error", "Can't find implantation, you have to add electrodes and save your modifications first.")
+            print "ERROR: Can't find implantation, you have to add electrodes and save your modifications first."
             return None
         elif not os.path.exists(str(impl[0])):
-            QtGui.QMessageBox.critical(self, "Error", "Can't find implantation file. Update your BrainVISA database.")
+            #QtGui.QMessageBox.critical(self, "Error", "Can't find implantation file. Update your BrainVISA database.")
+            print "ERROR: Can't find implantation file. Update your BrainVISA database."
             return None
         # Read implantation file
         filein = open(str(impl[0]), 'rb')
@@ -4406,31 +3665,29 @@ class LocateElectrodes(QtGui.QDialog):
             filein.close()
         # Return existing coordinates
         if 'plotsMNI' in dic_impl.keys():
-            print "MNI position already estimated, ok"
             dict_fileMNI = dict(dic_impl['plotsMNI'])
             # Convert keys to long plot names: eg. "A01" => "A-$&_&$-Plot1"
             if not isShortName:
-                dict_plotsMNI = dict()
+                plots_MNI = dict()
                 for el in self.electrodes:
                     for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems():
                         contactName = el['name'] + plotName[4:].zfill(2)
                         if contactName in dict_fileMNI:
-                            dict_plotsMNI[el['name']+'-$&_&$-'+plotName] = dict_fileMNI[contactName]
-                return dict_plotsMNI
+                            plots_MNI[el['name']+'-$&_&$-'+plotName] = dict_fileMNI[contactName]
+                return plots_MNI
             else:
                 return dict_fileMNI
         # If not available: Compute MNI coordinates
         else:
             print "WARNING: MNI position not available. Compute SPM normalization first."
-            # return self.computeMniPlotsCenters()
             return None
         
         
-    def computeMniPlotsCenters(self):
+    def computeMniCoord(self):
         """Compute MNI coordinates for the all the SEEG contacts, save them in database"""
 
         # Get contacts coordinates
-        plots = self.getAllPlotsCentersT1preScannerBasedRef()
+        plots = self.getPlotsT1preScannerBasedRef()
         coords = [plots[k] for k in sorted(plots.keys())]
         # Get MNI transformation field
         field = self.getT1preMniTransform()
@@ -4443,7 +3700,7 @@ class LocateElectrodes(QtGui.QDialog):
         arr = numpy.asarray(coords)
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         # Run SPM normalization
-        errMsg = matlabRun(spm_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
+        errMsg = matlabRun(spm12_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
         if errMsg:
             print errMsg
             return [None,[]]
@@ -4609,15 +3866,13 @@ class LocateElectrodes(QtGui.QDialog):
                          (not isinstance(self.dispObj[obj], list) and (w not in self.dispObj[obj].getWindows()))
             
             if (obj in self.windowContent[key]):
-                # print "Adding %s"%obj
                 w.addObjects(self.dispObj[obj])
             else:
-                # print "Removing %s"%obj
                 w.removeObjects(self.dispObj[obj])#CURRENT
         # Redraw figure
         if isUpdateOrient:
             self.updateWindowOrient(w)
-                
+   
     # Update window orient
     def updateWindowOrient(self, w):
             viewType = w.getInternalRep().viewType()
@@ -4666,7 +3921,7 @@ class LocateElectrodes(QtGui.QDialog):
             items.append(items[iCortex[0]])
             del items[iCortex[0]]
         # Move "FreeSurfer Atlas" at the end
-        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]))]
+        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]) or ('DKT' in items[i]) or ('HCP-MMP1' in items[i]))]
         for i in iFreeSurfer:
             items.append(items[i])
         for i in reversed(iFreeSurfer):
@@ -4718,7 +3973,6 @@ class LocateElectrodes(QtGui.QDialog):
             if self.electrodeList.count() > 0 and self.electrodeList.currentRow() <= len(self.electrodes):
                 el = self.currentElectrode()
                 self.electrodeGo(electrode = el)
-
         # Update window orientation (to force redraw)
         for i in range(4):
             self.updateWindowOrient(self.wins[i])
@@ -4727,10 +3981,8 @@ class LocateElectrodes(QtGui.QDialog):
     def clippingUpdate(self):
         for i in range(3):
             if self.Clipping_checkbox.isChecked():
-                print "clipping activated"
                 self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=2,clip_distance=5.)
             else:
-                print "clipping not activated"
                 self.a.execute('WindowConfig',windows = [self.wins[i]],clipping=0)
 
   
@@ -4742,13 +3994,11 @@ class LocateElectrodes(QtGui.QDialog):
         for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win1)][0]:
                 obj1 = obj
-        
         for obj in self.dispObj:
             if obj in self.windowContent[str(Text_win2)][0]:
                 obj2 = obj
         
         if 'obj1' in locals() and 'obj2' in locals():
-            print "do the fusion"
             fusion_obj = self.a.fusionObjects((self.dispObj[obj1], self.dispObj[obj2]), method='Fusion2DMethod')
             self.a.addObjects(fusion_obj, self.wins[1])
             # Add the fusion in the disObj and the windowCombo
@@ -4758,10 +4008,35 @@ class LocateElectrodes(QtGui.QDialog):
             self.updateComboboxes(Text_win1, obj1+'+'+obj2)
             # Update anatomist windows
             self.updateAllWindows()
-        
         else:
             print "one of the image is not recognized"
             return
+
+
+    def deleteMarsAtlasFiles(self):
+        # No subject loaded
+        if not self.brainvisaPatientAttributes or not self.brainvisaPatientAttributes['subject']:
+            return
+        # Ask for confirmation
+        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        if not (rep == QtGui.QMessageBox.Yes):
+            return
+        # Get files to delete
+        atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false','subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        atlas_di_list = list(atlas_di._findValues({}, None, False ))
+        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskleft = list(Mask_left.findValues({}, None, False ))
+        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
+        diMaskright = list(Mask_right.findValues({}, None, False ))
+        # Delete them
+        if len(atlas_di_list)>0:
+            for i,infoi in enumerate(atlas_di_list):
+                removeFromDB(infoi.fullPath(), neuroHierarchy.databases.database(infoi.get("_database")))
+        if len(diMaskleft)>0:
+            removeFromDB(diMaskleft[0].fullPath(), neuroHierarchy.databases.database(diMaskleft[0].get("_database")))
+        if len(diMaskright)>0:
+            removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
+        print("MarsAtlas files deleted.")
 
 
 #     def generateResection(self):
@@ -4973,8 +4248,8 @@ class LocateElectrodes(QtGui.QDialog):
 #         vol_connectcomp = aims.read(di_resec.fullPath())
 #         #a small sphere here as for plots:
 #         sphere_size = 4
-#         nb_voxel_sphere = [int(round(sphere_size/vol_connectcomp.getVoxelSize()[i])) for i in range(0,3)]
-#         voxel_within_sphere = [vol_connectcomp.value(resec_coord[0]/vol_connectcomp.getVoxelSize()[0]+vox_i,resec_coord[1]/vol_connectcomp.getVoxelSize()[1]+vox_j,resec_coord[2]/vol_connectcomp.getVoxelSize()[2]+vox_k) for vox_k in range(-nb_voxel_sphere[2],nb_voxel_sphere[2]+1) for vox_j in range(-nb_voxel_sphere[1],nb_voxel_sphere[1]+1) for vox_i in range(-nb_voxel_sphere[0],nb_voxel_sphere[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
+#         Nsph = [int(round(sphere_size/vol_connectcomp.getVoxelSize()[i])) for i in range(0,3)]
+#         voxel_within_sphere = [vol_connectcomp.value(resec_coord[0]/vol_connectcomp.getVoxelSize()[0]+vox_i,resec_coord[1]/vol_connectcomp.getVoxelSize()[1]+vox_j,resec_coord[2]/vol_connectcomp.getVoxelSize()[2]+vox_k) for vox_k in range(-Nsph[2],Nsph[2]+1) for vox_j in range(-Nsph[1],Nsph[1]+1) for vox_i in range(-Nsph[0],Nsph[0]+1) if math.sqrt(vox_i**2+vox_j**2+vox_k**2) < sphere_size]
 #         
 #         voxel_to_keep = [x for x in voxel_within_sphere if x != 0]
 #         from collections import Counter
@@ -5021,37 +4296,10 @@ class LocateElectrodes(QtGui.QDialog):
 #         self.brainvisaContext.runInteractiveProcess(lambda x='',di_roi=di_resec_roi[0],di_res=di_resec:self.roiconversionDone(di_roi,di_resec),'Graph To Volume Converter', read = di_resec_roi[0], write = di_resec) #removeSource, False, extract_contours, 'No'
 
 
-    def DeleteMarsAtlasFiles(self):
-        # No subject loaded
-        if not self.brainvisaPatientAttributes or not self.brainvisaPatientAttributes['subject']:
-            return
-        # Ask for confirmation
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-        if not (rep == QtGui.QMessageBox.Yes):
-            return
-        # Get files to delete
-        atlas_di = ReadDiskItem('hemisphere marsAtlas parcellation texture', 'aims Texture formats', requiredAttributes={ 'regularized': 'false','subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        atlas_di_list = list(atlas_di._findValues({}, None, False ))
-        Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskleft = list(Mask_left.findValues({}, None, False ))
-        Mask_right = ReadDiskItem('Right Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
-        diMaskright = list(Mask_right.findValues({}, None, False ))
-        # Delete them
-        if len(atlas_di_list)>0:
-            for i,infoi in enumerate(atlas_di_list):
-                removeFromDB(infoi.fullPath(), neuroHierarchy.databases.database(infoi.get("_database")))
-        if len(diMaskleft)>0:
-            removeFromDB(diMaskleft[0].fullPath(), neuroHierarchy.databases.database(diMaskleft[0].get("_database")))
-        if len(diMaskright)>0:
-            removeFromDB(diMaskright[0].fullPath(), neuroHierarchy.databases.database(diMaskright[0].get("_database")))
-        print("MarsAtlas files deleted.")
-
-
 # =============================================================================
 # MAIN: Main function that starts the interface
 # =============================================================================
 def main(noapp=0):
-    
     # Create application
     app = None
     if noapp == 0:
@@ -5059,21 +4307,15 @@ def main(noapp=0):
             QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
         app = QtGui.QApplication(sys.argv)
         axon.initializeProcesses()
-
     # Show main window
     w = LocateElectrodes(app = app)
     w.setWindowFlags(QtCore.Qt.Window)
     w.show()
-    # window.showMaximized()
-    
     # Run the application
     if noapp == 0:
         sys.exit(app.exec_())
 
-
 if __name__ == "__main__":
-    #print "LAUNCHING ELECTRODE LOCATE"
-    #QtCore.pyqtRemoveInputHook()  # Allow pdb to work for debugging !
     main()
 
 

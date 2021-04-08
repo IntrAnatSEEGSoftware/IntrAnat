@@ -200,7 +200,7 @@
      <item>
       <widget class="QLabel" name="label_9">
        <property name="text">
-        <string>Broadmann Parcels</string>
+        <string>Brodmann Parcels</string>
        </property>
       </widget>
      </item>
