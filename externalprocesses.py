@@ -100,8 +100,8 @@ def saveMatlabCall(cmd):
     # f.write("disp(' ');\n")
     # f.write("fprintf(1, '" + cmd.replace("\\", "\\\\").replace("'", "''").replace('\n','\\n').replace('%','%%') + "\\n');\n")
     # f.write("disp(['===============================================================' 10]);\n\n")
-    # f.write(cmd + "\n\n")
-    # f.close()
+    f.write(cmd + "\n")
+    f.close()
     
     # matlabExe = ['matlab', '-nodesktop', '-r']
     # print("Calling script '"+tmp['fullpath']+ "' and with Matlab command : "+repr(matlabExe))
