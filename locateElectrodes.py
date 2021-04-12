@@ -1859,7 +1859,7 @@ class LocateElectrodes(QtGui.QDialog):
         fileout.close()
         if di is not None:
             neuroHierarchy.databases.insertDiskItem( di, update=True )
-        QtGui.QMessageBox.information(self, u'Implantation saved', u"Implantation has been saved in database. Careful, it deleted MNI information if there was any. you'll have to do the normalization again")
+        QtGui.QMessageBox.information(self, u'Implantation saved', u"Implantation has been saved in database.\nThe MNI coordinates of the contacts must be computed before the CSV generation.")
         self.isModified = False
         
     
@@ -3630,6 +3630,8 @@ class LocateElectrodes(QtGui.QDialog):
     def getPlotsT1preScannerBasedRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the T1pre scanner-based referential"""
         transfo = self.t1pre2ScannerBased()
+        if not transfo:
+            return None
         return dict((key, transfo.transform(coords)) for key, coords in self.getPlotsT1preRef().iteritems())
 
     def getPlotsAnyReferential(self, referential):
