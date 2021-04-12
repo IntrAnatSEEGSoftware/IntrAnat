@@ -1982,7 +1982,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             if (self.getT1preMniTransform() is not None):
                 if thread:
                     thread.progress.emit(5)
-                    thread.progress_text.emit("Computing MNI normalization...")
+                    thread.progress_text.emit("Computing MNI coordinates...")
                 [plots_MNI, mniFiles] = self.computeMniCoord()
                 newFiles += mniFiles
             else:
