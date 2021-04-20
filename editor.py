@@ -62,21 +62,19 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     
     # Anatomist windows
     if anato is None:
-      self.a = anatomist.Anatomist('-b' )
+      self.a = anatomist.Anatomist('-b')
     else:
       self.a = anato  
-    layout = QtGui.QHBoxLayout( self.anatomistBox )
-    self.axWindow = self.a.createWindow( 'Axial', no_decoration=True )
-    self.sagWindow = self.a.createWindow( 'Sagittal', no_decoration=True )
-    self.corWindow = self.a.createWindow( 'Coronal', no_decoration=True )
+    layout = QtGui.QHBoxLayout(self.anatomistBox)
+    self.axWindow = self.a.createWindow('Axial', no_decoration=True, options={'hidden': 1})
+    self.sagWindow = self.a.createWindow('Sagittal', no_decoration=True, options={'hidden': 1})
+    self.corWindow = self.a.createWindow('Coronal', no_decoration=True, options={'hidden': 1})
+    layout.addWidget(self.sagWindow.getInternalRep())
+    layout.addWidget(self.axWindow.getInternalRep())
+    layout.addWidget(self.corWindow.getInternalRep())
     self.wins = [self.axWindow, self.sagWindow, self.corWindow]
     [w.setHasCursor(0) for w in self.wins]
-    self.sagWindow.setParent( self.anatomistBox )
-    self.axWindow.setParent( self.anatomistBox )
-    self.corWindow.setParent( self.anatomistBox )
-    layout.addWidget( self.sagWindow.getInternalRep() )
-    layout.addWidget( self.axWindow.getInternalRep() )
-    layout.addWidget( self.corWindow.getInternalRep() )
+
     
     
   # Enable or disable axis values widgets if the axisCombo changes  

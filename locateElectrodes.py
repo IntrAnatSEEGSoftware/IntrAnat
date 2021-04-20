@@ -15,15 +15,16 @@ from collections import Counter
 
 # BrainVISA/anatomist imports
 from soma import aims
-from brainvisa import axon, anatomist
+from brainvisa import axon
 from brainvisa.configuration import neuroConfig
 neuroConfig.gui = True
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
 from brainvisa.processes import *
-from soma.qt_gui.qt_backend import QtGui, QtCore, uic
+from soma.qt_gui.qt_backend import QtGui, QtCore, uic, QtWidgets
 from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
+from brainvisa import anatomist
         
 # IntrAnat local imports
 from externalprocesses import *
@@ -197,12 +198,12 @@ def getPlotsCenters(elecModel):
 # ===== MAIN WINDOW ========================================================
 # ==========================================================================
 
-class LocateElectrodes(QtGui.QDialog):
+class LocateElectrodes(QtWidgets.QDialog):
 
     def __init__(self, app=None, loadAll=True, isGui=True):        
         # UI init
         if loadAll == True:
-            QtGui.QWidget.__init__(self)
+            QtWidgets.QDialog.__init__(self)
             self.ui = uic.loadUi("locateElectrodes.ui", self)
             self.setWindowTitle('Localisation des electrodes - NOT FOR MEDICAL USE')
             self.app = app
@@ -261,12 +262,12 @@ class LocateElectrodes(QtGui.QDialog):
                 # Add to main window
                 wlayout = QtGui.QHBoxLayout(wcont)
                 wlayout.setSpacing(0)
-                wlayout.setMargin(0)
+                #wlayout.setMargin(0)
                 wlayout.addWidget(w.getInternalRep())
                 # Configure window further
                 w.getInternalRep().menuBar().setVisible(False)
-                w.getInternalRep().layout().setMargin(0)
-                w.getInternalRep().centralWidget().layout().setMargin(0)
+                #w.getInternalRep().layout().setMargin(0)
+                #w.getInternalRep().centralWidget().layout().setMargin(0)
                 w.getInternalRep().findChild(QtGui.QToolBar,'controls').setVisible(False)
                 w.getInternalRep().statusBar().setSizeGripEnabled(False)
                 
@@ -292,7 +293,7 @@ class LocateElectrodes(QtGui.QDialog):
             self.makefusionButton.clicked.connect(self.makeFusion)
             # self.connect(self.generateResectionArray.clicked.connect(self.generateResection)
             # self.connect(self.validateROIresection.clicked.connect(self.ROIResectiontoNiftiResection)
-            self.deleteMarsAtlasfiles.clicked.connect(self.DeleteMarsAtlasFiles)
+            self.deleteMarsAtlasfiles.clicked.connect(self.deleteMarsAtlasFiles)
             # Electrodes
             self.addElectrodeButton.clicked.connect(self.addElectrode)
             self.removeElectrodeButton.clicked.connect(self.removeElectrode)
@@ -4305,15 +4306,15 @@ def main(noapp=0):
     if noapp == 0:
         if hasattr(QtCore.Qt, 'AA_X11InitThreads'):
             QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
-        app = QtGui.QApplication(sys.argv)
+        app = QtWidgets.QApplication(sys.argv)
         axon.initializeProcesses()
     # Show main window
     w = LocateElectrodes(app = app)
-    w.setWindowFlags(QtCore.Qt.Window)
+    #w.setWindowFlags(QtCore.Qt.Window)
     w.show()
     # Run the application
-    if noapp == 0:
-        sys.exit(app.exec_())
+    if noapp == 0 and app is not None:
+        app.exec_()
 
 if __name__ == "__main__":
     main()

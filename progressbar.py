@@ -44,9 +44,9 @@ class ProgressDialog(QtGui.QDialog):
     # Start a thread
     def start(self, func, isModal=False):
         self.worker = ProgressThread(func)
-        self.connect(self.worker, QtCore.SIGNAL("PROGRESS"), self.setProgress)
-        self.connect(self.worker, QtCore.SIGNAL("PROGRESS_TEXT"), self.setText)
-        self.connect(self.worker, QtCore.SIGNAL("finished()"), self.terminated)
+        self.worker.progress.connect(self.setProgress)
+        self.worker.progress_text.connect(self.setText)
+        self.worker.finished.connect(self.terminated)
         self.worker.start()
         if self.cancelEnabled:
             self.buttonCancel.clicked.connect(self.cancel)
@@ -105,6 +105,9 @@ class ProgressThread(QtCore.QThread):
         QtCore.QThread.__init__(self,parent)
         self.func = func
         self.out = None
+        self.progress = pyqtSignal(int, name='PROGRESS')
+        self.progress_text = pyqtSignal(str, name='PROGRESS_TEXT')
+
 
     def output(self):
         """ Returns the output value of the function when execution is terminated"""
@@ -127,7 +130,7 @@ class Example(QtGui.QWidget):
         btn.resize(btn.sizeHint())
         btn.move(50, 50)
         self.setWindowTitle('Example')
-        self.connect(btn, QtCore.SIGNAL("clicked()"), self.test)
+        btn.clicked.connect(self.test)
 
     def test(self):
         res = ProgressDialog.call(self.activeWait, False, self, "Processing...", "Example process")
@@ -138,8 +141,8 @@ class Example(QtGui.QWidget):
         for n in range(0,200):
             print n
             if (n > 20):
-                thread.emit(QtCore.SIGNAL("PROGRESS"), n)
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Processing event #{}".format(n))
+                thread.progress.emit(n)
+            thread.progress_text.emit("Processing event #{}".format(n))
             n += 1
             time.sleep(0.1)
 

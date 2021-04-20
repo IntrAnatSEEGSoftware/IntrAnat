@@ -5,24 +5,25 @@
 #
 # License GNU GPL v3
 
-import os, subprocess, pickle, tempfile, json, numpy, csv
+import os, subprocess, pickle, tempfile, json, numpy, csv,sys
 from scipy import ndimage
 from shutil import copyfile, rmtree
 
 from soma import aims
-from brainvisa import axon, anatomist
+from brainvisa import axon
 from brainvisa.configuration import neuroConfig
 from __builtin__ import True
 neuroConfig.gui = True
-from brainvisa.configuration.qt4gui import neuroConfigGUI
+from brainvisa.configuration.qtgui import neuroConfigGUI
 from brainvisa.data import neuroHierarchy
 import brainvisa.registration as registration
 from brainvisa.processes import *
-from soma.qt_gui.qt_backend import uic, QtGui, QtCore
+from soma.qt_gui.qt_backend import uic, QtGui, QtCore, QtWidgets
 from brainvisa.data.readdiskitem import ReadDiskItem
 from brainvisa.data.writediskitem import WriteDiskItem
 import brainvisa.data.neuroDiskItems
 from soma.wip.application.api import Application
+from brainvisa import anatomist
 from freesurfer.brainvisaFreesurfer import *
 
 from externalprocesses import *
@@ -221,15 +222,15 @@ quit;"""
 # quit;"""
 
                 
-class ImageImport(QtGui.QDialog):
+class ImageImport(QtWidgets.QDialog):
     """ImageImport is the main dialog class of the Image Importer software"""
 
     def __init__ (self, app=None, isGui=True):
-        QtGui.QWidget.__init__(self)
+        QtWidgets.QDialog.__init__(self)
         self.ui = uic.loadUi("ImageImport.ui", self)
         self.setWindowTitle('Image Import - NOT FOR MEDICAL USE')
         self.app = app
-    
+
         self.seriesUIDbyName = {}
         self.studiesUIDbyName = {}
         self.currentProtocol = None
@@ -255,20 +256,17 @@ class ImageImport(QtGui.QDialog):
 
         # Initialize GUI
         self.initialize()
+
         # Prepare interactivity
         if isGui:
             layout = QtGui.QVBoxLayout( self.ui.windowContainer1 )
             layout2 = QtGui.QHBoxLayout( )
             layout3 = QtGui.QHBoxLayout( )
-            self.axWindow = self.a.createWindow( 'Axial' )#, no_decoration=True )
-            self.axWindow2 = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
-            self.axWindow3 = self.a.createWindow( 'Axial' )#, no_decoration=True )
-            self.axWindow4 = self.a.createWindow( 'Sagittal' )#, no_decoration=True )
+            self.axWindow = self.a.createWindow( 'Axial', options={'hidden': 1})#, no_decoration=True )
+            self.axWindow2 = self.a.createWindow( 'Sagittal', options={'hidden': 1})#, no_decoration=True )
+            self.axWindow3 = self.a.createWindow( 'Axial', options={'hidden': 1})#, no_decoration=True )
+            self.axWindow4 = self.a.createWindow( 'Sagittal', options={'hidden': 1})#, no_decoration=True )
             self.wins = [self.axWindow, self.axWindow2, self.axWindow3, self.axWindow4]
-            self.axWindow.setParent(self.ui.windowContainer1)
-            self.axWindow2.setParent(self.ui.windowContainer1)
-            self.axWindow3.setParent(self.ui.windowContainer1)
-            self.axWindow4.setParent(self.ui.windowContainer1)
             layout2.addWidget( self.axWindow.getInternalRep() )
             layout2.addWidget( self.axWindow2.getInternalRep() )
             layout3.addWidget( self.axWindow3.getInternalRep() )
@@ -291,7 +289,7 @@ class ImageImport(QtGui.QDialog):
             self.ui.bvDeleteSubjectButton.clicked.connect(self.deleteBvSubject)
             self.ui.bvEditPref.clicked.connect(self.editBvPref)
             self.ui.bvUpdateDb.clicked.connect(self.updateBvDb)
-            self.ui.bvImportBids.clicked.connect(self.importFromBids)
+            self.ui.bvImportBids.clicked.connect(self.importBids)
             # TAB2: Add subject
             self.ui.subjectSiteCombo.activated[str].connect(self.updatePatientCode)
             self.ui.subjectSiteCombo.editTextChanged[str].connect(self.updatePatientCode)
@@ -422,8 +420,12 @@ class ImageImport(QtGui.QDialog):
         # Check what spm path has been defined in BrainVisa
         configuration = Application().configuration
         brainvisa_spm12_path = configuration.SPM.spm12_path
-        brainvisa_freesurfer_home_path = configuration.freesurfer._freesurfer_home_path
-        import pdb;pdb.set_trace()
+
+        try:
+            brainvisa_freesurfer_home_path = configuration.freesurfer._freesurfer_home_path
+        except:
+            print("configuration.freesurfer -> not found !")
+            brainvisa_freesurfer_home_path = ""
         if 'spm' in self.prefs:
             if brainvisa_spm12_path != self.prefs['spm']:
                 QtGui.QMessageBox.warning(self, u"SPM", u"SPM path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
@@ -612,7 +614,14 @@ class ImageImport(QtGui.QDialog):
 
     def analyseBrainvisaDB(self, tab=None):
         """ Analyze the BrainVisa Database to fill the data for the brainvisa and registration tab (provide the tab number to update only the chosen one, 0 or 4) """
-        rdi = ReadDiskItem( 'Center', 'Directory' )#, requiredAttributes={'center':'Epilepsy'} )
+        try:
+            rdi = ReadDiskItem( 'Center', 'Directory' )#, requiredAttributes={'center':'Epilepsy'} )
+        except Exception as e:
+            QtGui.QMessageBox.warning(self, "Database error", "DATABASE error: " + str(e))
+            print("DATABASE error: "+str(e))
+            return
+
+
         protocols = list( rdi._findValues( {}, None, False ) )
         protocols = sorted([str(p.attributes()['center']) for p in protocols])
         if len(protocols) == 0:
@@ -1002,7 +1011,7 @@ class ImageImport(QtGui.QDialog):
     # ===== TAB4: IMPORT =====
     def chooseNifti(self):
         self.ui.niftiFileLabel.setText('')
-        path = str(QtGui.QFileDialog.getOpenFileName(self, "Open MRI Image", "", "Images (*.nii *.nii.gz *.ima *.img *.ima.gz *.img.gz *.img.bz2 *ima.bz2 *.nii.bz2 *.mgz)"))
+        path = QtGui.QFileDialog.getOpenFileName(self, "Open MRI Image", "", "Images (*.nii *.nii.gz *.ima *.img *.ima.gz *.img.gz *.img.bz2 *ima.bz2 *.nii.bz2 *.mgz)")[0]
         if not path:
             return
         self.ui.niftiFileLabel.setText(path)
@@ -1537,7 +1546,10 @@ class ImageImport(QtGui.QDialog):
         mri = self.a.loadObject(image)
         # Force reading Scanner-based referential from .nii file
         print "WARNING: Using referential from .nii header, ignoring transformations from BrainVISA database."
-        self.a.execute('LoadReferentialFromHeader', objects=[mri])
+        try:
+            self.a.execute('LoadReferentialFromHeader', objects=[mri])
+        except:
+            print("Cannot load referential from header")
         # Add to anatomist windows
         self.a.assignReferential(mri.getReferential(), wins)
         self.a.addObjects(mri, wins)
@@ -2817,18 +2829,19 @@ class ImageImport(QtGui.QDialog):
 def main():
     
     # Create application
+    app = QtWidgets.QApplication(sys.argv)
     if hasattr(QtCore.Qt, 'AA_X11InitThreads'):
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
-    app = QtGui.QApplication(sys.argv)
+
+    # To debug
+    #QtCore.pyqtRemoveInputHook()
     axon.initializeProcesses()
-    
+
     # Show main window
     w = ImageImport(app = app)
     w.setWindowFlags(QtCore.Qt.Window)
     w.show()
-    # Run the application
-    sys.exit(app.exec_())
-
+    sys.exit(w.exec_())
 
 if __name__ == '__main__':
     main()
