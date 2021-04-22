@@ -3334,7 +3334,7 @@ class LocateElectrodes(QtGui.QDialog):
         diResec = ReadDiskItem('Resection', 'BrainVISA volume formats', requiredAttributes={'subject':subject, 'center':center})
         rdiResec = list(diResec.findValues({}, None, False ))
         if rdiResec:
-            vol['resec'] = aims.read(di_resec[0].fileName())
+            vol['resec'] = aims.read(rdiResec[0].fileName())
 
         # ===== READ: MNI ATLASES =====
         # Define all atlases to generate
