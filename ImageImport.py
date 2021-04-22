@@ -883,6 +883,7 @@ class ImageImport(QtGui.QDialog):
                 bidsSub.append(subName)
                 bidsImg.append(addImg)
         if not bidsSub:
+            QtGui.QMessageBox.warning(self, u"BIDS Import", u"No subjects with anat or pet modalities found in:\n%s"%self.prefs['bids'])
             return
         # Sort alphabetically
         bidsSub, bidsImg = (list(t) for t in zip(*sorted(zip(bidsSub, bidsImg))))
@@ -899,7 +900,7 @@ class ImageImport(QtGui.QDialog):
             subNew = bidsSub
         # No subjects to import
         if not subNew:
-            QtGui.QMessageBox.warning(self, "Error", u"All BIDS subjects are already imported in the IntrAnat database.")
+            QtGui.QMessageBox.warning(self, u"BIDS Import", u"All BIDS subjects are already imported in the IntrAnat database.")
             return
         # Ask user to select which ones to import
         dialog = DialogCheckbox.DialogCheckbox(subNew, "Import BIDS", "Select the patients to import:")
