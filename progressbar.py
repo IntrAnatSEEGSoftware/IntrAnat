@@ -98,6 +98,8 @@ class ProgressDialog(QtGui.QDialog):
 # ===== PROCESSING THREAD =====
 class ProgressThread(QtCore.QThread):
     """ Executes a python function in a separate thread. """
+    progress = QtCore.pyqtSignal(int, name='PROGRESS')
+    progress_text = QtCore.pyqtSignal(str, name='PROGRESS_TEXT')
     def __init__(self, func, parent=None):
         """:param func : The function that will be run in a separate thread
            :param parent : a parent object for the QThread (default is None)
@@ -105,8 +107,6 @@ class ProgressThread(QtCore.QThread):
         QtCore.QThread.__init__(self,parent)
         self.func = func
         self.out = None
-        self.progress = pyqtSignal(int, name='PROGRESS')
-        self.progress_text = pyqtSignal(str, name='PROGRESS_TEXT')
 
 
     def output(self):

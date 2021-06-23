@@ -105,6 +105,7 @@ labels = dict()
 (labels['Destrieux'], freesurfer_colormap) = readFreesurferLabelFile('labels/freesurfer_labels.txt', 14175)
 labels['DKT'] = labels['Destrieux']
 (labels['HCP-MMP1'], hcp_colormap) = readFreesurferLabelFile('labels/hcp_l0r200_labels.txt', 14175)
+(labels['VEP'], vep_colormap) = readFreesurferLabelFile('labels/VepFreeSurferColorLut.txt', 72077)
 (labels['Lausanne2008-33'], lausanne33_colormap) = readFreesurferLabelFile('labels/lausanne33_labels.txt', 83)
 (labels['Lausanne2008-60'], lausanne60_colormap) = readFreesurferLabelFile('labels/lausanne60_labels.txt', 129)
 (labels['Lausanne2008-125'], lausanne125_colormap) = readFreesurferLabelFile('labels/lausanne125_labels.txt', 234)
@@ -256,8 +257,8 @@ class LocateElectrodes(QtWidgets.QDialog):
             self.wins = []
             for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
                 # Create anatomist window
-                w = self.a.createWindow('Sagittal')
-                w.setParent(wcont)#, no_decoration=True )
+                w = self.a.createWindow('Sagittal', options={'hidden': 1})
+                #w.setParent(wcont)#, no_decoration=True )
                 self.wins.append(w)
                 # Add to main window
                 wlayout = QtGui.QHBoxLayout(wcont)
@@ -615,7 +616,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 continue
             # Progres bar
             if thread is not None:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading volume: " + t.attributes()['modality'] + "...")
+                thread.progress_text.emit("Loading volume: " + t.attributes()['modality'] + "...")
             # Keep attributes of any image from this subject
             self.brainvisaPatientAttributes = t.attributes()
             na = None
@@ -710,6 +711,10 @@ class LocateElectrodes(QtWidgets.QDialog):
                 dictionnaire_list_images.update({'DKT Atlas':['DKT', 'electrodes']})
                 self.vol_dkt = aims.read(str(t))
                 na = 'DKT'
+            elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('VEP' in t.attributes()['acquisition']):
+                dictionnaire_list_images.update({'VEP Atlas':['VEP', 'electrodes']})
+                self.vol_dkt = aims.read(str(t))
+                na = 'VEP'
             elif (t.attributes()['modality'] == 'freesurfer_atlas') and ('HCP-MMP1' in t.attributes()['acquisition']):
                 dictionnaire_list_images.update({'HCP-MMP1 Atlas':['HCP-MMP1', 'electrodes']})
                 self.vol_hcp = aims.read(str(t))
@@ -818,13 +823,15 @@ class LocateElectrodes(QtWidgets.QDialog):
                 # Load all related transformations
                 self.loadVolTransformations(t)
                 
-            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na) or ('DKT' in na) or ('HCP-MMP1' in na):
+            elif (na == 'FreesurferAtlaspre') or ('Lausanne2008' in na) or ('DKT' in na) or ('HCP-MMP1' in na) or ('VEP' in na):
                 objAtlas.append(obj)
                 # Create palette adapted to the volume
                 if (na == 'FreesurferAtlaspre'):
                     colors = freesurfer_colormap
                 elif (na == 'DKT'):
                     colors = freesurfer_colormap
+                elif (na == 'VEP'):
+                    colors = vep_colormap
                 elif (na == 'HCP-MMP1'):
                     colors = hcp_colormap
                 elif (na == 'Lausanne2008-33'):
@@ -847,7 +854,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             if (na == 'T1pre') or (na == 'FreesurferT1pre'):
                 # Progress bar
                 if thread is not None:
-                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading cortex meshes...")
+                    thread.progress_text.emit("Loading cortex meshes...")
                     
                 # === CORTEX MESHES ===
                 # Get the hemisphere meshes for the acquisition : name = na + filename base : for example, if the acquisition is T1pre_2000-01-01 and the file head.gii, we want T1pre-head
@@ -871,7 +878,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 if len(atlas_di_list) > 0:
                     # Progress bar
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading MarsAtlas parcels...")
+                        thread.progress_text.emit("Loading MarsAtlas parcels...")
                     # Find white meshes
                     wm_di = ReadDiskItem('Hemisphere White Mesh', 'aims mesh formats', requiredAttributes={'subject':patient, 'center':self.currentProtocol })
                     # For each MarsAtlas texture
@@ -889,7 +896,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 # Only if the hemispheres and the head are available
                 if (len(hemis) >= 2) and (len(head) > 0):
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading head mesh...")
+                        thread.progress_text.emit("Loading head mesh...")
                     self.loadAndDisplayObject(head[0], na + '-' + 'head', color=[0.0, 0.0, 0.8, 0.3])
                     dictionnaire_list_images.update({strVol + ' + cortex + head':[na, na + '-rightHemi', na + '-leftHemi', na + '-head', 'electrodes']})
                     dictionnaire_list_images.update({'Cortex + head':[na + '-rightHemi', na + '-leftHemi', na + '-head', 'electrodes']})
@@ -927,7 +934,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             # Display referential informations
             self.setWindowsReferential()
             if thread is not None:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Loading electrodes...")
+                thread.progress_text.emit("Loading electrodes...")
         # Load electrodes
         self.loadElectrodes(patient, self.currentProtocol, isGui)
         # Update display
@@ -1314,6 +1321,10 @@ class LocateElectrodes(QtWidgets.QDialog):
         for el in self.electrodes:
             if name == el['name']:
                 name = self.findFreeElectrodeName()
+        if str(model) not in self.elecModelListByName:
+            print("ERROR: Could not find electrode model named " + str(model) + ". Ignoring electrode. Please check that the model is installed in IntrAnat database !")
+            #QtGui.QMessageBox.warning(self, u'Error', u"Could not load electrode model %s. Please check it is installed in IntrAnat database !"%str(model))
+            return
         (newRef, transf, elecModel) = createElectrode(target, entry, self.preReferential(), self.a,\
                                                       model = self.elecModelListByName[str(model)].fullPath(), dispMode = self.dispMode, dispParams = self.dispParams, isTransparent = isTransparent)
         # Reference electrodes in application
@@ -1970,8 +1981,8 @@ class LocateElectrodes(QtWidgets.QDialog):
         if isComputeMni:
             if (self.getT1preMniTransform() is not None):
                 if thread:
-                    thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
-                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing MNI normalization...")
+                    thread.progress.emit(5)
+                    thread.progress_text.emit("Computing MNI normalization...")
                 [plots_MNI, mniFiles] = self.computeMniCoord()
                 newFiles += mniFiles
             else:
@@ -1980,8 +1991,8 @@ class LocateElectrodes(QtWidgets.QDialog):
         # ===== Save TXT/PTS files ======
         if isSavePts:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Exporting PTS files...")
+                thread.progress.emit(20)
+                thread.progress_text.emit("Exporting PTS files...")
             # ===== T1-pre scanner-based referential ======
             # Get current time stamp
             timestamp = time.time()
@@ -2057,52 +2068,52 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Compute parcels 
         if isComputeParcels:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 25)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing contact parcels...")
+                thread.progress.emit(25)
+                thread.progress_text.emit("Computing contact parcels...")
             res = self.computeParcels(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Compute MarsAtlas resection
         if isMarsatlasResection:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 40)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing resection parcels...")
+                thread.progress.emit(40)
+                thread.progress_text.emit("Computing resection parcels...")
             newFiles += self.computeMarsatlasResection()
         # Compute parcel metrics
         if isParcelMetrics:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Computing parcel metrics...")
+                thread.progress.emit(50)
+                thread.progress_text.emit("Computing parcel metrics...")
             newFiles += self.computeParcelMetrics()
             
         # ===== OTHER EXPORTS =====
         # Save CSV
         if isSaveCsv:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 60)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating CSV files...")
+                thread.progress.emit(60)
+                thread.progress_text.emit("Generating CSV files...")
             res = self.saveCSV(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Save TSV
         if isSaveTsv:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 70)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating BIDS TSV files...")
+                thread.progress.emit(70)
+                thread.progress_text.emit("Generating BIDS TSV files...")
             res = self.saveBidsTsv(self.diskItems['T1pre'])
             newFiles += res[0]
             errMsg += res[1]
         # Save screenshots
         if isScreenshot:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 80)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating screenshots...")
+                thread.progress.emit(80)
+                thread.progress_text.emit("Generating screenshots...")
             newFiles += self.saveScreenshot()
         # Save video
         if isVideo:
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 90)
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Generating videos...")
+                thread.progress.emit(90)
+                thread.progress_text.emit("Generating videos...")
             newFiles += self.saveMP4()
 
         return [newFiles, errMsg]
@@ -2779,6 +2790,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'MarsAtlas', \
                 'Destrieux', \
                 'DKT', \
+                'VEP', \
                 'HCP-MMP1', \
                 'Lausanne2008-33', \
                 'Lausanne2008-60', \
@@ -2976,6 +2988,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                     'Destrieux', \
                     'DKT', \
                     'HCP-MMP1', \
+                    'VEP', \
                     'Lausanne2008-33', \
                     'Lausanne2008-60', \
                     'Lausanne2008-125', \
@@ -3322,7 +3335,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Get all the FreeSurfer atlases:
         diFs = ReadDiskItem('FreesurferAtlas', 'BrainVISA volume formats',requiredAttributes={'subject':subject, 'center':center})
         rdiFs = list(diFs.findValues({}, None, False))
-        for name in ['FreesurferAtlaspre', 'DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+        for name in ['FreesurferAtlaspre', 'DKT', 'VEP', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
             iFile = [i for i in range(len(rdiFs)) if name in rdiFs[i].attributes()["acquisition"]]
             if iFile:
                 if name == 'FreesurferAtlaspre':
@@ -3545,7 +3558,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 plots_label[pname]['Destrieux'] = (value, label)
     
                 # === PROCESS: OTHER FREESURFER ATLASES ===
-                for name in ['DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+                for name in ['DKT', 'VEP', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
                     value = 0
                     label = 'N/A'
                     if (name in vol.keys()):
@@ -3555,7 +3568,12 @@ class LocateElectrodes(QtWidgets.QDialog):
                             vox = [x for x in vox if x != 0]
                             if vox:
                                 value,N = Counter(vox).most_common(1)[0]
-                                label = labels[name][value]
+                                try:
+                                    label = labels[name][value]
+                                except:
+                                    label = 'N/A'
+                                    print('labels ' + str(name) + ' -> ' + str(value) + ' NOT FOUND')
+                                    #import pdb; pdb.set_trace()
                             else:
                                 value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
                         else:
@@ -3922,7 +3940,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             items.append(items[iCortex[0]])
             del items[iCortex[0]]
         # Move "FreeSurfer Atlas" at the end
-        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]) or ('DKT' in items[i]) or ('HCP-MMP1' in items[i]))]
+        iFreeSurfer = [i for i in range(len(items)) if (('FreeSurfer Atlas' in items[i]) or ('Lausanne' in items[i]) or ('DKT' in items[i]) or ('VEP' in items[i]) or ('HCP-MMP1' in items[i]))]
         for i in iFreeSurfer:
             items.append(items[i])
         for i in reversed(iFreeSurfer):

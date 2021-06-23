@@ -303,6 +303,7 @@ class ImageImport(QtWidgets.QDialog):
             self.ui.niftiSetBraincenterButton.clicked.connect(self.setBrainCenter)
             self.ui.ImportFSoutputspushButton.clicked.connect(self.importFSoutput)
             self.ui.buttonImportLausanne.clicked.connect(self.importLausanne2008)
+            self.ui.buttonImportVEP.clicked.connect(self.importVEP)
             self.ui.niftiSubjectCombo.activated[str].connect(self.setCurrentSubject)
             self.ui.niftiSeqType.currentIndexChanged[str].connect(self.enable_disable_gadooption)
             # TAB4: Coregistration
@@ -1270,6 +1271,7 @@ class ImageImport(QtWidgets.QDialog):
         allFiles['rightSulciGyri'] = {'side':'right', 'type':'FreesurferSulciGyriTexture', 'format':'FreesurferParcellation',     'file':importDir + '/label/rh.aparc.a2009s.annot'}
         allFiles['DKT'] =            {'side':None,    'type':None,                         'format':None,                         'file':importDir + '/mri/aparc.DKTatlas+aseg.mgz'}
         allFiles['HCP-MMP1'] =       {'side':None,    'type':None,                         'format':None,                         'file':importDir + '/mri/HCP-MMP1.mgz'}
+        allFiles['VEP'] =            {'side':None,    'type':None,                         'format':None,                         'file': importDir + '/mri/aparc+aseg.vep.mgz'}
         allFiles['Lausanne2008-33'] ={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale33.nii.gz'}
         allFiles['Lausanne2008-60'] ={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale60.nii.gz'}
         allFiles['Lausanne2008-125']={'side':None,    'type':None,                         'format':None,                         'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale125.nii.gz'}
@@ -1277,7 +1279,7 @@ class ImageImport(QtWidgets.QDialog):
         allFiles['Lausanne2008-500']={'side':None,    'type':None,                         'format':None,                        'file':importDir + '/parcellation_Lausanne2008/ROIv_HR_th_scale500.nii.gz'}
         # Check that all the files exist (skip the lausanne files)
         for key in allFiles:
-            if (not 'Lausanne' in key) and (not 'DKT' in key) and (not 'HCP-MMP1' in key) and (not os.path.isfile(allFiles[key]['file'])):
+            if (not 'Lausanne' in key) and (not 'DKT' in key) and (not 'HCP-MMP1' in key) and (not 'VEP' in key) and (not os.path.isfile(allFiles[key]['file'])):
                 errMsg = "File not found: " + allFiles[key]['file']
                 if isGui:
                     QtGui.QMessageBox.warning(self, "Error", errMsg)
@@ -1306,7 +1308,7 @@ class ImageImport(QtWidgets.QDialog):
                 continue
             # Progress bar
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying " + subject + "/" + key + "...")
+                thread.progress_text.emit("Copying " + subject + "/" + key + "...")
             # Files with proper FreeSurfer ontology description
             if allFiles[key]['type']:
                 # Get target into the local FreeSurfer database
@@ -1341,7 +1343,7 @@ class ImageImport(QtWidgets.QDialog):
        
         # Progress bar
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying " + subject + "/Destrieux...")
+            thread.progress_text.emit("Copying " + subject + "/Destrieux...")
         # Importing Destrieux atlas to BrainVISA database
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
@@ -1366,7 +1368,7 @@ class ImageImport(QtWidgets.QDialog):
                 return [True, errMsg]
         # Generate amygdala and hippocampus meshes
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Creating hippocampus and amygdala meshes...")
+            thread.progress_text.emit("Creating hippocampus and amygdala meshes...")
         self.generateAmygdalaHippoMesh(proto, subject, acq, diFSDestrieux)
         return [True, errMsg]
     
@@ -1386,7 +1388,10 @@ class ImageImport(QtWidgets.QDialog):
         # Create the folder if doesn't exist
         createItemDirs(di)
         # Reslice volume to match T1pre
-        launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i', imgPath,'-o',str(di.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+        try:
+            launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i', imgPath,'-o',str(di.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
+        except:
+            QtGui.QMessageBox.warning(self, "Error", u"Could not launch Freesurfer command")
         # Convert to AIMS
         ret = subprocess.call(['AimsFileConvert', '-i', str(di.fullPath()), '-o', str(di.fullPath()), '-t', 'S16'])
         # Add reference in the database (creates .minf)
@@ -1433,10 +1438,46 @@ class ImageImport(QtWidgets.QDialog):
                 continue
             # Progress bar
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Importing " + key + "...")
+                thread.progress_text.emit("Importing " + key + "...")
             # Import file
             self.importFsAtlas(subject, proto, key, allFiles[key], diT1pre)
 
+    # Sub-selection of the operations done when importing the full FreeSurfer segmentation
+    # Added only for O.David to add the VEP to patients for which FreeSurfer was already imported
+    def importVEP(self, subject=None, proto=None):
+        # Get current subject
+        if not subject:
+            subject = self.currentSubject
+        if not proto:
+            proto = str(self.ui.bvProtocolCombo.currentText())
+        # Find T1pre of the subject
+        diT1pre = self.findT1pre(subject)
+        if not diT1pre:
+            QtGui.QMessageBox.warning(self, "Error", u"No T1pre MRI found this patient: " + subject)
+            return
+        # Ask input folder
+        importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Freesurfer subject folder for VEP import", "",
+                                                               QtGui.QFileDialog.ShowDirsOnly))
+        if not importDir:
+            return
+        # Get files of interest in the input folder
+        if not os.path.isfile(importDir + '/mri/aparc+aseg.vep.mgz'):
+            QtGui.QMessageBox.warning(self, "Error", u"VEP file not found:\n" + importDir + '/mri/aparc+aseg.vep.mgz')
+            return
+        # Run copy and conversion in a separate thread
+        res = ProgressDialog.call(lambda thr: self.importVEPWorker(subject, proto, importDir + '/mri/aparc+aseg.vep.mgz', diT1pre, thr),
+                                  True, self, "Processing " + subject + "...", "Import VEP atlas")
+
+    def importVEPWorker(self, subject, proto, mgzfile, diT1pre, thread=None):
+        # Importing the VEP parcellation to BrainVISA database
+        # Skip if file doesn't exist
+        if (not os.path.isfile(mgzfile)):
+            return
+            # Progress bar
+        if thread:
+            thread.progress_text.emit("Importing " + mgzfile + "...")
+            # Import file
+            self.importFsAtlas(subject, proto, 'VEP', mgzfile, diT1pre)
 
     #******************************** Add New Subject
     # ANONYMIZATION TAKES PLACE HERE
@@ -1602,7 +1643,7 @@ class ImageImport(QtWidgets.QDialog):
             if acq.startswith('T1pre'):
                 self.setStatus(u"SPM normalization %s..."%acq)
                 if progressThread:
-                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
+                    progressThread.progress_text.emit("SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 errMsg = self.spmNormalize(image.fileName(), proto, patient, acq)
                 if errMsg:
                     return errMsg
@@ -1636,7 +1677,7 @@ class ImageImport(QtWidgets.QDialog):
             if self.prefs['coregisterMethod'] == 'ANTs':
                 print("Coregistration method: ANTs")
                 if progressThread:
-                    progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
+                    progressThread.progress_text.emit("ANTS coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                 temp_folder_ants = tempfile.mkdtemp('ANTs_IntrAnat') +'/'
                 ants_call = 'antsRegistrationSyN.sh -d 3 -f {} -m {} -o {} -t r'.format(str(t1preImage.fullPath()),str(image.fullPath()),temp_folder_ants)
                 # print("ANTs call: " + ants_call)
@@ -1651,7 +1692,7 @@ class ImageImport(QtWidgets.QDialog):
                 # SPM coregister+resample
                 if isResample:
                     if progressThread:
-                        progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
+                        progressThread.progress_text.emit("SPM coregistration+resample: " + subj + "/" + image.attributes()['modality'] + "...")
                     # Call SPM coregister+resample
                     call = spm12_coregisterReslice%("'"+str(self.prefs['spm'])+"'","{'"+str(t1preImage)+",1'}", "{'"+str(image.fileName())+",1'}")
                     spl = os.path.split(image.fileName())
@@ -1665,7 +1706,7 @@ class ImageImport(QtWidgets.QDialog):
                 # SPM coregister
                 else:
                     if progressThread:
-                        progressThread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
+                        progressThread.progress_text.emit("SPM coregistration: " + subj + "/" + image.attributes()['modality'] + "...")
                     self.setStatus('Coregistration of the image: '+ acq)
 
                     # Temporary txt file to store the trm transformation
@@ -1876,7 +1917,7 @@ class ImageImport(QtWidgets.QDialog):
         # ==== STEP 1: IMPORT =====
         # Run import process
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+            thread.progress.emit(10)
         proc = getProcessInstance('Import_FROM_FreeSurfer_TO_Morpho')
         proc.T1_orig = str(diOrig.fullPath())
         proc.T1_output = str(diOut.fullPath())
@@ -1889,8 +1930,8 @@ class ImageImport(QtWidgets.QDialog):
         # ===== STEP 3: MARS ATLAS =====
         # Start hip-hop
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+            thread.progress_text.emit("Running Hip-Hop...")
+            thread.progress.emit(50)
         self.hiphopStart(diOut.attributes()['center'], diOut.attributes()['subject'], diOut.attributes()['acquisition'])
         
         
@@ -1987,16 +2028,16 @@ class ImageImport(QtWidgets.QDialog):
         # No gado
         if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Morphologist 2015...")
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+                thread.progress_text.emit("Running Morphologist 2015...")
+                thread.progress.emit(10)
             self.brainvisaContext.runProcess('Morphologist 2015', t1mri = self.mriAcPc, perform_normalization = False, anterior_commissure = self.AcPc['AC'],\
                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
         # Gado
         else:
             # Morphologist step #1: Prepare subject
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Preparing subject...")
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 5)
+                thread.progress_text.emit("Preparing subject...")
+                thread.progress.emit(5)
             processPrepare = getProcessInstance('preparesubject')
             processPrepare.T1mri = self.mriAcPc
             processPrepare.Normalised = "No"
@@ -2009,16 +2050,16 @@ class ImageImport(QtWidgets.QDialog):
             
             # Morphologist step #2: Bias correction
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "T1 Bias correction...")
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 10)
+                thread.progress_text.emit("T1 Bias correction...")
+                thread.progress.emit(10)
             processBias = getProcessInstance('t1biascorrection')
             processBias.t1mri = self.mriAcPc
             self.brainvisaContext.runProcess(processBias)
             
             # Remove GADO with SPM
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "SPM image segmentation...")
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 15)
+                thread.progress_text.emit("SPM image segmentation...")
+                thread.progress.emit(15)
             print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
             nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
             nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
@@ -2052,8 +2093,8 @@ class ImageImport(QtWidgets.QDialog):
             
             # Replace segmented nobias image with segmented image
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Saving new segmented image...")
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 20)
+                thread.progress_text.emit("Saving new segmented image...")
+                thread.progress.emit(20)
             print self.currentSubject + ": Replacing nobias.nii with segmented image..."
             nobiasBak = os.path.join(getTmpDir(),self.currentSubject + 'backup.nii')
             cmd1 = ['mv', nobiasPre, nobiasBak]
@@ -2069,8 +2110,8 @@ class ImageImport(QtWidgets.QDialog):
             
             # Execute the rest of the Morphologist pipeline
             if thread:
-                thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Calling Morpologist 2015... (GADO)")
-                thread.emit(QtCore.SIGNAL("PROGRESS"), 30)
+                thread.progress_text.emit("Calling Morpologist 2015... (GADO)")
+                thread.progress.emit(30)
             morphologist = getProcessInstance('morphologist')
             morphologist.executionNode().PrepareSubject.setSelected(False)
             morphologist.executionNode().BiasCorrection.setSelected(False)
@@ -2095,8 +2136,8 @@ class ImageImport(QtWidgets.QDialog):
             
         # Start hip-hop
         if thread:
-            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Running Hip-Hop...")
-            thread.emit(QtCore.SIGNAL("PROGRESS"), 50)
+            thread.progress_text.emit("Running Hip-Hop...")
+            thread.progress.emit(50)
         self.hiphopStart(self.mriAcPc.attributes()['center'], self.mriAcPc.attributes()['subject'], self.mriAcPc.attributes()['acquisition'])
         
 
@@ -2786,28 +2827,28 @@ class ImageImport(QtWidgets.QDialog):
 
     # Preference tab : set the SPM T1 template path
     def setSpmTemplatePath(self, path=None):
-        if path is None:
+        if path is None or type(path)==bool:
             path = QtGui.QFileDialog.getExistingDirectory(self, u"Select SPM path")
-        if path is not None:
+        if path is not None and type(path) != bool:
             self.ui.prefSpmTemplateEdit.setText(path)
 
     def setANTsPath(self, path=None):
-        if path is None:
+        if path is None or type(path)==bool:
             path = QtGui.QFileDialog.getExistingDirectory(self, u"Select ANTs path")
-        if path is not None:
+        if path is not None and type(path) != bool:
             self.ui.prefANTsEdit.setText(path)
 
     def setFreesurferPath(self, path=None):
-        if path is None:
+        if path is None or type(path)==bool:
             #path = QtGui.QFileDialog.getExistingDirectory(self, u"Select FREESURFER path")
             print("PLEASE SET FREESURFER PATH IN PREFERENCES")
-        if path is not None:
+        if path is not None and type(path) != bool:
             self.ui.prefFreesurferEdit.setText(path)
 
     def setBidsPath(self, path=None):
-        if path is None:
+        if path is None or type(path)==bool:
             path = QtGui.QFileDialog.getExistingDirectory(self, u"Select BIDS database")
-        if path is not None:
+        if path is not None and type(path) != bool:
             self.ui.prefBidsEdit.setText(path)
             
     def setPrefCoregister(self,key):

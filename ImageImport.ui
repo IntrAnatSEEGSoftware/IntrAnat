@@ -660,6 +660,13 @@
             </property>
            </widget>
           </item>
+	  <item>
+>          <widget class="QPushButton" name="buttonImportVEP">
+>           <property name="text">
+>            <string>Import VEP</string>
+>           </property>
+>          </widget>
+>         </item>
          </layout>
         </item>
         <item>
