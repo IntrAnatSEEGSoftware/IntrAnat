@@ -71,6 +71,7 @@ def matlabRun(cmd):
     # Save matlab script
     matlabCall = saveMatlabCall(cmd)
     # Run code
+    import pdb; pdb.set_trace()
     [result, errMsg] = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env = myEnv).communicate()
     # Delete temp file
     os.remove(matlabCall['fullpath'])
