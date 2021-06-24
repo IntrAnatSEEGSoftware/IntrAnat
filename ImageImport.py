@@ -1291,9 +1291,9 @@ class ImageImport(QtWidgets.QDialog):
         #iOk, errMsg = self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip)
         if isGui and errMsg:
             if isOk:
-                QtGui.QMessageBox.warning(self, "Warning", u"\n".join(errMsg))
+                QtGui.QMessageBox.warning(self, "Warning", errMsg)
             else:
-                QtGui.QMessageBox.warning(self, "Error", u"\n".errMsg)
+                QtGui.QMessageBox.warning(self, "Error", errMsg)
         return [isOk, errMsg]
 
 
@@ -1375,7 +1375,7 @@ class ImageImport(QtWidgets.QDialog):
     
 
     # Import extra FreeSurfer parcellation (all in FreeSurfer space, similar to T1.mgz)
-    def importFsAtlas(self, subject, proto, imgName, imgPath, diT1pre=None):
+    def importFsAtlas(self, subject, proto, imgName, imgPath, diT1pre=None, fileVoxelType=None):
         # If external call: Find T1pre of the subject
         if not diT1pre:
             diT1pre = self.findT1pre(subject)
@@ -1394,7 +1394,13 @@ class ImageImport(QtWidgets.QDialog):
         except:
             QtGui.QMessageBox.warning(self, "Error", u"Could not launch Freesurfer command")
         # Convert to AIMS
-        ret = subprocess.call(['AimsFileConvert', '-i', str(di.fullPath()), '-o', str(di.fullPath()), '-t', 'S16'])
+        if fileVoxelType is None:
+            fileVoxelType = 'S16' # Default value
+            if 'data_type' in di.attributes():
+                if di.attributes()['data_type'] in ['U32','S32']:# Do not convert to S16 if type is U32 or S32
+                    fileVoxelType = di.attributes()['data_type']
+
+        ret = subprocess.call(['AimsFileConvert', '-i', str(di.fullPath()), '-o', str(di.fullPath()), '-t', fileVoxelType])
         # Add reference in the database (creates .minf)
         neuroHierarchy.databases.insertDiskItem(di, update=True)
         return [True, []]
@@ -1478,7 +1484,7 @@ class ImageImport(QtWidgets.QDialog):
         if thread:
             thread.progress_text.emit("Importing " + mgzfile + "...")
             # Import file
-            self.importFsAtlas(subject, proto, 'VEP', mgzfile, diT1pre)
+            self.importFsAtlas(subject, proto, 'VEP', mgzfile, diT1pre)# Force 32 bits: fileVoxelType='S32'
 
     #******************************** Add New Subject
     # ANONYMIZATION TAKES PLACE HERE
