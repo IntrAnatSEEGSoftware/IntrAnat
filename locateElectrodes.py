@@ -7,6 +7,7 @@
  
 # Standard Python imports
 import sys, os, pickle, csv, numpy, re, string, time, subprocess, json, io
+myEnv = os.environ.copy()
 from numpy import *
 from scipy import ndimage
 from collections import OrderedDict
@@ -28,6 +29,7 @@ from brainvisa import anatomist
         
 # IntrAnat local imports
 from externalprocesses import *
+setEnv(myEnv)
 from referentialconverter import ReferentialConverter
 from readLabels import readLabels
 from readFreesurferLabelFile import readFreesurferLabelFile

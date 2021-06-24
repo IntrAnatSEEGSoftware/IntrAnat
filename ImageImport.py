@@ -6,6 +6,7 @@
 # License GNU GPL v3
 
 import os, subprocess, pickle, tempfile, json, numpy, csv,sys
+myEnv = os.environ.copy()
 from scipy import ndimage
 from shutil import copyfile, rmtree
 
@@ -27,6 +28,7 @@ from brainvisa import anatomist
 from freesurfer.brainvisaFreesurfer import *
 
 from externalprocesses import *
+setEnv(myEnv)
 from TimerMessageBox import *
 from progressbar import ProgressDialog
 import DialogCheckbox

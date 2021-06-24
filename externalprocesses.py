@@ -6,6 +6,7 @@
 #                 2016-2021 - Francois Tadel
 # License GNU GPL v3
 
+
 import subprocess, os
 from string import letters
 from tempfile import gettempdir
@@ -13,15 +14,25 @@ from os.path import expanduser
 from brainvisa.data import neuroHierarchy
 from random import choice
 
+myEnv = None
+
 # Set the environment for external commands without BrainVisa interference (remove brainvisa-specific paths)
-myEnv = os.environ.copy()
-for var in myEnv.keys():
-    if var.find('BRAINVISA_UNENV_') >= 0:
-        realvar = var.split('BRAINVISA_UNENV_')[1]
-        print "On remplace %s par %s"%(realvar, var)
-        myEnv[realvar] = myEnv[var]
-        del myEnv[var]
-		
+def setEnv(env=None):
+    if env:
+        myEnv = env
+    else:
+        myEnv = os.environ.copy()
+    for var in myEnv.keys():
+        if var.find('BRAINVISA_UNENV_') >= 0:
+            realvar = var.split('BRAINVISA_UNENV_')[1]
+            print "On remplace %s par %s"%(realvar, var)
+            myEnv[realvar] = myEnv[var]
+            del myEnv[var]
+    print("CURRENT PATH - " + myEnv['PATH'])
+
+
+setEnv()
+
 # Windows computer
 if os.name == 'nt':
 	isWindows = True
@@ -71,7 +82,6 @@ def matlabRun(cmd):
     # Save matlab script
     matlabCall = saveMatlabCall(cmd)
     # Run code
-    import pdb; pdb.set_trace()
     [result, errMsg] = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env = myEnv).communicate()
     # Delete temp file
     os.remove(matlabCall['fullpath'])
