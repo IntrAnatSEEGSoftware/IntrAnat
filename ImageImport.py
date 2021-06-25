@@ -1250,8 +1250,8 @@ class ImageImport(QtWidgets.QDialog):
         allFiles['anat'] =           {'side':None,    'type':'RawFreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig/001.mgz'}
         allFiles['T1_orig'] =        {'side':None,    'type':'T1 FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig.mgz'}
         allFiles['nu'] =             {'side':None,    'type':'Nu FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/nu.mgz'}
-        allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
-        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',            'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
+        allFiles['ribbon'] =         {'side':'both',  'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz', 'space':'freesurfer analysis'}
+        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation',                  'format':'FreesurferMGZ',              'file':importDir + '/mri/aparc.a2009s+aseg.mgz', 'space':'freesurfer analysis', 'atlas':'Destrieux'}
         allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
         allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
         allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
@@ -1292,6 +1292,8 @@ class ImageImport(QtWidgets.QDialog):
         isOk, errMsg = ProgressDialog.call(lambda thr:self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip, thr), True, self, "Processing " + subject + "...", "Import FreeSurfer output")
         #iOk, errMsg = self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip)
         if isGui and errMsg:
+            if type(errMsg) == list:
+                errMsg = "".join(errMsg)
             if isOk:
                 QtGui.QMessageBox.warning(self, "Warning", errMsg)
             else:
@@ -1314,30 +1316,40 @@ class ImageImport(QtWidgets.QDialog):
                 thread.progress_text.emit("Copying " + subject + "/" + key + "...")
             # Files with proper FreeSurfer ontology description
             if allFiles[key]['type']:
-                # Get target into the local FreeSurfer database
-                if allFiles[key]['side']:
-                    wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer', 'side':allFiles[key]['side']})
-                else:
-                    wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
-                # Type 'T1 FreesurferAnat' returns both nu.mgz and orig.mgz: need to filter the list
-                if (key == 'T1_orig'):
-                    di = wdi.findValues(write_filters, None, True)
-                    allT1 = list(di)
-                    idxT1orig = [i for i in range(len(allT1)) if 'orig.mgz' in str(allT1[i])]
-                    di = allT1[idxT1orig[0]]
-                else:
-                    di = wdi.findValue(write_filters)
-                # If there is an error while finding where to save the file
-                if not di:
-                    errMsg += "Cannot import file: " + allFiles[key]['file']
+                try:
+                    # Get target into the local FreeSurfer database
+                    if allFiles[key]['side']:
+                        wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer', 'side':allFiles[key]['side']})
+                    else:
+                        wdi = WriteDiskItem(allFiles[key]['type'], allFiles[key]['format'], requiredAttributes={'subject':subject,'_ontology':'freesurfer'})
+                    write_filters2 = write_filters
+                    if 'space' in allFiles[key]:
+                        write_filters2.update({'space':allFiles[key]['space']})
+                    if 'atlas' in allFiles[key]:
+                        write_filters2.update({'atlas': allFiles[key]['atlas']})
+                    # Type 'T1 FreesurferAnat' returns both nu.mgz and orig.mgz: need to filter the list
+                    if (key == 'T1_orig'):
+                        di = wdi.findValues(write_filters2, None, True)
+                        allT1 = list(di)
+                        idxT1orig = [i for i in range(len(allT1)) if 'orig.mgz' in str(allT1[i])]
+                        di = allT1[idxT1orig[0]]
+                    else:
+                        print("WRITE FILTERS -> " + repr(write_filters2)) # 'space':'freesurfer analysis'
+                        di = wdi.findValue(write_filters2)
+                    # If there is an error while finding where to save the file
+                    if not di:
+                        errMsg += "Cannot import file: " + allFiles[key]['file']
+                        return [False, errMsg]
+                    # Create target folder
+                    createItemDirs(di)
+                    # Copy file into the local FS datbase
+                    print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
+                    copyfile(allFiles[key]['file'], di.fullPath())
+                    # Add reference in the database (creates .minf)
+                    neuroHierarchy.databases.insertDiskItem(di, update=True)
+                except Exception as errExc:
+                    errMsg += "ERROR Exception trying to import files : " + str(errExc)
                     return [False, errMsg]
-                # Create target folder
-                createItemDirs(di)
-                # Copy file into the local FS datbase
-                print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
-                copyfile(allFiles[key]['file'], di.fullPath())
-                # Add reference in the database (creates .minf)
-                neuroHierarchy.databases.insertDiskItem(di, update=True)
             # Files that do not have a format or placeholder in the freesurfer ontology
             else:
                 isOkAtlas, errMsgAtlas = self.importFsAtlas(subject, proto, key, str(allFiles[key]['file']), diT1pre)
