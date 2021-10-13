@@ -47,7 +47,7 @@ class generate_contact_colors:
                 else:
                     second_label = datasheeti.cell(row=i_row, column = 2)
                     if i_column == 1: 
-                       if actual_cell.value not in contact_labels.keys():
+                       if actual_cell.value not in list(contact_labels.keys()):
                          contact_labels.update({actual_cell.value:{'cell':{},'line':{'backcolor':self.hexa2irgbtupple(backcolor),'fontcolor':self.hexa2irgbtupple(fontcolor)}}}) #second_label.value:{}
                     else:
                        #find row and column title
@@ -57,11 +57,11 @@ class generate_contact_colors:
                        column_title = column_title_cell.value
                        
                        if i_column == 2:
-                           if actual_cell.value in contact_labels[row_title]['cell'].keys():
-                             if 'Type of response' in contact_labels[row_title]['cell'][actual_cell.value].keys():
+                           if actual_cell.value in list(contact_labels[row_title]['cell'].keys()):
+                             if 'Type of response' in list(contact_labels[row_title]['cell'][actual_cell.value].keys()):
                                  #bipole already stimulated with this "frequency/task", data overwrite only if there was a clinical response
                                  #should check the mA ?
-                                 if (contact_labels[row_title]['cell'][actual_cell.value]['Type of response']['value'] != u'Absent') and (contact_labels[row_title]['cell'][actual_cell.value]['Type of response'] != 0):
+                                 if (contact_labels[row_title]['cell'][actual_cell.value]['Type of response']['value'] != 'Absent') and (contact_labels[row_title]['cell'][actual_cell.value]['Type of response'] != 0):
                                    skip_this_line = 1
                                    continue
                                  else:

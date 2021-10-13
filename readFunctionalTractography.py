@@ -33,7 +33,7 @@ def readFunctionalTractography(functional_result_file):
                   lastParam = None
               else:
                  if lastParam is not None:
-                     if row[0].strip() not in full_dictionnary[lastParam].keys():
+                     if row[0].strip() not in list(full_dictionnary[lastParam].keys()):
                        full_dictionnary[lastParam].update({row[0].strip():{}})
                      else:
                          pdb.set_trace()

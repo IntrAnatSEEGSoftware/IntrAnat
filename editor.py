@@ -93,7 +93,7 @@ class ElectrodeEditorDialog(QtGui.QWidget):
   # Load an Electrode Definition file
   def open(self, model=None):
     if model is not None and model is not False:
-      print ('Model: ' + repr(model))  
+      print(('Model: ' + repr(model)))  
       if not os.path.isfile(model):
         path = '/home/manik/prog/electrophysiology/epilepsie/'+str(model)
       else:
@@ -101,7 +101,7 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     else:
       path, _filter = QtGui.QFileDialog.getOpenFileName(self, "Open Electrode Definition File", "", "Electrode Definition files (*.elecdef)")
     if not os.path.exists(path):
-      print('No electrode model at '+str(path))
+      print(('No electrode model at '+str(path)))
       return
 
     filein = open(path, 'rb')
@@ -330,25 +330,25 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     if name in self.displayed:
       g.setSelection(self.displayed[name]['mesh'])
     else:
-      print("Cannot find %s in self.displayed -> cannot light up selection"%name)
+      print(("Cannot find %s in self.displayed -> cannot light up selection"%name))
       
   def updateName(self):
       
     element_number = 1
     last_length = 0
     if self.typeCombo.currentIndex()==0:
-        for i_index in range(len(self.cylinders.keys())):
-            if self.cylinders[self.cylinders.keys()[i_index]]['type'] == 'Plot':
+        for i_index in range(len(list(self.cylinders.keys()))):
+            if self.cylinders[list(self.cylinders.keys())[i_index]]['type'] == 'Plot':
                 element_number += 1
         element_name = 'Plot'+str(element_number)
-        if 'Plot'+str(element_number-1) in self.cylinders.keys():
+        if 'Plot'+str(element_number-1) in list(self.cylinders.keys()):
             last_length = self.cylinders['Plot'+str(element_number-1)]['length']
     elif self.typeCombo.currentIndex()==1:
-        for i_index in range(len(self.cylinders.keys())):
-            if self.cylinders[self.cylinders.keys()[i_index]]['type'] == 'Tube':
+        for i_index in range(len(list(self.cylinders.keys()))):
+            if self.cylinders[list(self.cylinders.keys())[i_index]]['type'] == 'Tube':
                 element_number += 1
         element_name = 'Element '+str(element_number)
-        if 'Element '+str(element_number-1) in self.cylinders.keys():
+        if 'Element '+str(element_number-1) in list(self.cylinders.keys()):
             last_length = self.cylinders['Element '+str(element_number-1)]['length']
     #while ("Element "+str(self.elementIndex)) in self.cylinders:
       #self.elementIndex += 1

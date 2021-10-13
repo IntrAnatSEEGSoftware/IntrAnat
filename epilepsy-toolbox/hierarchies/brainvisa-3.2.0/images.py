@@ -236,57 +236,57 @@ resection_content = (
 
 insert( '{center}/{subject}',
   't2mri', SetWeakAttr( 'modality', 't2mri' ),
-    apply( SetContent, t2mri_content)
+    SetContent(*t2mri_content)
 )
 
 insert( '{center}/{subject}',
   'flair', SetWeakAttr( 'modality', 'flair' ),
-    apply( SetContent, flair_content)
+    SetContent(*flair_content)
 )
 
 insert( '{center}/{subject}',
   'fgatir', SetWeakAttr( 'modality', 'fgatir' ),
-    apply( SetContent, fgatir_content)
+    SetContent(*fgatir_content)
 )
 
 insert( '{center}/{subject}',
   'ct', SetWeakAttr( 'modality', 'ct' ),
-    apply( SetContent, ct_content)
+    SetContent(*ct_content)
 )
 
 insert( '{center}/{subject}',
   'pet', SetWeakAttr( 'modality', 'pet' ),
-    apply( SetContent, pet_content)
+    SetContent(*pet_content)
 )
 
 insert( '{center}/{subject}',
   'fmri_epile', SetWeakAttr( 'modality', 'fmri_epile' ),
-    apply( SetContent, fMRI_content)
+    SetContent(*fMRI_content)
 )
 
 insert( '{center}/{subject}',
   'DTI', SetWeakAttr( 'modality', 'dtivolume' ),
-    apply( SetContent, dtivolume_content)
+    SetContent(*dtivolume_content)
 )
 
 insert( '{center}/{subject}',
   'Statistic-Data', SetWeakAttr( 'modality', 'statistic_data' ),
-    apply( SetContent, Statistics_content)
+    SetContent(*Statistics_content)
 )
 
 insert( '{center}/{subject}',
   'FreesurferAtlas', SetWeakAttr( 'modality', 'freesurfer_atlas' ),
-    apply( SetContent, FreeSurferAtlas_content)
+    SetContent(*FreeSurferAtlas_content)
 )
 
 insert( '{center}/{subject}',
   'HippoFreesurferAtlas', SetWeakAttr( 'modality', 'hippofreesurfer_atlas' ),
-    apply( SetContent, HippoFreesurferAtlas_content)
+    SetContent(*HippoFreesurferAtlas_content)
 )
 
 insert( '{center}/{subject}',
   'Resection', SetWeakAttr( 'modality', 'resection' ),
-    apply( SetContent,resection_content)
+    SetContent(*resection_content)
 )
 
 #Antonella

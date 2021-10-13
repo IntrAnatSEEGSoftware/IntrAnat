@@ -89,7 +89,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
 
   def getSelectedPatientsNames(self):
     """Returns a list of names (string) of all selected patients"""
-    return sorted([str(self.selectedPatientList.item(i).text()) for i in xrange(self.selectedPatientList.count())])
+    return sorted([str(self.selectedPatientList.item(i).text()) for i in range(self.selectedPatientList.count())])
 
   def getSelectedPatients(self):
     """ Returns a list of ReadDiskItems representing the selected subjects"""
@@ -104,7 +104,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
         acq = v.attributes()['acquisition'].split('_')[0]
         subjectData[str(acq)] = v
       except:
-        print "Acquisition not defined for "+repr(v.fullPath())
+        print("Acquisition not defined for "+repr(v.fullPath()))
 
 
   def populateFromDB(self):
@@ -144,7 +144,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
     # Get info for all filters
 
     seegManips = set()
-    for s,subj in self.subjects.iteritems():
+    for s,subj in self.subjects.items():
       print(s)
       # Find the T1s/T2s/CT/PET
       for modality in ['T2 MRI', 'CT', 'PET', 'Raw T1 MRI']:
@@ -200,39 +200,39 @@ class PatientDataFilterWidget (QtGui.QWidget):
           fin = open(di_elec.fullPath(),'r')
           info_label_elec = json.loads(fin.read())
           fin.close()
-          if 'plots_by_label' in info_label_elec.keys():
-            for kk,vv in info_label_elec['plots_by_label'].iteritems():
+          if 'plots_by_label' in list(info_label_elec.keys()):
+            for kk,vv in info_label_elec['plots_by_label'].items():
                 if len(vv):
                     loca.append(kk)
                     #loca_patient.append(kk)
                     loca_patient.update({kk:vv})
                     
-          if 'plots_by_label_FS' in info_label_elec.keys():
-             for kk,vv in info_label_elec['plots_by_label_FS'].iteritems():
+          if 'plots_by_label_FS' in list(info_label_elec.keys()):
+             for kk,vv in info_label_elec['plots_by_label_FS'].items():
                 if len(vv):
                     loca_FS.append(kk)
                     #loca_patient_FS.append(kk)
                     loca_patient_FS.update({kk:vv})
-          if 'plots_by_label_BM' in info_label_elec.keys():
-             for kk,vv in info_label_elec['plots_by_label_BM'].iteritems():
+          if 'plots_by_label_BM' in list(info_label_elec.keys()):
+             for kk,vv in info_label_elec['plots_by_label_BM'].items():
                 if len(vv):
                     loca_BM.append(kk)
                     #loca_patient_BM.append(kk)
                     loca_patient_BM.update({kk:vv})
                     
           #on fait la meme chose avec les bipoles pour les stims (puis la cognition)
-          if 'plots_bipolar_by_label' in info_label_elec.keys():
-            for kk,vv in info_label_elec['plots_bipolar_by_label'].iteritems():
+          if 'plots_bipolar_by_label' in list(info_label_elec.keys()):
+            for kk,vv in info_label_elec['plots_bipolar_by_label'].items():
                 if len(vv):
                     #loca_patient.append(kk)
                     loca_bipole_patient.update({kk:vv})              
-          if 'plots_bipolar_by_label_FS' in info_label_elec.keys():
-            for kk,vv in info_label_elec['plots_bipolar_by_label_FS'].iteritems():
+          if 'plots_bipolar_by_label_FS' in list(info_label_elec.keys()):
+            for kk,vv in info_label_elec['plots_bipolar_by_label_FS'].items():
                 if len(vv):
                     #loca_patient.append(kk)
                     loca_bipole_patient_FS.update({kk:vv})     
-          if 'plots_bipolar_by_label_BM' in info_label_elec.keys():
-            for kk,vv in info_label_elec['plots_bipolar_by_label_BM'].iteritems():
+          if 'plots_bipolar_by_label_BM' in list(info_label_elec.keys()):
+            for kk,vv in info_label_elec['plots_bipolar_by_label_BM'].items():
                 if len(vv):
                     #loca_patient.append(kk)
                     loca_bipole_patient_BM.update({kk:vv})               
@@ -260,18 +260,18 @@ class PatientDataFilterWidget (QtGui.QWidget):
         info_label_resec = json.loads(fin.read())
         fin.close()
 
-        if 'mars_atlas' in info_label_resec.keys():
-          for kk,vv in info_label_resec['mars_atlas'].iteritems():
+        if 'mars_atlas' in list(info_label_resec.keys()):
+          for kk,vv in info_label_resec['mars_atlas'].items():
               if len(vv):
                   resec.append(kk)
                   resec_patient.append(kk)
                 
         #add freesurfer
-        if 'Freesurfer' in info_label_resec.keys():
+        if 'Freesurfer' in list(info_label_resec.keys()):
             if 'Freesurfer not calculated' in info_label_resec['Freesurfer']:
                 pass
             else:
-                for kk,vv in info_label_resec['Freesurfer'].iteritems():
+                for kk,vv in info_label_resec['Freesurfer'].items():
                     if len(vv):
                         resec_FS.append(kk)
                         resec_patient_FS.append(kk)
@@ -302,8 +302,8 @@ class PatientDataFilterWidget (QtGui.QWidget):
       
       if len(list_di_stimresult_label)>0:
         
-        by_default_list = [u'Motor',u'Sensitive',u'Sensory',u'Vegetative',u'Emotional',u'Experiencial','Superior functions']
-        by_default_list2 = [u'no response', u'pathological', u'seizure sensation']
+        by_default_list = ['Motor','Sensitive','Sensory','Vegetative','Emotional','Experiencial','Superior functions']
+        by_default_list2 = ['no response', 'pathological', 'seizure sensation']
         full_list = by_default_list + by_default_list2
         
         di_stimresult_label = rdi_stimresult_label.findValue(subj['T1pre'])
@@ -312,15 +312,15 @@ class PatientDataFilterWidget (QtGui.QWidget):
         fin.close()
         
         #la il faut que je retourne les infos dans tous les sens c'est la merde ...
-        for kk,vv in info_seeg_label['contacts'].iteritems():
+        for kk,vv in info_seeg_label['contacts'].items():
             #seeg_label_loca = 
 
-            for freqVal in info_seeg_label['contacts'][kk]['cell'].keys():
+            for freqVal in list(info_seeg_label['contacts'][kk]['cell'].keys()):
                 if freqVal not in stimFreq:
                     stimFreq.append(freqVal)
                     #seeg_label_freq.append(freqVal)
                 list_inter = [x for x in by_default_list if info_seeg_label['contacts'][kk]['cell'][freqVal][x]['value'] != 0]
-                list_inter2 = info_seeg_label['contacts'][kk]['cell'][freqVal][u'Type of response']['fontcolor']
+                list_inter2 = info_seeg_label['contacts'][kk]['cell'][freqVal]['Type of response']['fontcolor']
                 max_index = list_inter2[1:].index(max(list_inter2[1:]))
                 try:
                     if list_inter2[max_index+1] == 0:
@@ -333,22 +333,22 @@ class PatientDataFilterWidget (QtGui.QWidget):
                     pdb.set_trace()
                 seeg_label_all.append((kk.title(),freqVal,resp1,list_inter))
                 try:
-                  if 'MarsAtlas' in info_label_elec['plots_label_bipolar'][kk.title()].keys():
+                  if 'MarsAtlas' in list(info_label_elec['plots_label_bipolar'][kk.title()].keys()):
                     seeg_label_all[-1] = seeg_label_all[-1] + (info_label_elec['plots_label_bipolar'][kk.title()]['MarsAtlas'][1],)
                   else:
-                    seeg_label_all[-1] = seeg_label_all[-1] + (u'not estimated',)
+                    seeg_label_all[-1] = seeg_label_all[-1] + ('not estimated',)
                 except:
                     pdb.set_trace()
 
-                if 'Freesurfer' in info_label_elec['plots_label_bipolar'][kk.title()].keys():
+                if 'Freesurfer' in list(info_label_elec['plots_label_bipolar'][kk.title()].keys()):
                   seeg_label_all[-1] = seeg_label_all[-1] + (info_label_elec['plots_label_bipolar'][kk.title()]['Freesurfer'][1],)
                 else:
-                  seeg_label_all[-1] = seeg_label_all[-1] + (u'not estimated',)
+                  seeg_label_all[-1] = seeg_label_all[-1] + ('not estimated',)
                   
-                if 'Broadmann' in info_label_elec['plots_label_bipolar'][kk.title()].keys():
+                if 'Broadmann' in list(info_label_elec['plots_label_bipolar'][kk.title()].keys()):
                   seeg_label_all[-1] = seeg_label_all[-1] + (info_label_elec['plots_label_bipolar'][kk.title()]['Broadmann'][1],)
                 else:
-                  seeg_label_all[-1] = seeg_label_all[-1] + (u'not estimated',)  
+                  seeg_label_all[-1] = seeg_label_all[-1] + ('not estimated',)  
                     #[True if info_seeg_label['contacts'][kk]['cell'][freqVal][x]['value'] != 0 else False for x in by_default_list]
         #pdb.set_trace()
           
@@ -455,11 +455,11 @@ class PatientDataFilterWidget (QtGui.QWidget):
     return self.filters
 
   def matchFilters(self, subj, filters):
-    return all([subj.has_key(f) for f in filters])
+    return all([f in subj for f in filters])
 
   def filterSubjectsBasic(self):
     """Filtering subject list using basic factors (protocol, year, site)"""
-    subs = self.subjects.keys()
+    subs = list(self.subjects.keys())
     if str(self.filterProtocolCombo.currentText()) != '*':
       subs = [s for s in subs if self.subjects[s]['center'] == str(self.filterProtocolCombo.currentText())]
     if str(self.filterSiteCombo.currentText()) != '*':
@@ -468,17 +468,17 @@ class PatientDataFilterWidget (QtGui.QWidget):
       subs = [s for s in subs if len(s.split('_')) > 1 and s.split('_')[1] == str(self.filterYearCombo.currentText())]
     if self.FilterAtlascomboBox.currentIndex() == 0:
       if str(self.filterLocaMarsAtlas.currentText()) != '*':
-        subs = [s for s in subs if 'elec_label' in self.subjects[s] and str(self.filterLocaMarsAtlas.currentText()) in self.subjects[s]['elec_label'].keys()]
+        subs = [s for s in subs if 'elec_label' in self.subjects[s] and str(self.filterLocaMarsAtlas.currentText()) in list(self.subjects[s]['elec_label'].keys())]
       if str(self.filterResection.currentText()) != '*':
         subs = [s for s in subs if 'resec_label' in self.subjects[s] and  str(self.filterResection.currentText()) in self.subjects[s]['resec_label']]
     elif self.FilterAtlascomboBox.currentIndex() == 1:
       if str(self.filterLocaMarsAtlas.currentText()) != '*':
-        subs = [s for s in subs if 'elec_label_FS' in self.subjects[s] and str(self.filterLocaMarsAtlas.currentText()) in self.subjects[s]['elec_label_FS'].keys()]
+        subs = [s for s in subs if 'elec_label_FS' in self.subjects[s] and str(self.filterLocaMarsAtlas.currentText()) in list(self.subjects[s]['elec_label_FS'].keys())]
       if str(self.filterResection.currentText()) != '*':
         subs = [s for s in subs if 'resec_label_FS' in self.subjects[s] and  str(self.filterResection.currentText()) in self.subjects[s]['resec_label_FS']]       
     elif self.FilterAtlascomboBox.currentIndex() == 2:
       if str(self.filterLocaMarsAtlas.currentText()) != '*':
-        subs = [s for s in subs if 'elec_label_BM' in self.subjects[s] and str(self.filterLocaMarsAtlas.currentText()) in self.subjects[s]['elec_label_BM'].keys()]
+        subs = [s for s in subs if 'elec_label_BM' in self.subjects[s] and str(self.filterLocaMarsAtlas.currentText()) in list(self.subjects[s]['elec_label_BM'].keys())]
       if str(self.filterResection.currentText()) != '*':
         subs = [s for s in subs if 'resec_label_BM' in self.subjects[s] and  str(self.filterResection.currentText()) in self.subjects[s]['resec_label_BM']]
     if str(self.filterStimulationLoca.currentText())!= '*' or str(self.filterStimulationFreq.currentText()) != '*' or str(self.filterStimulationType.currentText()) != '*' :
@@ -501,7 +501,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
         
         
     if str(self.filterCognitionLoca.currentText()) != '*':
-       print "no cognition load in the data base for now" 
+       print("no cognition load in the data base for now") 
         
     subs = [s for s in subs if s not in [str(self.selectedPatientList.item(idx).text()) for idx in range(self.selectedPatientList.count())]]
     self.filteredPatientList.clear()
@@ -520,14 +520,14 @@ class PatientDataFilterWidget (QtGui.QWidget):
     # Apply basic filters to the main patient list first and update the UI
     self.filterSubjectsBasic()
     # Filter the list of subjects and filter them
-    filteredPatients = [s for s,subj in self.subjects.iteritems() if self.matchFilters(subj, self.filters)]
+    filteredPatients = [s for s,subj in self.subjects.items() if self.matchFilters(subj, self.filters)]
     # Color the patients according to the filters
     self.colorFilterListWidget(self.filteredPatientList, filteredPatients)
     self.colorFilterListWidget(self.selectedPatientList, filteredPatients)
 
   def moveSelectedItemsToOtherListWidget(self, lwFrom, lwTo):
     """Takes the selected items of the list 'from' and adds them to the 'to' list"""
-    for idx in reversed(range(lwFrom.count())):
+    for idx in reversed(list(range(lwFrom.count()))):
       it = lwFrom.item(idx)
       if lwFrom.isItemSelected(it):
         lwTo.addItem(str(it.text()))
@@ -536,8 +536,8 @@ class PatientDataFilterWidget (QtGui.QWidget):
 
   def moveFilteredItemsToOtherListWidget(self, lwFrom, lwTo, filters, reverse=False):
     """Takes the items from lwFrom (QListWidget) and move those that match the filters to lwTo. If reverse is true, the items that don't match will move"""
-    filtered = [s for s,subj in self.subjects.iteritems() if self.matchFilters(subj, filters)]
-    for idx in reversed(range(lwFrom.count())):
+    filtered = [s for s,subj in self.subjects.items() if self.matchFilters(subj, filters)]
+    for idx in reversed(list(range(lwFrom.count()))):
       it = lwFrom.item(idx)
       if (not reverse and str(it.text()) in filtered) or (reverse and str(it.text()) not in filtered):
         lwTo.addItem(str(it.text()))
@@ -560,15 +560,15 @@ class PatientDataFilterWidget (QtGui.QWidget):
     for ind_pat in PatsSelected:
         
         #first we look if it's not already done
-        if 'rdi_elec_label' in self.subjects[ind_pat].keys():
+        if 'rdi_elec_label' in list(self.subjects[ind_pat].keys()):
           if self.subjects[ind_pat]['rdi_elec_label'] is not None:
             fin = open(str(self.subjects[ind_pat]['rdi_elec_label']),'r')
             info_label_elec = json.loads(fin.read())
             fin.close()
-            if 'plots_label' in info_label_elec.keys():
-                if "BroadmannDilate" in info_label_elec['plots_label'][info_label_elec['plots_label'].keys()[0]].keys():               
+            if 'plots_label' in list(info_label_elec.keys()):
+                if "BroadmannDilate" in list(info_label_elec['plots_label'][list(info_label_elec['plots_label'].keys())[0]].keys()):               
                   subjects_ok.append(ind_pat)
-                  print("BrodmannDilate already estimated for this patient %s"%ind_pat)
+                  print(("BrodmannDilate already estimated for this patient %s"%ind_pat))
                 else:
                   subject_to_perform.append(ind_pat)    
             else:
@@ -584,7 +584,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
         
     for ind_pat in subject_to_perform:
         
-        if 'implantation' in self.subjects[ind_pat].keys():
+        if 'implantation' in list(self.subjects[ind_pat].keys()):
 
             fin = open(str(self.subjects[ind_pat]['implantation']),'r')
             try:    
@@ -595,13 +595,13 @@ class PatientDataFilterWidget (QtGui.QWidget):
                 info_implant = pickle.load(fin)
             fin.close()
             
-            if 'plotsMNI' in info_implant.keys():
+            if 'plotsMNI' in list(info_implant.keys()):
                 subject_possible_to_perform.update({ind_pat:info_implant['plotsMNI']})
             else:
-                print("MNI estimation has to be done in locateElectrodes for %s, to sensitive to duplicate these functions at differente place"%ind_pat)
+                print(("MNI estimation has to be done in locateElectrodes for %s, to sensitive to duplicate these functions at differente place"%ind_pat))
                 subject_not_performable.append(ind_pat)
         
-        elif 'implantationMNI' in self.subjects[ind_pat].keys():
+        elif 'implantationMNI' in list(self.subjects[ind_pat].keys()):
             #pdb.set_trace()
             MNI_pos = numpy.loadtxt(str(self.subjects[ind_pat]['implantationMNI'][0]))
             a=open(str(self.subjects[ind_pat]['implantationMNI'][1]),"rU")
@@ -612,9 +612,9 @@ class PatientDataFilterWidget (QtGui.QWidget):
             #MNI_name = 
             #subject_possible_to_perform.update({ind_pat:info_implant['plotsMNI']})
         
-        elif 'implantationCSV' in self.subjects[ind_pat].keys():
+        elif 'implantationCSV' in list(self.subjects[ind_pat].keys()):
         #    pdb.set_trace()
-            print("refaire %s"%str(ind_pat))
+            print(("refaire %s"%str(ind_pat)))
             #subject_possible_to_perform.update({ind_pat:info_implant['plotsMNI']})
         else:
             subject_not_performable.append(ind_pat)
@@ -622,7 +622,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
     
     matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])    
     #la blague maintenant c'est d'ouvrir un csv et de rajouter des infos mni sans perdre les infos "patients specifique"
-    for ind_pat in subject_possible_to_perform.keys():
+    for ind_pat in list(subject_possible_to_perform.keys()):
         
         print(ind_pat)
         plotMNI_sorted = sorted(subject_possible_to_perform[ind_pat], key=lambda plot_number: plot_number[0])
@@ -631,7 +631,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
 
 
         plot_dict_MNI_Native = {}
-        for vv,kk in plotMNI_Dict.iteritems():
+        for vv,kk in plotMNI_Dict.items():
           inter_pos = [kk[0], kk[1], kk[2], 1]
           inter_pos = numpy.matrix(inter_pos).reshape([4,1])
           result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
@@ -669,7 +669,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
         #c'est là que ça va pas ...
         #il faut que je recharge celui du patient
         plots_label = {}
-        if 'rdi_elec_label' in self.subjects[ind_pat].keys():
+        if 'rdi_elec_label' in list(self.subjects[ind_pat].keys()):
           if self.subjects[ind_pat]['rdi_elec_label'] is not None:
             fin = open(str(self.subjects[ind_pat]['rdi_elec_label']),'r')
             info_label_elec = json.loads(fin.read())
@@ -733,9 +733,9 @@ class PatientDataFilterWidget (QtGui.QWidget):
             #label_Broadmann_name = unicode(label_Broadmann)
  
             if plot_pos_pix_MNI[0]>90:
-                label_Broadmann_name = unicode(label_Broadmann+100)
+                label_Broadmann_name = str(label_Broadmann+100)
             else:
-                label_Broadmann_name = unicode(label_Broadmann)
+                label_Broadmann_name = str(label_Broadmann)
                 
          if not voxel_to_keepBroadmannDilate:
             label_BroadmannDilate_name = "not in a Broadmann parcel" 
@@ -745,9 +745,9 @@ class PatientDataFilterWidget (QtGui.QWidget):
             label_BroadmannDilate = most_common
             #label_Broadmann_name = unicode(label_Broadmann)
             if plot_pos_pix_MNI[0]>90:
-                label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
+                label_BroadmannDilate_name = str(label_BroadmannDilate+100)
             else:
-                label_BroadmannDilate_name = unicode(label_BroadmannDilate-48)          
+                label_BroadmannDilate_name = str(label_BroadmannDilate-48)          
              
          if not voxel_to_keepHammers:
             label_Hammers_name = "not in a Hammers parcel" 
@@ -767,16 +767,16 @@ class PatientDataFilterWidget (QtGui.QWidget):
              #je remets l'ancienne ligne ?
 
         plot_name = [x[0] for x in plotMNI_sorted]
-        plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
-        plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
-        plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
+        plots_by_label_BM = dict([(Lab,[p for p in plot_name if plots_label[p]['Broadmann'][1]==Lab]) for Lab in [str("%1.1f"%x) for x in range(0,100)]])
+        plots_by_label_HM = dict([(Lab,[p for p in plot_name if plots_label[p]['Hammers'][1]==Lab]) for Lab in list(Hammers_parcels_names.values())])
+        plots_by_label_AAL = dict([(Lab,[p for p in plot_name if plots_label[p]['AAL'][1]==Lab]) for Lab in list(AAL_parcels_names.values())])
+        plots_by_label_AALDilate = dict([(Lab,[p for p in plot_name if plots_label[p]['AALDilate'][1]==Lab]) for Lab in list(AALDilate_parcels_names.values())])
 
         sphere_size_bipole = 5
         nb_voxel_sphere_MNI = [sphere_size, sphere_size, sphere_size]
         
         plots_label_bipolar = {}
-        if 'rdi_elec_label' in self.subjects[ind_pat].keys():
+        if 'rdi_elec_label' in list(self.subjects[ind_pat].keys()):
           if self.subjects[ind_pat]['rdi_elec_label'] is not None:
             fin = open(str(self.subjects[ind_pat]['rdi_elec_label']),'r')
             info_label_elec = json.loads(fin.read())
@@ -838,9 +838,9 @@ class PatientDataFilterWidget (QtGui.QWidget):
             label_Broadmann = most_common
             #label_Broadmann_name = unicode(label_Broadmann)
             if plot_pos_pix_MNI[0]>90:
-                label_Broadmann_name = unicode(label_Broadmann+100)
+                label_Broadmann_name = str(label_Broadmann+100)
             else:
-                label_Broadmann_name = unicode(label_Broadmann)
+                label_Broadmann_name = str(label_Broadmann)
              
          if not voxel_to_keepBroadmannDilate:
             label_BroadmannDilate_name = "not in a Broadmann parcel" 
@@ -850,9 +850,9 @@ class PatientDataFilterWidget (QtGui.QWidget):
             label_BroadmannDilate = most_common
             #label_Broadmann_name = unicode(label_Broadmann)
             if plot_pos_pix_MNI[0]>90:
-                label_BroadmannDilate_name = unicode(label_BroadmannDilate+100)
+                label_BroadmannDilate_name = str(label_BroadmannDilate+100)
             else:
-                label_BroadmannDilate_name = unicode(label_BroadmannDilate-48) 
+                label_BroadmannDilate_name = str(label_BroadmannDilate-48) 
          
          
          if not voxel_to_keepHammers:
@@ -871,10 +871,10 @@ class PatientDataFilterWidget (QtGui.QWidget):
            plots_label_bipolar[info_plotMNI_bipolaire[pindex][0]]={'MarsAtlas':(0,'not calculated'),'Freesurfer':(0,'not calculated'),'Hippocampal Subfield':(0,'not calculated'),'GreyWhite':(0,'not calculated'),'AAL':(label_AAL,label_AAL_name),'AALDilate':(label_AALDilate,label_AALDilate_name),'Broadmann':(label_Broadmann,label_Broadmann_name),'BroadmannDilate':(label_BroadmannDilate,label_BroadmannDilate_name),'Hammers':(label_Hammers,label_Hammers_name),'Resection':(0,'not calculated')}
            
         plot_name_bip = [x[0] for x in info_plotMNI_bipolaire]
-        plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Broadmann'][1]==Lab]) for Lab in [unicode("%1.1f"%x) for x in range(0,100)]])
-        plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in Hammers_parcels_names.values()])
-        plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in AAL_parcels_names.values()])
-        plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in AALDilate_parcels_names.values()])
+        plots_bipolar_by_label_BM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Broadmann'][1]==Lab]) for Lab in [str("%1.1f"%x) for x in range(0,100)]])
+        plots_bipolar_by_label_HM = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['Hammers'][1]==Lab]) for Lab in list(Hammers_parcels_names.values())])
+        plots_bipolar_by_label_AAL = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AAL'][1]==Lab]) for Lab in list(AAL_parcels_names.values())])
+        plots_bipolar_by_label_AALDilate = dict([(Lab,[p for p in plot_name_bip if plots_label_bipolar[p]['AALDilate'][1]==Lab]) for Lab in list(AALDilate_parcels_names.values())])
         
         wdi_csv =  ReadDiskItem('Final Export Dictionaries','CSV file',requiredAttributes={'subject':ind_pat})
         rdi_csv = list(wdi_csv.findValues({},None,False))
@@ -893,7 +893,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
         with open(str(rdi_csvnew), 'w') as csvfile:
           #fieldnames=['MarsAtlas','GreyWhite','Resection']
           writer = csv.writer(csvfile, delimiter='\t')
-          writer.writerow([u'Contacts Positions'])
+          writer.writerow(['Contacts Positions'])
           if info_previous_csv is not None:
               info_mniMarsAtlas = info_previous_csv[0]['MarsAtlas']
               info_mniFreesurfer = info_previous_csv[0]['Freesurfer']
@@ -903,17 +903,17 @@ class PatientDataFilterWidget (QtGui.QWidget):
               info_mniFreesurfer = 'not performed'
               info_mniHippoFS = 'not performed'
               
-          writer.writerow([u'Use of MNI Template','MarsAtlas',info_mniMarsAtlas,'Freesurfer',info_mniFreesurfer,'HippoSubfieldFreesurfer',info_mniHippoFS])
+          writer.writerow(['Use of MNI Template','MarsAtlas',info_mniMarsAtlas,'Freesurfer',info_mniFreesurfer,'HippoSubfieldFreesurfer',info_mniHippoFS])
 
           #add a row with "MNI or Patient for MarsAtlas and Freesurfer
           try:
-            list_to_write = set(info_previous_csv[1]['monopolar'][info_previous_csv[1]['monopolar'].keys()[0]].keys())
+            list_to_write = set(info_previous_csv[1]['monopolar'][list(info_previous_csv[1]['monopolar'].keys())[0]].keys())
           except:
             list_to_write = set([])
             
-          list_by_default = set([u'contact','MarsAtlas', 'MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
+          list_by_default = set(['contact','MarsAtlas', 'MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite','AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based'])
           diff_list = list(list_to_write.difference(list_by_default))
-          full_list = [u'contact','MarsAtlas', 'MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
+          full_list = ['contact','MarsAtlas', 'MarsAtlasFull', 'Freesurfer', 'Hippocampal Subfield','GreyWhite', 'AAL', 'AALDilate', 'Broadmann', 'BroadmannDilate', 'Hammers', 'Resection', 'MNI','T1pre Scanner Based']
           full_list.extend(diff_list)
           writer.writerow(full_list)
 
@@ -922,40 +922,40 @@ class PatientDataFilterWidget (QtGui.QWidget):
           except:
               dict_sorted_tmp = OrderedDict(sorted(plots_label.items()))
               new_dict_sorted_tmp = {}
-              for kk,vv in dict_sorted_tmp.items():
+              for kk,vv in list(dict_sorted_tmp.items()):
                   new_dict_sorted_tmp.update({kk:{}})
-                  [new_dict_sorted_tmp[kk].update({jj:ll[1]}) for jj,ll in vv.items()]
+                  [new_dict_sorted_tmp[kk].update({jj:ll[1]}) for jj,ll in list(vv.items())]
               dict_sorted_tmp = OrderedDict(sorted(new_dict_sorted_tmp.items()))
           
                 
           try:
-            for kk,vv in dict_sorted_tmp.iteritems():
+            for kk,vv in dict_sorted_tmp.items():
               listwrite = [kk]
-              if 'MarsAtlas' in vv.keys():
+              if 'MarsAtlas' in list(vv.keys()):
                 listwrite.append(vv['MarsAtlas'])
               else:
                 listwrite.append('not performed')
-              if 'MarsAtlasFull' in vv.keys():
+              if 'MarsAtlasFull' in list(vv.keys()):
                 listwrite.append(vv['MarsAtlasFull'])
               else:
                 listwrite.append('not performed')
-              if 'Freesurfer' in vv.keys():  
+              if 'Freesurfer' in list(vv.keys()):  
                 listwrite.append(vv['Freesurfer'])
               else:
                 listwrite.append('not performed')
-              if 'Hippocampal Subfield' in vv.keys():             
+              if 'Hippocampal Subfield' in list(vv.keys()):             
                 listwrite.append(vv['Hippocampal Subfield'])
               else:
                 listwrite.append('not performed')
-              if 'GreyWhite' in vv.keys():
+              if 'GreyWhite' in list(vv.keys()):
                 listwrite.append(vv['GreyWhite'])
               else:
                 listwrite.append('not performed')
-              if 'AAL' in vv.keys():  
+              if 'AAL' in list(vv.keys()):  
                 listwrite.append(vv['AAL'])
               else:
                 listwrite.append(plots_label[kk]['AAL'][1])
-              if 'AALDilate' in vv.keys():
+              if 'AALDilate' in list(vv.keys()):
                 listwrite.append(vv['AALDilate'])
               else:
                 listwrite.append(plots_label[kk]['AALDilate'][1])
@@ -967,11 +967,11 @@ class PatientDataFilterWidget (QtGui.QWidget):
               #listwrite.append(vv['BroadmannDilate'])
               #else:
               listwrite.append(plots_label[kk]['BroadmannDilate'][1])    
-              if 'Hammers' in vv.keys():
+              if 'Hammers' in list(vv.keys()):
                 listwrite.append(vv['Hammers'])
               else:
                 listwrite.append(plots_label[kk]['Hammers'][1])
-              if 'Resection' in vv.keys():
+              if 'Resection' in list(vv.keys()):
                 listwrite.append(vv['Resection'])
               else:
                 listwrite.append('not performed')
@@ -993,41 +993,41 @@ class PatientDataFilterWidget (QtGui.QWidget):
           except:
               dict_sorted_tmp = OrderedDict(sorted(plots_label_bipolar.items()))
               new_dict_sorted_tmp = {}
-              for kk,vv in dict_sorted_tmp.items():
+              for kk,vv in list(dict_sorted_tmp.items()):
                   new_dict_sorted_tmp.update({kk:{}})
-                  [new_dict_sorted_tmp[kk].update({jj:ll[1]}) for jj,ll in vv.items()]
+                  [new_dict_sorted_tmp[kk].update({jj:ll[1]}) for jj,ll in list(vv.items())]
               dict_sorted_tmp = OrderedDict(sorted(new_dict_sorted_tmp.items()))
           
           #dict_sorted_tmp = OrderedDict(sorted(info_previous_csv[1]['bipolar'].items()))
 
-          for kk,vv in dict_sorted_tmp.iteritems():
+          for kk,vv in dict_sorted_tmp.items():
             #pdb.set_trace()
             listwrite = [kk]
-            if 'MarsAtlas' in vv.keys():
+            if 'MarsAtlas' in list(vv.keys()):
               listwrite.append(vv['MarsAtlas'])
             else:
               listwrite.append('not performed')
-            if 'MarsAtlasFull' in vv.keys():
+            if 'MarsAtlasFull' in list(vv.keys()):
               listwrite.append(vv['MarsAtlasFull'])
             else:
               listwrite.append('not performed')  
-            if 'Freesurfer' in vv.keys():  
+            if 'Freesurfer' in list(vv.keys()):  
               listwrite.append(vv['Freesurfer'])
             else:
               listwrite.append('not performed')
-            if 'Hippocampal Subfield' in vv.keys():             
+            if 'Hippocampal Subfield' in list(vv.keys()):             
               listwrite.append(vv['Hippocampal Subfield'])
             else:
               listwrite.append('not performed')
-            if 'GreyWhite' in vv.keys():
+            if 'GreyWhite' in list(vv.keys()):
               listwrite.append(vv['GreyWhite'])
             else:
               listwrite.append('not performed')
-            if 'AAL' in vv.keys():  
+            if 'AAL' in list(vv.keys()):  
               listwrite.append(vv['AAL'])
             else:
               listwrite.append(plots_label_bipolar[kk]['AAL'][1])
-            if 'AALDilate' in vv.keys():
+            if 'AALDilate' in list(vv.keys()):
               listwrite.append(vv['AALDilate'])
             else:
               listwrite.append(plots_label_bipolar[kk]['AALDilate'][1])
@@ -1040,11 +1040,11 @@ class PatientDataFilterWidget (QtGui.QWidget):
             #else:
             listwrite.append(plots_label_bipolar[kk]['BroadmannDilate'][1])  
                 
-            if 'Hammers' in vv.keys():
+            if 'Hammers' in list(vv.keys()):
               listwrite.append(vv['Hammers'])
             else:
               listwrite.append(plots_label_bipolar[kk]['Hammers'][1])
-            if 'Resection' in vv.keys():
+            if 'Resection' in list(vv.keys()):
               listwrite.append(vv['Resection'])
             else:
               listwrite.append('not performed')
@@ -1064,16 +1064,16 @@ class PatientDataFilterWidget (QtGui.QWidget):
           if len(info_previous_csv[2])>0:
             with open(str(rdi_csvnew), 'a') as csvfile:
               writer = csv.writer(csvfile, delimiter='\t')
-              writer.writerow([u'Resection Information'])
+              writer.writerow(['Resection Information'])
           
-              for kk,vv in info_previous_csv[2].iteritems():
+              for kk,vv in info_previous_csv[2].items():
                 #writer.writerow([kk])
                 if type(vv) == type(float()):
                   listwrite = [kk,vv]
                   writer.writerow(listwrite)
                 else:
                  writer.writerow([kk])
-                 for ll,bb in vv.iteritems():
+                 for ll,bb in vv.items():
                    listwrite = [ll, format(float(bb),'.1f')]
                    writer.writerow(listwrite)
 
@@ -1082,7 +1082,7 @@ class PatientDataFilterWidget (QtGui.QWidget):
         else:
            pass 
         #neuroHierarchy.databases.insertDiskItem(di, update=True )
-        print("generation of csv done for %s"%ind_pat)
+        print(("generation of csv done for %s"%ind_pat))
     print("everything done")    
 
   def changeAtlasfiltration(self):

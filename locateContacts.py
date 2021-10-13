@@ -55,7 +55,7 @@ def findMoyMax(npCT,sizex,sizey,sizez,volCT,entry,d,s1n,coteRegionX,coteRegionY,
         if compZ2>= len(npCT[0][0])-1:
             compZ2= len(npCT[0][0])-1     
             
-        print "compX1",compX1,"compX2",compX2,"compY1",compY1,"compY2",compY2,"compZ1",compZ1,"compZ2",compZ2    
+        print("compX1",compX1,"compX2",compX2,"compY1",compY1,"compY2",compY2,"compZ1",compZ1,"compZ2",compZ2)    
             
     #we will do the computation until we find a value higher than 1500
     while maxi==0 and inc<1000:
@@ -121,13 +121,13 @@ def findMoyMax(npCT,sizex,sizey,sizez,volCT,entry,d,s1n,coteRegionX,coteRegionY,
         
     #calculation of the center of mass
     (lbl,numfeatures)=ndimage.label(CTopened)
-    centre=ndimage.measurements.center_of_mass(CTopened,lbl,range(1,numfeatures+1))
+    centre=ndimage.measurements.center_of_mass(CTopened,lbl,list(range(1,numfeatures+1)))
     #if there is one center
     if numfeatures==1:
         moy = ndimage.measurements.center_of_mass(CTopened)
     #if there are more than 5 centers of mass we put moy to none    
     elif numfeatures>5:
-        print "trop de centres de masse"
+        print("trop de centres de masse")
         moy=None
     #if there are between 3 and 5 centers of mass we take the 2 bigger ones    
     elif numfeatures>2 and numfeatures<6:
@@ -141,13 +141,13 @@ def findMoyMax(npCT,sizex,sizey,sizez,volCT,entry,d,s1n,coteRegionX,coteRegionY,
             to.update(tailleVal)
             p+=1
         #sort the sizes and only keep the 2 biggest ones    
-        tailles=[x for x in to.values()]
+        tailles=[x for x in list(to.values())]
         tailles.sort()
         del tailles[-2:]
         
         #then we know wich centers to suppress...
         for el in tailles:
-            for cle, valeur in tailleVal.items():
+            for cle, valeur in list(tailleVal.items()):
                 if valeur==el:
                     suppr.append(cle)
         #...and suppress them
@@ -190,14 +190,14 @@ def findMoyMax(npCT,sizex,sizey,sizez,volCT,entry,d,s1n,coteRegionX,coteRegionY,
         #if the plot found is too far we put moy to none
         if d!=0 and verif>d*1.3:
             moy=None
-            print "too far"
+            print("too far")
         #this is the case where we approximate the target, we want it at most 2mm far from the theoretical target
         elif d==0 and verif>2:
             moy=None
-            print "verif:" ,verif
+            print("verif:" ,verif)
         #if the plot is too close     
         elif d!=0 and verif<d/1.3:
-            print "trop pres"
+            print("trop pres")
             #pdb.set_trace()
             #coef2=d*1.1/verif
             #moy=((coef2*(moyverif[2]-entry[2])+entry[2])/sizex-compX1,(coef2*(moyverif[1]-entry[1])+entry[1])/sizey-compY1,(coef2*(moyverif[0]-entry[0])+entry[0])/sizez-compZ1)
@@ -282,7 +282,7 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
     #Approximation for each contacts, we start at the theoretical target, wich will also be approximated
     #it has to be noted that the entry is after the first iteration the current approximated plot, and target the previous one
     while i<nbContacts:
-        print "contact numero:", i
+        print("contact numero:", i)
         #first and second approximation are different from others
         #the first entry in the do dictionnary, wich rassembles the inter-contact's distances, is the length between the target and the entry, we then have to take the distance
         #between the target and the next contact: do[1]
@@ -406,18 +406,18 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
                     del point[-1]
                     appPointT1nat=tuple(point)
                     contacts[i-1]=appPointT1nat
-                    print "modif 410"
+                    print("modif 410")
                     
         else:
             if appPoint==s1n:
                 #increases the number of times moy is none
                 compteurMoy+=1
                 if compteurMoy>1:
-                    print "trop de moy=None"   
+                    print("trop de moy=None")   
                     moy=findMoyMax(npCT,sizex,sizey,sizez,volCT,dicPoints[i+1],0.2,dicPoints[i+1],coteRegionX,coteRegionY,coteRegionZ,CT)    
                     if moy is not None:  
                         appPoint=(moy[2]*sizex,moy[1]*sizey,moy[0]*sizez) 
-                        print "appPoint: ", appPoint
+                        print("appPoint: ", appPoint)
                         #print "entry 383: ", entry
                     else:
                         appPoint=dicPoints[i+1]
@@ -433,7 +433,7 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
                     del point[-1]
                     appPointT1nat=tuple(point)
                     contacts[i]=appPointT1nat
-                    print "modif 437"
+                    print("modif 437")
                     try:
                         coef1=(do[i-1]+do[i-2])/norme3D(vecteur(contacts[i-3],contacts[i]))
                         contacts[i-1]=(coef1*(appPointT1nat[0]-contacts[i-3][0])+contacts[i-3][0],coef1*(appPointT1nat[1]-contacts[i-3][1])+contacts[i-3][1],coef1*(appPointT1nat[2]-contacts[i-3][2])+contacts[i-3][2])
@@ -444,7 +444,7 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
                             coef2=do[i-1]/norme3D(vecteur(contacts[i-2],contacts[i]))
                             contacts[i-1]=(coef2*(appPointT1nat[0]-contacts[i-2][0])+contacts[i-2][0],coef2*(appPointT1nat[1]-contacts[i-2][1])+contacts[i-2][1],coef2*(appPointT1nat[2]-contacts[i-2][2])+contacts[i-2][2])   
                         except:
-                            print "modif 450"
+                            print("modif 450")
                     #print "a"    
                     entry=appPoint
                     #print "entry 408: ", entry
@@ -484,7 +484,7 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
                 point=list(appPointT1nat)
                 del point[-1]
                 contacts[i]=tuple(point)  
-                print "modif 490"
+                print("modif 490")
                 v0=vecteur(contacts[i-2],contacts[i-1])
                 v1=vecteur(contacts[i-1],contacts[i])
                 try:
@@ -501,7 +501,7 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
                     point=list(appPointT1nat)
                     del point[-1]
                     contacts[i]=tuple(point)     
-                    print "modif 507"
+                    print("modif 507")
                 #print "theta sup 0.17"
             
         #print "target 445: ", target
@@ -527,7 +527,7 @@ def locateContacts(target,entry,npCT,volCT,nbContacts,sizex,sizey,sizez,do,trans
             npCT[0,a:b,c:d,e:f]=zeros(npCT[0,a:b,c:d,e:f].shape)
         except:
             pdb.set_trace()
-        print "contacts : ", contacts    
+        print("contacts : ", contacts)    
         
         #approximation of the contacts with only the first approximation :newS1=(a*(entry[0]-target[0])+entry[0],a*(entry[1]-target[1])+entry[1],a*(entry[2]-target[2])+entry[2]) if the contact is near the bone
         #Only starts running after the nb of contacts/2-th- contact

@@ -29,9 +29,9 @@ class GroupDisplayWidget(QtGui.QTabWidget):
     # Load plots panel
     self.plotsPanel = ElectrodeDisplayWidget(dataSubjects=self.patientsPanel.subjects) #Create a widget from uic.loadUi("groupPlots.ui", self)
     # Add them to the tabwidget itself
-    self.addTab(self.patientsPanel, u"Subjects")
-    self.addTab(self.templatePanel, u"Template")
-    self.addTab(self.plotsPanel, u"Plots")
+    self.addTab(self.patientsPanel, "Subjects")
+    self.addTab(self.templatePanel, "Template")
+    self.addTab(self.plotsPanel, "Plots")
     self.setTabEnabled(1,False)
     # Connect tab change event to update the list of patients
     self.currentChanged.connect(self.tabSelected)

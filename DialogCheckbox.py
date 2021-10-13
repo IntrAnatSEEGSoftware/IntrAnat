@@ -52,7 +52,7 @@ if __name__ == '__main__':
     dialog = DialogCheckbox(["XXX_XXXX_XXX1", "XXX_XXXX_XXX2", "XXX_XXXX_XXX3", "XXX_XXXX_XXX4"], "Export", "Select options to run:", [True, True, False, False])
     answer = dialog.exec_()
 
-    print answer
+    print(answer)
 
     app.quit() 
     sys.exit(app.exec_())

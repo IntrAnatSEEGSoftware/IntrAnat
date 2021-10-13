@@ -72,7 +72,7 @@ def readElecLocalCSVFile(infile = None):
                 resection = True 
 
             #if not Contact.objects.filter(CRF = crf, name = name, polarity = polarity):
-            if nametmp not in ContactsInfos.keys():
+            if nametmp not in list(ContactsInfos.keys()):
               ContactsInfos[polarity].update({nametmp:{}})
             #newcontact = Contact(CRF = crf, name = name, polarity = polarity, resection = resection, segmentation = greywhite)
 

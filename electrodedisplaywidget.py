@@ -80,7 +80,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     #fill the combo possibility.
     loca = ['*']
     parcels_namesMA= readLabels('labels/marsatlas_labels.txt')
-    loca.extend(parcels_namesMA.values())
+    loca.extend(list(parcels_namesMA.values()))
     loca.sort()
     self.AddMAparcels2SelectioncomboBox.clear()
     self.AddMAparcels2SelectioncomboBox.addItems(loca)
@@ -130,12 +130,12 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
 
   def incTaskCounter(self):
     self.taskCounter = self.taskCounter + 1
-    self.setStatus(u"Tasks in progress : "+str(self.taskCounter))
+    self.setStatus("Tasks in progress : "+str(self.taskCounter))
     return self.taskCounter
 
   def decTaskCounter(self):
     self.taskCounter = self.taskCounter - 1
-    self.setStatus(u"Tasks in progress : "+str(self.taskCounter))
+    self.setStatus("Tasks in progress : "+str(self.taskCounter))
     return self.taskCounter
 
   def setTemplate(self, templ):
@@ -153,13 +153,13 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       self.currentImage = self.a.loadObject(self.template.volumes[self.displayCombo.currentIndex()])
       self.a.addObjects([self.currentImage], self.windows)
     except:
-      print "Could not add selected image"
+      print("Could not add selected image")
       pdb.set_trace()
 
   def subjectSelectionChanged(self):
     """Subject selection changed, update electrode list selection"""
     selected = [str(item.text()) for item in self.subjectList.selectedItems()]
-    for i in xrange(self.electrodeList.count()):
+    for i in range(self.electrodeList.count()):
       selec = False
       for s in selected:
         if str(self.electrodeList.item(i).text()).startswith(s):
@@ -170,7 +170,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
   def electrodeSelectionChanged(self):
     """Electrode selection changed, update plot list selection"""
     selected = [str(item.text()) for item in self.electrodeList.selectedItems()]
-    for i in xrange(self.plotList.count()):
+    for i in range(self.plotList.count()):
       selec = False
       for s in selected:
         if str(self.plotList.item(i).text()).startswith(s):
@@ -202,13 +202,13 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
   def selectAround(self):
     """Find in the list of selected plots the ones near the linked cursor"""
     # Get linked cursor coords (in template referential)
-    pTempl = self.a.linkCursorLastClickedPosition(self.template.referentialAnatomist).items()[:3]
+    pTempl = list(self.a.linkCursorLastClickedPosition(self.template.referentialAnatomist).items())[:3]
     # Get accepted radius
     r2 = self.radiusSpin.value()**2
     meshes = []
     # Compute distance to all selected plots
     pdb.set_trace() #need to check if need to take absolute value in x in mni
-    for i in xrange(self.selectionList.count()):
+    for i in range(self.selectionList.count()):
       fullname = str(self.selectionList.item(i).text())
       (sub, elec, plot) = self.plotNameFromFullPlotName(fullname)
       coords = self.plotsData[sub][elec][plot][self.template.name][:3]
@@ -229,7 +229,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.plotsData = dict([(s, self.getPlotDataFromImplantation(s)) for s in self.subjects])
     #remove NonType from plotsData
     pat_to_remove = []
-    for jj,kk in self.plotsData.iteritems():
+    for jj,kk in self.plotsData.items():
       if kk is None:
          #self.plotsData.pop(jj,None)
          pat_to_remove.append(jj)
@@ -237,14 +237,14 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     for ii in range(len(pat_to_remove)):
       self.plotsData.pop(pat_to_remove[ii],None)
 
-    if len(self.plotsData.keys()) == 0:
-      print "No data to show"
+    if len(list(self.plotsData.keys())) == 0:
+      print("No data to show")
       return
     self.updateUIplots()
 
   def addSelection(self):
     """Add the selected plots/subjects/electrodes to the selection """
-    current = [str(self.selectionList.item(i).text()) for i in xrange(self.selectionList.count())] # FIXME pas juste les selected ! Tous les items
+    current = [str(self.selectionList.item(i).text()) for i in range(self.selectionList.count())] # FIXME pas juste les selected ! Tous les items
     new = [str(s.text()) for s in self.plotList.selectedItems() if str(s.text()) not in current]
 
     # Display the new ones
@@ -258,7 +258,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       else:
         invalid.add(n) # If there, coordinates are not available in the right template referential
     if len(invalid) > 0:
-      print "Some plots were not added to the selection, because normalized coordinates were not available for them"
+      print("Some plots were not added to the selection, because normalized coordinates were not available for them")
       new = list(set(new) - invalid)
     self.selectionList.addItems(new)
     self.a.addObjects(meshes, self.windows)
@@ -286,7 +286,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.a.removeObjects(meshes, self.windows)
     self.a.deleteObjects(meshes)
     # Reverse loop to remove from the bottom (avoids messing up the index)
-    for idx in reversed(range(self.selectionList.count())):
+    for idx in reversed(list(range(self.selectionList.count()))):
       if str(self.selectionList.item(idx).text()) in removable:
         self.selectionList.takeItem(idx)
 
@@ -328,7 +328,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     self.a.removeObjects(meshes, self.windows)
     self.a.deleteObjects(meshes)
     # Reverse loop to remove from the bottom (avoids messing up the index)
-    for idx in reversed(range(self.selectionList.count())):
+    for idx in reversed(list(range(self.selectionList.count()))):
        if str(self.selectionList.item(idx).text()) in to_remove:
          self.selectionList.takeItem(idx)
 
@@ -355,7 +355,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
      self.a.removeObjects(meshes,self.windows)
      self.a.deleteObjects(meshes)
 
-     for idx in reversed(range(self.selectionList.count())):
+     for idx in reversed(list(range(self.selectionList.count()))):
        if str(self.selectionList.item(idx).text()) in to_remove:
          self.selectionList.takeItem(idx)
 
@@ -364,10 +364,10 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
   def updateUIplots(self):
     self.subjectList.clear()
     self.subjectList.addItems(self.subjects)
-    allElecs = sorted([s + ' : ' + el for s in self.plotsData.keys() for el in self.plotsData[s].keys()])
+    allElecs = sorted([s + ' : ' + el for s in list(self.plotsData.keys()) for el in list(self.plotsData[s].keys())])
     self.electrodeList.clear()
     self.electrodeList.addItems(allElecs)
-    allPlots = sorted([self.fullPlotName(s, el, pl) for s in self.plotsData.keys() for el in self.plotsData[s].keys() for pl in self.plotsData[s][el].keys() ])
+    allPlots = sorted([self.fullPlotName(s, el, pl) for s in list(self.plotsData.keys()) for el in list(self.plotsData[s].keys()) for pl in list(self.plotsData[s][el].keys()) ])
     self.plotList.clear()
     self.plotList.addItems(allPlots)
 
@@ -377,8 +377,8 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       requiredAttributes={'modality':'t1mri', 'subject':subject})
     allTransf = list (rdi._findValues( {}, None, False ) )
     for trsf in allTransf:
-      if trsf.attributes()['acquisition'].startswith(u'T1pre'):
-        print repr(trsf.attributes())
+      if trsf.attributes()['acquisition'].startswith('T1pre'):
+        print(repr(trsf.attributes()))
         srcrDiskItem = self.transfoManager.referential( trsf.attributes()['source_referential'] )
         srcr = self.a.createReferential(srcrDiskItem)
         dstrDiskItem = self.transfoManager.referential(trsf.attributes()['destination_referential'])
@@ -395,7 +395,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     impl = rdi.findValue(rdiSuj)
 
     if not impl:
-      print "Cannot find implantation for %s"%rdiSuj.attributes()['subject']
+      print("Cannot find implantation for %s"%rdiSuj.attributes()['subject'])
       return {}
     if (os.path.exists(str(impl))):
 	    filein = open(str(impl), 'rb')
@@ -413,7 +413,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     impl_label = rdi_eleclabel.findValue(rdiSuj)
     
     if not impl_label:
-        print("Cannot find implantation label for %s"%rdiSuj.attributes()['subject'])
+        print(("Cannot find implantation label for %s"%rdiSuj.attributes()['subject']))
         pass
     else:
         if (os.path.exists(str(impl_label))):
@@ -435,7 +435,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     wdi = WriteDiskItem( 'Electrode implantation', 'Electrode Implantation format')
     impl = wdi.findValue(rdiSubj)
     if impl is None:
-      print "Could not find electrode implantation file to save to (%s) !"%subj
+      print("Could not find electrode implantation file to save to (%s) !"%subj)
       return
     try:
       #import pdb; pdb.set_trace()
@@ -450,7 +450,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       shutil.move(impl.fullPath()+'.temporary', impl.fullPath())
       neuroHierarchy.databases.insertDiskItem( impl, update=True )
     except:
-      print "Exception while writing implantation file for %s"%subj
+      print("Exception while writing implantation file for %s"%subj)
       traceback.print_exc(file=sys.stdout)
       return
 
@@ -460,34 +460,34 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
     #self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId)
     if 'plotsData' in self.implantations[subj]:
       if self.implantations[subj]['plotsData-timestamp'] == self.implantations[subj]['timestamp']:
-        print "Using pre-recorded plots coordinates for %s"%subj
+        print("Using pre-recorded plots coordinates for %s"%subj)
         return self.implantations[subj]['plotsData']
       else:
-        print "PlotsData timestamp was invalid for %s"%subj
+        print("PlotsData timestamp was invalid for %s"%subj)
     res = {}
     for e in els:
       res[e['name']] = self.getPlotsFromElectrode(e, subj)
 
     print(subj)
-    if "plotsMNI" in self.implantations[subj].keys():
+    if "plotsMNI" in list(self.implantations[subj].keys()):
       info_plotsMNI = dict(self.implantations[subj]['plotsMNI'])
-      for kk,vv in res.iteritems():
-        for ll,ww in res[kk].iteritems():
+      for kk,vv in res.items():
+        for ll,ww in res[kk].items():
             ww.update({"MNI":info_plotsMNI[kk+"%02d"%int(ll[4:])]})
-            if "label" in self.implantations[subj].keys():
+            if "label" in list(self.implantations[subj].keys()):
                 try:
                  ww.update({"label":self.implantations[subj]["label"][kk+"%02d"%int(ll[4:])]})
                 except:
                  pdb.set_trace()
     else:
-   		print "Error MNI Coordinates"
+   		print("Error MNI Coordinates")
    		QtGui.QMessageBox.warning(self, "Error", "MNI coordinates haven't been generated for electrode contacts of Subject: {}\nThey have to be generated using locateElectrodes".format(subj))
    		return
     
     return res
 
   def getPlotsFromElectrode(self, el, subj):
-    print "Creating electrode model for %s"%subj
+    print("Creating electrode model for %s"%subj)
     traceback.print_exc(file=sys.stdout)
     (nativeRef, sbRef, t1pre2ScannerBased) = self.t1pre2ScannerBased(subj)
     (newRef, transf, elecModel) = createElectrode(el['target'], el['entry'], nativeRef, ana=self.a, model = self.electrodeModels[str(el['model'])].fullPath(), dispMode = self.dispMode, dispParams = self.dispParams)
@@ -532,9 +532,9 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
         # setLinkedCursor uses window referential : must apply transform before setting the position
         self.windows[0].moveLinkedCursor(xyz)
       else:
-          print "Error moving the cursor to the contact2"
+          print("Error moving the cursor to the contact2")
     except Exception as e:
-      print "Error moving the cursor to the contact"
+      print("Error moving the cursor to the contact")
       #pdb.set_trace()
 
   def addMNIImagetoList(self,path_fichier = None):
@@ -565,7 +565,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
           if len(trans_from_vol) == 0:
             raise RuntimeError('could not find a non-ambiguous transform')
           elif len(trans_from_vol) > 1:
-            print "There is more than one available transformation ... we take the first one and pray"
+            print("There is more than one available transformation ... we take the first one and pray")
             trans_from_vol[0] = trans_from_vol_filt[0]
           trans_from_vols.append(trans_from_vol)
 
@@ -630,7 +630,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
               pass          
 
             #faire un test si all au lieu des noms de parcels.
-            for i_parcels_stimulated in full_data[orderTexture[0]].keys():
+            for i_parcels_stimulated in list(full_data[orderTexture[0]].keys()):
               
               if len( full_data[orderTexture[0]][i_parcels_stimulated]) > 0:
                 new_TimeSurfTextLeft = aims.TimeTexture('FLOAT')
@@ -673,7 +673,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                         if left_MA[0].arraydata()[iter_vert] == 0:
                           textnowLeft.append(-4)
                         else:
-                           if full_data[orderTexture[i]][i_parcels_stimulated].keys()[0].startswith('i_') or full_data[orderTexture[i]][i_parcels_stimulated].keys()[0].startswith('c_'):
+                           if list(full_data[orderTexture[i]][i_parcels_stimulated].keys())[0].startswith('i_') or list(full_data[orderTexture[i]][i_parcels_stimulated].keys())[0].startswith('c_'):
                              if full_data[orderTexture[i]][i_parcels_stimulated]['c_'+actual_marsatlas_parcels[0]] == 'NaN':
                                textnowLeft.append(-4)
                              else:
@@ -711,7 +711,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                         if right_MA[0].arraydata()[iter_vert] == 0:
                           textnowRight.append(-4)
                         else:
-                          if full_data[orderTexture[i]][i_parcels_stimulated].keys()[0].startswith('i_') or full_data[orderTexture[i]][i_parcels_stimulated].keys()[0].startswith('c_'):
+                          if list(full_data[orderTexture[i]][i_parcels_stimulated].keys())[0].startswith('i_') or list(full_data[orderTexture[i]][i_parcels_stimulated].keys())[0].startswith('c_'):
                             if full_data[orderTexture[i]][i_parcels_stimulated]['i_'+actual_marsatlas_parcels[0]] == 'NaN':
                               textnowRight.append(-4)
                             else:
@@ -729,7 +729,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                 aims.write(new_TimeSurfTextRight,str(path_to_save) + os.path.sep + 'Texture' + os.path.sep + ('%s_right.gii')%i_parcels_stimulated)
               
               else:
-                print(('No Data for %s')%i_parcels_stimulated)
+                print((('No Data for %s')%i_parcels_stimulated))
                 
             obj1 = self.a.loadObject('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/Gre_2016_MNI1_Lwhite.gii')
             obj2 = self.a.loadObject('MNI_Brainvisa/t1mri/T1pre_1900-1-3/default_analysis/segmentation/mesh/surface_analysis/Gre_2016_MNI1_Lwhite_parcels_marsAtlas.gii')
@@ -743,17 +743,17 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
           if full_data['Atlas'] == 'Brodmann':
               voxel_size_T1 = [BrodmannParcels.getVoxelSize()[0], BrodmannParcels.getVoxelSize()[1], BrodmannParcels.getVoxelSize()[2], 1.0]
               sizeOutputnii = BrodmannParcels.getSize().list()
-              sizeOutputnii[-1] = len(orderTexture.keys())
+              sizeOutputnii[-1] = len(list(orderTexture.keys()))
 
-              for i_parcels_stimulated in full_data[orderTexture[0]].keys():
+              for i_parcels_stimulated in list(full_data[orderTexture[0]].keys()):
                   #di.setMinf('ColorPalette','Blue-Red-fusion')
                   volToGenerate = aims.Volume(*sizeOutputnii,dtype = 'float')
                   volToGenerate.header()['voxel_size']=voxel_size_T1
                   volToGenerate.fill(-4)
                   
-                  for i_texture in orderTexture.keys():
+                  for i_texture in list(orderTexture.keys()):
 
-                     for i_parcels_result in full_data[orderTexture[i_texture]][i_parcels_stimulated].keys():
+                     for i_parcels_result in list(full_data[orderTexture[i_texture]][i_parcels_stimulated].keys()):
                         #fait chier le droite gauche
                         if full_data[orderTexture[0]][i_parcels_stimulated][i_parcels_result]=='NaN':
                           volToGenerate.arraydata()[numpy.where(BrodmannParcelsArrayData==float(i_parcels_result))]=-4
@@ -775,7 +775,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
   def generateStatisticsContacts(self):
       
       #get selected contacts
-      current = [str(self.selectionList.item(i).text()) for i in xrange(self.selectionList.count())]
+      current = [str(self.selectionList.item(i).text()) for i in range(self.selectionList.count())]
       
       #il me faut un dictionnaire avec toutes les parcels mars atlas et un dictionnaire avec toutes les parcels freesurfer possible.
       dict_marsatlas = {}
@@ -789,12 +789,12 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       all_patients = []
       dict_MNI_PatientName = {}
       
-      for ii in parcels_names.values():
+      for ii in list(parcels_names.values()):
           dict_marsatlas.update({ii:[]})
           dict_dispersion_MA.update({ii:{}})
  
       
-      for ii in freesurfer_parcel_names.values():
+      for ii in list(freesurfer_parcel_names.values()):
           dict_freesurfer.update({ii:[]})
           dict_dispersion_FS.update({ii:{}})
          
@@ -802,21 +802,21 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       for ii in current:
           (sub, elec, plot) = self.plotNameFromFullPlotName(ii)
           dataplot = self.plotDataFromFullName(ii)
-          if 'MarsAtlas' in dataplot['label'].keys():
-              if dataplot['label']['MarsAtlas'][1] != u'not in a mars atlas parcel':
+          if 'MarsAtlas' in list(dataplot['label'].keys()):
+              if dataplot['label']['MarsAtlas'][1] != 'not in a mars atlas parcel':
                  dict_marsatlas[dataplot['label']['MarsAtlas'][1]].append(dataplot['MNI'])
           else:
               #signaler que certains patients n'ont pas marsatlas de généré et que ça va "fausser" les résultats
               #print("plot %s without marsAtlas parcellation estimated"%(ii))
               if sub not in missing_marsatlas:
                   missing_marsatlas.append(sub)
-          if 'Freesurfer' in dataplot['label'].keys():
-              if dataplot['label']['Freesurfer'][1] != u'not in a freesurfer parcel':
+          if 'Freesurfer' in list(dataplot['label'].keys()):
+              if dataplot['label']['Freesurfer'][1] != 'not in a freesurfer parcel':
                  try: 
                    dict_freesurfer[dataplot['label']['Freesurfer'][1]].append(dataplot['MNI'])
                  except:
-                   print sub
-                   print "probleme avec ce patient"
+                   print(sub)
+                   print("probleme avec ce patient")
                    pass
           else:
               #signaler que certains patient n'ont pas freesurfer de généré et que ça va "fausser" les résultats
@@ -828,7 +828,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
           dict_MNI_PatientName.update({str(dataplot['MNI']):sub})  
               
       #now I calculate the dispersion per parcels: (and I'ld like to normalized it but don't know how)
-      for iter_MA in dict_marsatlas.keys():
+      for iter_MA in list(dict_marsatlas.keys()):
         points_array = numpy.array(dict_marsatlas[iter_MA])
         #array_median = repmat(numpy.median(points_array,axis=0),len(points_array),1)
         #diff = points_array - array_median
@@ -849,7 +849,7 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
             dict_dispersion_MA[iter_MA].update({'nb contact': 0})
 
  
-      for iter_FS in dict_freesurfer.keys():
+      for iter_FS in list(dict_freesurfer.keys()):
         points_array = numpy.array(dict_freesurfer[iter_FS])
         #array_median = repmat(numpy.median(points_array,axis=0),len(points_array),1)
         #diff = points_array - array_median
@@ -881,32 +881,32 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
           
       with open(fileName, 'w') as csvfile:
          writer = csv.writer(csvfile, delimiter='\t')
-         writer.writerow([u'Group Analysis'])
-         listwrite_allpatients = [u'Patients']
+         writer.writerow(['Group Analysis'])
+         listwrite_allpatients = ['Patients']
          for ii in all_patients:
              listwrite_allpatients.append(ii)
          writer.writerow(listwrite_allpatients) #writer.writerow([u'Patients',all_patients])
-         listwrite_missingMA = [u'missing marsAtlas info for the following patients (analysis done without their data):']
+         listwrite_missingMA = ['missing marsAtlas info for the following patients (analysis done without their data):']
          for ii in missing_marsatlas:
              listwrite_missingMA.append(ii)
          writer.writerow(listwrite_missingMA)#writer.writerow([u'missing marsAtlas info for the following patients (analysis done without their data):',missing_marsatlas])
-         listwrite_missingFS = [u'missing FreeSurfer info for the following patients (analysis done without their data):']
+         listwrite_missingFS = ['missing FreeSurfer info for the following patients (analysis done without their data):']
          for ii in missing_freesurfer:
              listwrite_missingFS.append(ii)
          writer.writerow(listwrite_missingFS)
          #writer.writerow([u'missing FreeSurfer info for the following patients (analysis done without their data):',missing_freesurfer])
-         writer.writerow([u'MarsAtlas parcellation analysis'])
-         writer.writerow([u'parcel name',u'nb contact', u'average point', u'median point', u'outliers positions',u'patient names of the outliers'])
+         writer.writerow(['MarsAtlas parcellation analysis'])
+         writer.writerow(['parcel name','nb contact', 'average point', 'median point', 'outliers positions','patient names of the outliers'])
         
          dictMA_sorted_tmp = OrderedDict(sorted(dict_dispersion_MA.items()))
-         for kk,vv in dictMA_sorted_tmp.iteritems():
+         for kk,vv in dictMA_sorted_tmp.items():
             if vv['nb contact']>0:
               listwrite = [kk]
               listwrite.append(vv['nb contact'])
-              if 'average point' in vv.keys():
+              if 'average point' in list(vv.keys()):
                 listwrite.append([float(format(vv['average point'][i],'.3f')) for i in range(3)])
                 listwrite.append([float(format(vv['median point'][i],'.3f')) for i in range(3)])
-              if 'outlier position' in vv.keys():
+              if 'outlier position' in list(vv.keys()):
                 if vv['outlier position'] is not None:
                   listwrite.append(vv['outlier position'])
                   listwrite.append(vv['outlier name'])
@@ -914,17 +914,17 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
          
          #writer.writerow(dict_dispersion_MA)
          writer.writerow([])
-         writer.writerow([u'Freesurfer parcellation analysis'])
-         writer.writerow([u'parcel name',u'nb contact', u'average point', u'median point', u'outliers positions',u'patient names of the outliers'])
+         writer.writerow(['Freesurfer parcellation analysis'])
+         writer.writerow(['parcel name','nb contact', 'average point', 'median point', 'outliers positions','patient names of the outliers'])
          dictFS_sorted_tmp = OrderedDict(sorted(dict_dispersion_FS.items()))
-         for kk,vv in dictFS_sorted_tmp.iteritems():
+         for kk,vv in dictFS_sorted_tmp.items():
               if vv['nb contact']>0:
                 listwrite = [kk]
                 listwrite.append(vv['nb contact'])
-                if 'average point' in vv.keys():
+                if 'average point' in list(vv.keys()):
                   listwrite.append([float(format(vv['average point'][i],'.3f')) for i in range(3)])
                   listwrite.append([float(format(vv['median point'][i],'.3f')) for i in range(3)])
-                if 'outlier position' in vv.keys():
+                if 'outlier position' in list(vv.keys()):
                   if vv['outlier position'] is not None:
                     listwrite.append(vv['outlier position'])
                     listwrite.append(vv['outlier name'])
@@ -948,30 +948,30 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
 
   def AddMAparcels2selection(self):
       
-      print "select contacts according to marsatlas parcels"
+      print("select contacts according to marsatlas parcels")
       fullPlot_List = [str(self.plotList.item(idx).text()) for idx in range(self.plotList.count())]
       
       parcels_names = readLabels('labels/marsatlas_labels.txt')
       
       dict_plotMA = {}
-      for ii in parcels_names.values():
+      for ii in list(parcels_names.values()):
           dict_plotMA.update({ii:[]})
           
       for ii in fullPlot_List:
           (sub, elec, plot) = self.plotNameFromFullPlotName(ii)
           dataplot = self.plotDataFromFullName(ii)
-          if 'MarsAtlas' in dataplot['label'].keys():
-              if dataplot['label']['MarsAtlas'][1] != u'not in a mars atlas parcel':         
+          if 'MarsAtlas' in list(dataplot['label'].keys()):
+              if dataplot['label']['MarsAtlas'][1] != 'not in a mars atlas parcel':         
                  dict_plotMA[dataplot['label']['MarsAtlas'][1]].append(ii)
       
       if str(self.AddMAparcels2SelectioncomboBox.currentText()) =='*':
           print('unselect all')
-          for i in xrange(self.plotList.count()):
+          for i in range(self.plotList.count()):
             selec = False
             self.plotList.item(i).setSelected(selec)
       else:
           list_plot2select= dict_plotMA[str(self.AddMAparcels2SelectioncomboBox.currentText())]
-          for i in xrange(self.plotList.count()):
+          for i in range(self.plotList.count()):
             selec = False
             if str(self.plotList.item(i).text()) in list_plot2select:
                 selec = True
@@ -1013,20 +1013,20 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
             self.bipoleSEEGColors.close()
         except:
             pass
-        self.a.removeObjects([self.bipolesmeshes[x] for x in self.bipolesmeshes.keys()],self.windows)
-        self.a.addObjects([self.meshes[x] for x in self.meshes.keys()], self.windows)        
+        self.a.removeObjects([self.bipolesmeshes[x] for x in list(self.bipolesmeshes.keys())],self.windows)
+        self.a.addObjects([self.meshes[x] for x in list(self.meshes.keys())], self.windows)        
 
       elif self.radioButtonsEEGResults.isChecked():
-         meshes = [self.meshes[x] for x in self.meshes.keys()]
+         meshes = [self.meshes[x] for x in list(self.meshes.keys())]
          self.a.removeObjects(meshes,self.windows)
 
          #il faut générer les bipoles
-         current = [str(self.selectionList.item(i).text()) for i in xrange(self.selectionList.count())]
+         current = [str(self.selectionList.item(i).text()) for i in range(self.selectionList.count())]
          info_contact={}
          for pindex in range(0,len(current)):
           (sub, elec, plot) = self.plotNameFromFullPlotName(current[pindex])
           try:
-              if sub not in info_contact.keys():
+              if sub not in list(info_contact.keys()):
                 info_contact.update({sub:[]})
                 info_contact[sub].append(elec+"%02d"%int(plot.split('Plot')[1]))
               else:
@@ -1034,10 +1034,10 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
           except:
               pdb.set_trace()
          info_bipole = {}
-         for subj in info_contact.keys():
+         for subj in list(info_contact.keys()):
              
              contacts_sorted = sorted(info_contact[subj],key=natural_keys)
-             if subj not in info_bipole.keys():
+             if subj not in list(info_bipole.keys()):
                  info_bipole.update({subj:{}})
              for contact_index in range(1,len(contacts_sorted)):
                  previous_contact = "".join([i for i in contacts_sorted[contact_index-1] if not i.isdigit()])
@@ -1056,26 +1056,26 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
                        next_number = int(current_number)+1
                        bipole_with_previous = contacts_sorted[contact_index] + ' - ' + "%s%02d"%(current_contact,int(previous_number))
                        bipole_wiht_next = "%s%02d"%(current_contact,int(next_number)) + ' - ' + contacts_sorted[contact_index]
-                       if 'Plot'+str(previous_number) in self.plotsData[subj][current_contact].keys():
-                         if bipole_with_previous not in info_bipole[subj].keys():
+                       if 'Plot'+str(previous_number) in list(self.plotsData[subj][current_contact].keys()):
+                         if bipole_with_previous not in list(info_bipole[subj].keys()):
                             mni_bipole = ((numpy.array(self.plotsData[subj][current_contact]['Plot'+str(int(current_number))]['MNI']) + numpy.array(self.plotsData[subj][current_contact]['Plot'+str(int(previous_number))]['MNI']))/2).tolist()
                             info_bipole[subj].update({bipole_with_previous:mni_bipole})
                              
-                       if 'Plot'+str(next_number) in self.plotsData[subj][current_contact].keys():
-                         if bipole_wiht_next not in self.plotsData[subj][current_contact].keys():
+                       if 'Plot'+str(next_number) in list(self.plotsData[subj][current_contact].keys()):
+                         if bipole_wiht_next not in list(self.plotsData[subj][current_contact].keys()):
                               mni_bipole = ((numpy.array(self.plotsData[subj][current_contact]['Plot'+str(int(current_number))]['MNI']) + numpy.array(self.plotsData[subj][current_contact]['Plot'+str(int(next_number))]['MNI']))/2).tolist()
                               info_bipole[subj].update({bipole_wiht_next:mni_bipole})
 
          list_to_show = []
-         for subj in info_bipole.keys():
-           if 'seeg_label_all' in self.testDataSubjects[subj].keys():
+         for subj in list(info_bipole.keys()):
+           if 'seeg_label_all' in list(self.testDataSubjects[subj].keys()):
                
-             for index_bip in info_bipole[subj].keys():
+             for index_bip in list(info_bipole[subj].keys()):
 
                rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format')
                listEM = list(rdiEM.findValues({},None,False))
-               matches = filter((lambda x: u"bipole" in str(x)), listEM)
-               if subj + ' : ' + index_bip not in self.bipolesmeshes.keys():
+               matches = list(filter((lambda x: "bipole" in str(x)), listEM))
+               if subj + ' : ' + index_bip not in list(self.bipolesmeshes.keys()):
                  #la faudrait que je vérifie si le bipole existe vraiment parce que sinon je crée énormément de mesh pour rien ...
                  mesh = self.displaySphereAt(info_bipole[subj][index_bip],self.plotDiameter(), self.template.referentialAnatomist, color=(0.0,0.0,0.0,0.0),name = subj + ' : ' + index_bip) #je devrais sortir le color de la ?
                  mesh.setMaterial(front_face='counterclockwise')

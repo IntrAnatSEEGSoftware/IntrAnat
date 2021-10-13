@@ -8,7 +8,7 @@
 
 
 import subprocess, os
-from string import letters
+from string import ascii_letters as letters
 from tempfile import gettempdir
 from os.path import expanduser
 from brainvisa.data import neuroHierarchy
@@ -22,13 +22,13 @@ def setEnv(env=None):
         myEnv = env
     else:
         myEnv = os.environ.copy()
-    for var in myEnv.keys():
+    for var in list(myEnv.keys()):
         if var.find('BRAINVISA_UNENV_') >= 0:
             realvar = var.split('BRAINVISA_UNENV_')[1]
-            print "On remplace %s par %s"%(realvar, var)
+            print("On remplace %s par %s"%(realvar, var))
             myEnv[realvar] = myEnv[var]
             del myEnv[var]
-    print("CURRENT PATH - " + myEnv['PATH'])
+    print(("CURRENT PATH - " + myEnv['PATH']))
 
 
 setEnv()
@@ -66,7 +66,7 @@ def getTmpFilePath(extension='txt', isFull=False):
               dict{'dir','filename','fullpath'} = getTmpFilePath('jpg', True)
     """
     tmpDir = getTmpDir()
-    tmpFile = ''.join(choice(letters) for i in xrange(15))
+    tmpFile = ''.join(choice(letters) for i in range(15))
     tmpPath = os.path.join(tmpDir, tmpFile + '.' + extension)
     if isFull:
         return {'dir':tmpDir, 'filename':tmpFile, 'fullpath':tmpPath}
@@ -87,9 +87,9 @@ def matlabRun(cmd):
     os.remove(matlabCall['fullpath'])
     # Print error message
     if errMsg:
-        print "\n===================================\n" + \
+        print("\n===================================\n" + \
               "Matlab execution returned an error:\n" + errMsg + \
-              "\n===================================\n"
+              "\n===================================\n")
     # Return stderr
     return errMsg.splitlines()
 
@@ -119,7 +119,7 @@ def saveMatlabCall(cmd):
     # scriptCall = ["cd '%s';%s"%(formatExternalPath(tmp['dir']),tmp['filename']),]
     # return {'code':matlabExe+scriptCall, 'file':f, 'fullpath':tmp['fullpath']}
     scriptCall = ['matlab', '-nodesktop', '<', tmp['fullpath']]
-    print("Call: " + " ".join(scriptCall))
+    print(("Call: " + " ".join(scriptCall)))
     return {'code':scriptCall, 'file':f, 'fullpath':tmp['fullpath']}
 
 def runCmd(cmd):
@@ -146,7 +146,7 @@ def createItemDirs(item):
     if dirs:
         try:
             os.makedirs( dirname )
-        except OSError, e:
+        except OSError as e:
             if not e.errno == errno.EEXIST:
                 # filter out 'File exists' exception, if the same dir has
                 # been created concurrently by another instance of BrainVisa

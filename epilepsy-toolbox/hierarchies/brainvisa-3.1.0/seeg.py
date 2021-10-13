@@ -123,17 +123,17 @@ eye_content = (
 # Including in the main database hierarchy
 insert( '{protocol}/{subject}',
   'seeg', SetWeakAttr( 'modality', 'seeg' ),
-    apply( SetContent, seeg_content)
+    SetContent(*seeg_content)
 )
 
 insert( '{protocol}/{subject}',
   'mer', SetWeakAttr( 'modality', 'mer' ),
-    apply( SetContent, mer_content)
+    SetContent(*mer_content)
 )
 
 insert( '{protocol}/{subject}',
   'eye', SetWeakAttr( 'modality', 'eye' ),
-    apply( SetContent, eye_content)
+    SetContent(*eye_content)
 )
 
 

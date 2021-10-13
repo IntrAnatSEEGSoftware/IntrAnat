@@ -13,7 +13,6 @@ from shutil import copyfile, rmtree
 from soma import aims
 from brainvisa import axon
 from brainvisa.configuration import neuroConfig
-from __builtin__ import True
 neuroConfig.gui = True
 from brainvisa.configuration.qtgui import neuroConfigGUI
 from brainvisa.data import neuroHierarchy
@@ -358,15 +357,15 @@ class ImageImport(QtWidgets.QDialog):
         maxTimeToCompletion = 1000*60*20 # 20min in ms -> maximum duration for any thread (it will be killed after that)
         qthr = [t for t in self.threads if isinstance(t, QtCore.QThread)]
         thr = [t for t in self.threads if not isinstance(t, QtCore.QThread)]
-        print "Closing all qthreads"
+        print("Closing all qthreads")
         unfinished = [t for t in qthr if not t.wait(maxTimeToCompletion)]
-        print "Killing %i QThreads still running"%len(unfinished)
+        print("Killing %i QThreads still running"%len(unfinished))
         [t.terminate() for t in unfinished]
         def checkKill(p, timeout):
             """ This function checks if the thread is still running.
             If so, it waits until timeout (in ms), then kills it if it is still running"""
             try:
-                print "Trying to kill "+repr(p)
+                print("Trying to kill "+repr(p))
                 t = 0
                 while(p.poll() is None and t < timeout):
                     time.sleep(5)
@@ -376,11 +375,11 @@ class ImageImport(QtWidgets.QDialog):
             except:
                 pass
 
-        print "Closing all threads"
+        print("Closing all threads")
         finished = [checkKill(t, maxTimeToCompletion) for t in thr]
-        print "Quitting BrainVisa"
+        print("Quitting BrainVisa")
         axon.cleanup()
-        print "Quit !"
+        print("Quit !")
         self.app.quit()
 
 
@@ -409,7 +408,7 @@ class ImageImport(QtWidgets.QDialog):
     
                 filein.close()
         except:
-            print("There is a problem with %s opening apparently"%prefpath)
+            print(("There is a problem with %s opening apparently"%prefpath))
 
         if 'currentProtocol' in self.prefs:
             self.currentProtocol = self.prefs['currentProtocol']
@@ -431,7 +430,7 @@ class ImageImport(QtWidgets.QDialog):
             brainvisa_freesurfer_home_path = ""
         if 'spm' in self.prefs:
             if brainvisa_spm12_path != self.prefs['spm']:
-                QtGui.QMessageBox.warning(self, u"SPM", u"SPM path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
+                QtGui.QMessageBox.warning(self, "SPM", "SPM path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
                 print("SPM path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
             if os.path.isfile(self.prefs['spm']+os.sep+'Contents.m'):
                 op_cont = open(self.prefs['spm']+os.sep+'Contents.m')
@@ -441,14 +440,14 @@ class ImageImport(QtWidgets.QDialog):
                 if spm_version == '(SPM12)':
                     self.setSpmTemplatePath(self.prefs['spm']) #+os.sep+'toolbox/OldNorm/T1.nii')
                 elif spm_version == '(SPM8)':
-                    QtGui.QMessageBox.warning(self, u"SPM", u"SPM version not supported anymore")
+                    QtGui.QMessageBox.warning(self, "SPM", "SPM version not supported anymore")
                     print("SPM version not supported anymore")
                     #self.setSpmTemplatePath(self.prefs['spm']) #+os.sep+'templates/T1.nii')
                 else:
                     #QtGui.QMessageBox.warning(self, u"SPM", u"SPM version unknown")
                     print("SPM version unknown")
             else:
-                QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined in tab 'Pref'\n Normalization and SPM coregistration won't work !")
+                QtGui.QMessageBox.warning(self, "SPM", "SPM path is not defined in tab 'Pref'\n Normalization and SPM coregistration won't work !")
                 print("SPM path is not defined in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
         else:
             if len(configuration.SPM.spm12_path)>0:
@@ -456,12 +455,12 @@ class ImageImport(QtWidgets.QDialog):
                 self.setSpmTemplatePath(brainvisa_spm12_path)
                 self.prefs['spm']=brainvisa_spm12_path
             else:
-                QtGui.QMessageBox.warning(self, u"SPM", u"SPM path is not defined (or wrong) in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
+                QtGui.QMessageBox.warning(self, "SPM", "SPM path is not defined (or wrong) in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
                 print("SPM path is not defined (or wrong) in tab 'Préférences'\n Normalization and SPM coregistration won't work !")
 
         if 'freesurfer' in self.prefs:
             if brainvisa_freesurfer_home_path != self.prefs['freesurfer']:
-                QtGui.QMessageBox.warning(self, u"Freesurfer", u"Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
+                QtGui.QMessageBox.warning(self, "Freesurfer", "Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
                 print("Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
             self.setFreesurferPath(self.prefs['freesurfer'])
         else:
@@ -546,13 +545,13 @@ class ImageImport(QtWidgets.QDialog):
 
         att = image.attributes()
         refName = att['modality']+'_'+att['acquisition']
-        print "Storing refs/transfos for "+str(refName)
+        print("Storing refs/transfos for "+str(refName))
     
         # Create a Referential object in the database to represent the native referential of the image
         moda = self.modas[att['modality']]
         nativeRef = self.transfoManager.referential(image)
         if nativeRef is None:
-            print '...Creating native ref'
+            print('...Creating native ref')
             nativeRef = self.transfoManager.createNewReferentialFor(image, name = refName+'native', description = 'Native Anatomist Referential for ' + refName + ' image', referentialType='Referential of '+moda)
             try:
                 neuroHierarchy.databases.createDiskItemFromFileName(os.path.dirname( nativeRef.fullPath() ))
@@ -567,7 +566,7 @@ class ImageImport(QtWidgets.QDialog):
             pass
 
         if refScan is None:
-            print '...Creating scanner-based ref'
+            print('...Creating scanner-based ref')
             refScan = self.transfoManager.createNewReferentialFor(wdiScan, name = refName+'_Scanner-Based', description = 'Scanner-Based referential for ' + refName + ' image', referentialType='Scanner Based Referential')
             try:
                 neuroHierarchy.databases.createDiskItemFromFileName(os.path.dirname( refScan.fullPath() ))
@@ -590,18 +589,18 @@ class ImageImport(QtWidgets.QDialog):
             trm_to_scannerBased = trs[refs.index("Scanner-based anatomical coordinates")]
 
         if trm_to_scannerBased is None:
-            print "No Scanner-based transfo in image header, using first available transfo instead."
+            print("No Scanner-based transfo in image header, using first available transfo instead.")
             try:
                 trm_to_scannerBased = trs[0]
             except:
                 pass
 
         if transformScan is None:
-            print "Cannot find path for Scanner-based transform in database -> transformation not stored !"
+            print("Cannot find path for Scanner-based transform in database -> transformation not stored !")
         elif trm_to_scannerBased is None:
-            print "Cannot find Scanner-based transformation in header !"
+            print("Cannot find Scanner-based transformation in header !")
         else:
-            print '...storing scanner-based transfo'
+            print('...storing scanner-based transfo')
             #Store information into the trm file
             mot = aims.Motion( trm_to_scannerBased )
             image.setMinf('SB_Transform',str(trm_to_scannerBased))
@@ -611,7 +610,7 @@ class ImageImport(QtWidgets.QDialog):
             except:
                 pass
             #set and update database
-            print ".... setting transfo info : from %s to %s for %s"%(repr(nativeRef), repr(refScan), repr(transformScan))
+            print(".... setting transfo info : from %s to %s for %s"%(repr(nativeRef), repr(refScan), repr(transformScan)))
             self.transfoManager.setNewTransformationInfo( transformScan, source_referential=nativeRef, destination_referential= refScan)
         
 
@@ -621,14 +620,14 @@ class ImageImport(QtWidgets.QDialog):
             rdi = ReadDiskItem( 'Center', 'Directory' )#, requiredAttributes={'center':'Epilepsy'} )
         except Exception as e:
             QtGui.QMessageBox.warning(self, "Database error", "DATABASE error: " + str(e))
-            print("DATABASE error: "+str(e))
+            print(("DATABASE error: "+str(e)))
             return
 
 
         protocols = list( rdi._findValues( {}, None, False ) )
         protocols = sorted([str(p.attributes()['center']) for p in protocols])
         if len(protocols) == 0:
-            rep = QtGui.QMessageBox.warning(self, "Center (former protocol)", u"No center/protocole defined in BrainVisa Database !")
+            rep = QtGui.QMessageBox.warning(self, "Center (former protocol)", "No center/protocole defined in BrainVisa Database !")
             text, ok = QtGui.QInputDialog.getText(self, 'Input Dialog', 'Enter the name of the center/protocole:')
             if (ok & bool(text)):
                 wdi = WriteDiskItem('Center', 'Directory' )    #'gz compressed NIFTI-1 image' )
@@ -672,7 +671,7 @@ class ImageImport(QtWidgets.QDialog):
     def setCurrentSubject(self, subj):
         if not subj: # ignore empty values
             return
-        print "current subj : "+str(subj)
+        print("current subj : "+str(subj))
         self.currentSubject = str(subj)
         self.clearAnatomist()
         
@@ -710,12 +709,12 @@ class ImageImport(QtWidgets.QDialog):
         # Display "Date : XXXX-XX-XX - Seq: T1 - Acq : T1Pre
         self.ui.bvImageList.clear()
         images = self.findAllImagesForSubject(self.ui.bvProtocolCombo.currentText(), subj)
-        self.ui.bvImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
+        self.ui.bvImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in list(i.attributes().keys())\
                 else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
 
         self.bvImages = {}
         for i in images:
-            if 'subacquisition' in i.attributes().keys():
+            if 'subacquisition' in list(i.attributes().keys()):
                 self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i})
             else:
                 self.bvImages.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i})
@@ -736,16 +735,16 @@ class ImageImport(QtWidgets.QDialog):
     def deleteBvSubject(self):
         protocol = str(self.ui.bvProtocolCombo.currentText())
         subj = str(self.ui.bvSubjectCombo.currentText())
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING</b><br/>You are about to erase ALL the patient data.<br/><br/><b>DELETE PATIENT \"%s\" ?</b></font>"%subj, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        rep = QtGui.QMessageBox.warning(self, 'Confirmation', "<font color='red'><b>WARNING</b><br/>You are about to erase ALL the patient data.<br/><br/><b>DELETE PATIENT \"%s\" ?</b></font>"%subj, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if rep == QtGui.QMessageBox.Yes:
-            print "Deleting subject %s"%subj
+            print("Deleting subject %s"%subj)
             rdi = ReadDiskItem( 'Subject', 'Directory', requiredAttributes={'center':str(protocol), 'subject':str(subj) } )
             di = list( rdi._findValues( {}, None, False ) )
             if len(di) != 1:
-                print "%s subject(s) found ! Cannot delete if there is more than 1 !"%repr(len(di))
+                print("%s subject(s) found ! Cannot delete if there is more than 1 !"%repr(len(di)))
                 return
             removeFromDB(di[0].fullPath(), neuroHierarchy.databases.database(di[0].get("_database")))
-            self.setStatus(u"Subject %s deleted from the database"%subj)
+            self.setStatus("Subject %s deleted from the database"%subj)
             # Reset the list of subjects :
             self.selectProtocol(str(self.ui.bvProtocolCombo.currentText()),self.ui.bvSubjectCombo)
 
@@ -758,20 +757,20 @@ class ImageImport(QtWidgets.QDialog):
         except: # Probably no image available or no image selected
             return
         
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING</b><br/>You are about to delete the selected image and all linked data.<br/><br/><b>DELETE IMAGE \"%s\" ?</b></font>"%imageName, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        rep = QtGui.QMessageBox.warning(self, 'Confirmation', "<font color='red'><b>WARNING</b><br/>You are about to delete the selected image and all linked data.<br/><br/><b>DELETE IMAGE \"%s\" ?</b></font>"%imageName, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if rep == QtGui.QMessageBox.Yes:
             image = self.bvImages[imageName] # Gives the path of the image
             di = neuroHierarchy.databases.getDiskItemFromFileName(image.fileName())
             acqPath = os.path.dirname(image.fileName())
             if str(os.path.basename(acqPath)) != str(di.attributes()['acquisition']):
-                print "CANNOT REMOVE IMAGE : acquisition path does not match acquisition name !"
+                print("CANNOT REMOVE IMAGE : acquisition path does not match acquisition name !")
                 return
         
-            if "subacquisition" in di.attributes().keys():
+            if "subacquisition" in list(di.attributes().keys()):
                 self.removeDiskItems(di,eraseFiles=True)
             else:
                 removeFromDB(acqPath)
-            self.setStatus(u"Image %s deleted from the database"%imageName)
+            self.setStatus("Image %s deleted from the database"%imageName)
             self.selectBvSubject(str(self.ui.bvSubjectCombo.currentText()))
 
 
@@ -804,7 +803,7 @@ class ImageImport(QtWidgets.QDialog):
     def importBids(self):
         """ Open a dialog window to import subjects from a BIDS database """
         if ('bids' not in self.prefs) or (not self.prefs['bids']):
-            QtGui.QMessageBox.warning(self, u"BIDS", u"Set the path to the BIDS database in the Prefs tab.")
+            QtGui.QMessageBox.warning(self, "BIDS", "Set the path to the BIDS database in the Prefs tab.")
             return
         
         # === GET BIDS SUBJECTS ===
@@ -874,7 +873,7 @@ class ImageImport(QtWidgets.QDialog):
                         try:
                             tsv_reader = csv.reader(tsv_file, delimiter="\t")
                             # Read header
-                            tsv_header = tsv_reader.next()
+                            tsv_header = next(tsv_reader)
                             iColFile = tsv_header.index('filename')
                             iColTime = tsv_header.index('acq_time')
                             # Read all scans
@@ -882,7 +881,7 @@ class ImageImport(QtWidgets.QDialog):
                             for line in tsv_reader:
                                 imgDates[os.path.split(line[iColFile].replace('\\','/'))[1]] = line[iColTime]
                         except:
-                            print("Could not parse scans info: " + pathMod)
+                            print(("Could not parse scans info: " + pathMod))
                         # Close file
                         tsv_file.close()
                         
@@ -901,7 +900,7 @@ class ImageImport(QtWidgets.QDialog):
                 bidsSub.append(subName)
                 bidsImg.append(addImg)
         if not bidsSub:
-            QtGui.QMessageBox.warning(self, u"BIDS Import", u"No subjects with anat or pet modalities found in:\n%s"%self.prefs['bids'])
+            QtGui.QMessageBox.warning(self, "BIDS Import", "No subjects with anat or pet modalities found in:\n%s"%self.prefs['bids'])
             return
         # Sort alphabetically
         bidsSub, bidsImg = (list(t) for t in zip(*sorted(zip(bidsSub, bidsImg))))
@@ -918,7 +917,7 @@ class ImageImport(QtWidgets.QDialog):
             subNew = bidsSub
         # No subjects to import
         if not subNew:
-            QtGui.QMessageBox.warning(self, u"BIDS Import", u"All BIDS subjects are already imported in the IntrAnat database.")
+            QtGui.QMessageBox.warning(self, "BIDS Import", "All BIDS subjects are already imported in the IntrAnat database.")
             return
         # Ask user to select which ones to import
         dialog = DialogCheckbox.DialogCheckbox(subNew, "Import BIDS", "Select the patients to import:")
@@ -1020,7 +1019,7 @@ class ImageImport(QtWidgets.QDialog):
             return
         self.ui.niftiFileLabel.setText(path)
         # Display the image and remove others
-        print "Loading %s"%path
+        print("Loading %s"%path)
         split_path = os.path.splitext(path)
         if split_path[-1] == ".mgz":
             try:
@@ -1030,7 +1029,7 @@ class ImageImport(QtWidgets.QDialog):
                 allT1 = list(di.findValues({},None,False))
                 idxT1pre = [i for i in range(len(allT1)) if 'T1pre' in str(allT1[i])]
                 if len(idxT1pre)==0:
-                    print "to import freesurfer images, the T1pre has to be imported because a reslicing is necessary"
+                    print("to import freesurfer images, the T1pre has to be imported because a reslicing is necessary")
                     return
 
                 #mri_convert -rl /data/brainvisa/Epilepsy/Gre_2015_BESk/t1mri/T1pre_2015-1-1/Gre_2015_BESk.nii /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/aparc.a2009s+aseg.mgz /home/b67-belledone/freesurfer/subjects/Gre_2015_BESk/mri/test.nii -rt nearest -ncD
@@ -1040,7 +1039,7 @@ class ImageImport(QtWidgets.QDialog):
                 #mriconvert_call ='mri_convert -i {} -o {}'.format(path,tmp_nii_path)
                 #runCmd(mriconvert_call.split())
             except:
-                print "conversion mgz to nii didn't work"
+                print("conversion mgz to nii didn't work")
                 return
         else:
             mri = self.a.loadObject(path)
@@ -1074,7 +1073,7 @@ class ImageImport(QtWidgets.QDialog):
         if path is None:
             path = str(self.ui.niftiFileLabel.text())
             if not path:
-                QtGui.QMessageBox.warning(self, "Error", u"Choose a file to import !")
+                QtGui.QMessageBox.warning(self, "Error", "Choose a file to import !")
                 return
         if patient is None:
             patient = str(self.ui.niftiSubjectCombo.currentText())
@@ -1084,7 +1083,7 @@ class ImageImport(QtWidgets.QDialog):
             modality = str(self.ui.niftiSeqType.currentText()) # T1 / T2 / CT / PET /fMRI
         if acq is None:
             if self.ui.acqDate.date() == self.defaultAcqDate:
-                QtGui.QMessageBox.warning(self, "Error",u"Acquisition date is not valid!")
+                QtGui.QMessageBox.warning(self, "Error","Acquisition date is not valid!")
                 return
             d = self.ui.acqDate.date()
             acq = str(modality + self.ui.niftiAcqType.currentText() + '_' + str(d.year()) + '-' + str(d.month()) + '-' + str(d.day()))
@@ -1114,20 +1113,20 @@ class ImageImport(QtWidgets.QDialog):
         wdi = WriteDiskItem(filetype, 'NIFTI-1 image' )#'gz compressed NIFTI-1 image' )
         di = wdi.findValue(write_filters)
         if di is None:
-            QtGui.QMessageBox.warning(self, "Error", u"Impossible to find a valid path to import the Image in Brainvisa database (%s, %s)"%(patient, acq))
+            QtGui.QMessageBox.warning(self, "Error", "Impossible to find a valid path to import the Image in Brainvisa database (%s, %s)"%(patient, acq))
             return
         # Check for existing file
         if os.path.exists(di.fileName()):
-            reply = QtGui.QMessageBox.question(self, 'Overwrite', u"This image already exists.\nOverwrite the file ?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            reply = QtGui.QMessageBox.question(self, 'Overwrite', "This image already exists.\nOverwrite the file ?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.No:
                 return
         # Check for duplicated file roles
         imgType = acq.split('_')[0]
         if (len(self.bvImages) > 0) and (filetype != 'fMRI-epile') and filetype != ('Statistic-Data') and filetype != 'FreesurferAtlas':
-            ImAlreadyHere = [i for i in range(len(self.bvImages)) if str(imgType+'_') in self.bvImages.keys()[i]]
+            ImAlreadyHere = [i for i in range(len(self.bvImages)) if str(imgType+'_') in list(self.bvImages.keys())[i]]
             if len(ImAlreadyHere):
-                QtGui.QMessageBox.warning(self, 'WARNING', u"There is already a %s image, delete it before importing a new one."%(imgType))
-                self.setStatus(u"Sequence %s importation not performed (already one equivalent)"%acq)
+                QtGui.QMessageBox.warning(self, 'WARNING', "There is already a %s image, delete it before importing a new one."%(imgType))
+                self.setStatus("Sequence %s importation not performed (already one equivalent)"%acq)
                 return
     
         # Call import function in a separate function with a progress bar
@@ -1152,7 +1151,7 @@ class ImageImport(QtWidgets.QDialog):
             except:
                 pass
         # Report status
-        self.setStatus(u"Sequence %s importation done"%acq)
+        self.setStatus("Sequence %s importation done"%acq)
         
         
     def importNiftiWorker(self, di, path, filetype, modality, isGado, thr=None):
@@ -1184,14 +1183,14 @@ class ImageImport(QtWidgets.QDialog):
         if (filetype != 'fMRI-epile') & (filetype != 'PET') & (filetype != 'Statistic-Data'):  # or filetype != 'MTT'
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16'])
         elif filetype == 'PET':
-            print "conversion PET float to S16"
+            print("conversion PET float to S16")
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination), '-t', 'S16', '-r', 'True'])
             di.setMinf('ColorPalette','Blue-Red-fusion')
         else:
-            print "no conversion to grayscale"
+            print("no conversion to grayscale")
             ret = subprocess.call(['AimsFileConvert', '-i', str(destination), '-o', str(destination)])
         if ret < 0:
-            print "Importation error: BrainVisa / AimsFileConvert"
+            print("Importation error: BrainVisa / AimsFileConvert")
             return
 
         # Save GADO status
@@ -1232,7 +1231,7 @@ class ImageImport(QtWidgets.QDialog):
             for db in neuroHierarchy.databases.iterDatabases():
                 if db.directory.lower().find("freesurfer") != -1:
                     FsSubjDir = db.directory
-                    print("FreeSurfer database folder: " + FsSubjDir)
+                    print(("FreeSurfer database folder: " + FsSubjDir))
                     break
             if not FsSubjDir:
                 errMsg = "No local FreeSurfer database found."
@@ -1334,7 +1333,7 @@ class ImageImport(QtWidgets.QDialog):
                 # Create target folder
                 createItemDirs(di)
                 # Copy file into the local FS datbase
-                print("Copy: " + allFiles[key]['file'] + " => " + di.fullPath())
+                print(("Copy: " + allFiles[key]['file'] + " => " + di.fullPath()))
                 copyfile(allFiles[key]['file'], di.fullPath())
                 # Add reference in the database (creates .minf)
                 neuroHierarchy.databases.insertDiskItem(di, update=True)
@@ -1394,7 +1393,7 @@ class ImageImport(QtWidgets.QDialog):
         try:
             launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i', imgPath,'-o',str(di.fullPath()),'-rl',str(diT1pre.fullPath()),'-rt','nearest','-nc')
         except:
-            QtGui.QMessageBox.warning(self, "Error", u"Could not launch Freesurfer command")
+            QtGui.QMessageBox.warning(self, "Error", "Could not launch Freesurfer command")
         # Convert to AIMS
         if fileVoxelType is None:
             fileVoxelType = 'S16' # Default value
@@ -1418,7 +1417,7 @@ class ImageImport(QtWidgets.QDialog):
         # Find T1pre of the subject
         diT1pre = self.findT1pre(subject)
         if not diT1pre:
-            QtGui.QMessageBox.warning(self, "Error", u"No T1pre MRI found this patient: " + subject)
+            QtGui.QMessageBox.warning(self, "Error", "No T1pre MRI found this patient: " + subject)
             return
         # Ask input folder
         importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Lausanne2008 folder", "", QtGui.QFileDialog.ShowDirsOnly))
@@ -1433,7 +1432,7 @@ class ImageImport(QtWidgets.QDialog):
         # Check that all the files exist (skip the lausanne files)
         for key in allFiles:
             if not os.path.isfile(allFiles[key]):
-                QtGui.QMessageBox.warning(self, "Error", u"Lausanne2008 file not found:\n" + allFiles[key])
+                QtGui.QMessageBox.warning(self, "Error", "Lausanne2008 file not found:\n" + allFiles[key])
                 return
         # Run copy and conversion in a separate thread
         res = ProgressDialog.call(lambda thr:self.importLausanne2008Worker(subject, proto, allFiles, diT1pre, thr), True, self, "Processing " + subject + "...", "Import Lausanne atlas")
@@ -1462,7 +1461,7 @@ class ImageImport(QtWidgets.QDialog):
         # Find T1pre of the subject
         diT1pre = self.findT1pre(subject)
         if not diT1pre:
-            QtGui.QMessageBox.warning(self, "Error", u"No T1pre MRI found this patient: " + subject)
+            QtGui.QMessageBox.warning(self, "Error", "No T1pre MRI found this patient: " + subject)
             return
         # Ask input folder
         importDir = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Freesurfer subject folder for VEP import", "",
@@ -1471,7 +1470,7 @@ class ImageImport(QtWidgets.QDialog):
             return
         # Get files of interest in the input folder
         if not os.path.isfile(importDir + '/mri/aparc+aseg.vep.mgz'):
-            QtGui.QMessageBox.warning(self, "Error", u"VEP file not found:\n" + importDir + '/mri/aparc+aseg.vep.mgz')
+            QtGui.QMessageBox.warning(self, "Error", "VEP file not found:\n" + importDir + '/mri/aparc+aseg.vep.mgz')
             return
         # Run copy and conversion in a separate thread
         res = ProgressDialog.call(lambda thr: self.importVEPWorker(subject, proto, importDir + '/mri/aparc+aseg.vep.mgz', diT1pre, thr),
@@ -1503,22 +1502,22 @@ class ImageImport(QtWidgets.QDialog):
             subj = str(self.ui.subjectPatientCode.text())
             if self.prefs['projectSelected'][0] == 1 or self.prefs['projectSelected'][0] == 2:
                 if len(subj) < 10:
-                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
+                    QtGui.QMessageBox.warning(self, "Subject adding", "Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
                     return False
             if self.prefs['projectSelected'][0] == 0:
                 if len(subj) < 16:
-                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
+                    QtGui.QMessageBox.warning(self, "Subject adding", "Impossible to add the subject, subject identifier is too short and doesn't match the subject identifier model chosen in preferences")
                     return False
                 elif len(subj) > 16:
-                    QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier is too long and doesn't match the subject identifier model chosen in preferences")
+                    QtGui.QMessageBox.warning(self, "Subject adding", "Impossible to add the subject, subject identifier is too long and doesn't match the subject identifier model chosen in preferences")
                     return False
                 else:
                     if not (subj[0:4].isdigit() and not subj[4:8].isdigit() and subj[8:].isdigit() and subj[7] == '_'):
-                        QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
+                        QtGui.QMessageBox.warning(self, "Subject adding", "Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
                         return False
                     else:
                         if not int(subj[8:12]) > 1950 and not int(subj[8:12]) < 2100 and not int(subj[12:14]) >0 and not int(subj[12:14]) < 13 and not int(subj[14:16]) > 0 and not int(subj[14:16]) < 32:
-                            QtGui.QMessageBox.warning(self, u"Subject adding", u"Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
+                            QtGui.QMessageBox.warning(self, "Subject adding", "Impossible to add the subject, subject identifier doesn't match the subject identifier model chosen in preferences: ex: 0001GRE_yyyymmdd")
                             return False
         else:
             isSwitchTab = False
@@ -1526,18 +1525,18 @@ class ImageImport(QtWidgets.QDialog):
         wdi = WriteDiskItem( 'Subject', 'Directory' )
         di = wdi.findValue( { 'center': str(self.ui.bvProtocolCombo.currentText()), 'subject' : subj } )
         if di is None:
-          QtGui.QMessageBox.warning(self, u"Error", u"Impossible to find a valid path for the patient")
-          self.setStatus(u"Subject add failed : the path is not valid")
+          QtGui.QMessageBox.warning(self, "Error", "Impossible to find a valid path for the patient")
+          self.setStatus("Subject add failed : the path is not valid")
           return False
         # Create directories that do not exist yet
         createItemDirs(di)
         try:
           os.mkdir(di.fileName())
           neuroHierarchy.databases.insertDiskItem( di, update=True )
-          self.setStatus(u"Subject %s added to the database"%subj)
+          self.setStatus("Subject %s added to the database"%subj)
           self.currentSubject = subj
         except:
-          self.setStatus(u"Subject adding failed : impossible to create subject folder")
+          self.setStatus("Subject adding failed : impossible to create subject folder")
           return False
         # Switch to next tab
         if isSwitchTab:
@@ -1556,21 +1555,21 @@ class ImageImport(QtWidgets.QDialog):
 
         dict_temporaire1 = {}
         for i in images:
-            if 'subacquisition' in i.attributes().keys():
+            if 'subacquisition' in list(i.attributes().keys()):
                 dict_temporaire1.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i.fileName()})
             else:
                 dict_temporaire1.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i.fileName()})
     
         dict_temporaire2 = {}
         for i in images:
-            if 'subacquisition' in i.attributes().keys():
+            if 'subacquisition' in list(i.attributes().keys()):
                 dict_temporaire2.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition']:i})
             else:
                 dict_temporaire2.update({i.attributes()['modality'] + ' - ' + i.attributes()['acquisition']:i})
     
-        self.ui.regImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
+        self.ui.regImageList.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in list(i.attributes().keys())\
                 else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
-        self.ui.regImageList2.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in i.attributes().keys()\
+        self.ui.regImageList2.addItems(sorted([i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] + ' - ' + i.attributes()['subacquisition'] if 'subacquisition' in list(i.attributes().keys())\
                 else i.attributes()['modality'] + ' - '+ i.attributes()['acquisition'] for i in images ]))
     
     
@@ -1595,7 +1594,7 @@ class ImageImport(QtWidgets.QDialog):
         # Load image
         mri = self.a.loadObject(image)
         # Force reading Scanner-based referential from .nii file
-        print "WARNING: Using referential from .nii header, ignoring transformations from BrainVISA database."
+        print("WARNING: Using referential from .nii header, ignoring transformations from BrainVISA database.")
         try:
             self.a.execute('LoadReferentialFromHeader', objects=[mri])
         except:
@@ -1633,7 +1632,7 @@ class ImageImport(QtWidgets.QDialog):
         #errMsg = self.registerNormalizeSubjectWorker(proto, subj, images)
         # Display error messages
         if errMsg:
-            QtGui.QMessageBox.critical(self, u'Regitration error', u"Errors occured during the normalization or registration: \n\n" + u"\n".join(errMsg))
+            QtGui.QMessageBox.critical(self, 'Regitration error', "Errors occured during the normalization or registration: \n\n" + "\n".join(errMsg))
 
     
     def registerNormalizeSubjectWorker(self, proto, subj, images, isResample, progressThread=None):
@@ -1644,19 +1643,19 @@ class ImageImport(QtWidgets.QDialog):
             acq = image.attributes()['acquisition']
             # Store Scanner-based referential and referential files in the DB
             if not image.attributes()['modality'] == 'statistic_data' and not image.attributes()['modality'] == 'freesurfer_atlas':   # and not image.attributes()['modality'] == 'hippofreesurfer_atlas':
-                print "do the coregistration"
+                print("do the coregistration")
                 self.storeImageReferentialsAndTransforms(image)
             # If this is a T1, normalize it to MNI (pre or post). If the pre is badly normalized, "using the post" should be stored in the DB
             # if acq.startswith('T1'):
             # FT 9-Nov-2018: Logic change: normalize only the T1pre volumes, the other ones are useless
             if acq.startswith('T1pre'):
-                self.setStatus(u"SPM normalization %s..."%acq)
+                self.setStatus("SPM normalization %s..."%acq)
                 if progressThread:
                     progressThread.progress_text.emit("SPM normalization: " + subj + "/" + image.attributes()['modality'] + "...")
                 errMsg = self.spmNormalize(image.fileName(), proto, patient, acq)
                 if errMsg:
                     return errMsg
-                self.taskfinished(u"SPM normalization done")
+                self.taskfinished("SPM normalization done")
                 # If there is a T1pre, remember the image
                 #if acq.find('T1pre') == 0:
                 t1preImage = image
@@ -1665,7 +1664,7 @@ class ImageImport(QtWidgets.QDialog):
             return
     
         # COREGISTER
-        self.setStatus(u"Coregistration of all images to T1pre...")
+        self.setStatus("Coregistration of all images to T1pre...")
         for image in images:
             acq = image.attributes()['acquisition']
             patient = image.attributes()['subject']
@@ -1674,11 +1673,11 @@ class ImageImport(QtWidgets.QDialog):
                 continue
             # FreeSurfer MRI: Skip this step, transformation was saved at the import time
             elif ('FreesurferAtlas' in image.attributes()['acquisition']) or ('FreesurferAtlas' in acq):
-                print("Coregistration: Skipping " + image.attributes()['acquisition'] + "...")
+                print(("Coregistration: Skipping " + image.attributes()['acquisition'] + "..."))
                 continue
             # Statistics: Same referential as t1pre
             elif image.attributes()['modality'] == 'statistic_data' or image.attributes()['modality'] == 'freesurfer_atlas':  # or image.attributes()['modality'] == 'hippofreesurfer_atlas':
-                print "Coregistration: Attribute T1pre referential to this modality {}".format(image.attributes()['modality'])
+                print("Coregistration: Attribute T1pre referential to this modality {}".format(image.attributes()['modality']))
                 self.transfoManager.setReferentialTo(image, t1preImage.attributes()['referential'] )
                 continue
     
@@ -1721,12 +1720,12 @@ class ImageImport(QtWidgets.QDialog):
                     # Temporary txt file to store the trm transformation
                     tmpOutput = getTmpFilePath('txt')
                     imageFileName = image.fileName()
-                    if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):
-                        print "it is RGB"
+                    if ('data_type' in list(image.attributes().keys())) and (image.attributes()['data_type'] == 'RGB'):
+                        print("it is RGB")
                         imageFileName = getTmpFilePath('nii')
                         ret = subprocess.call(['AimsFileConvert', '-i', str(image.fileName()), '-o', str(imageFileName), '-t', 'S16'])
                         if ret < 0:
-                            print "Conversion to S16 error: "+repr(registeredPath) #terminal
+                            print("Conversion to S16 error: "+repr(registeredPath)) #terminal
                             return
                     # Get brain centers (by default: center of the volume)
                     if 'brainCenter' in image.attributes() and image.attributes()['brainCenter']:
@@ -1758,11 +1757,11 @@ class ImageImport(QtWidgets.QDialog):
                         return errMsg
                     # Register transformation in the database
                     self.insertTransformationToT1pre(tmpOutput, image)
-                    if ('data_type' in image.attributes().keys()) and (image.attributes()['data_type'] == 'RGB'):
+                    if ('data_type' in list(image.attributes().keys())) and (image.attributes()['data_type'] == 'RGB'):
                         os.remove(imageFileName)
                         os.remove(imageFileName+'.minf')
 
-        self.taskfinished(u"Coregistration done")
+        self.taskfinished("Coregistration done")
         # Clear all the views
         self.clearAnatomist()
 
@@ -1822,11 +1821,11 @@ class ImageImport(QtWidgets.QDialog):
                     lockFiles += [os.path.join(root, file)]
         # Offer to delete lock files
         if lockFiles:
-            rep = QtGui.QMessageBox.warning(self, u'Confirmation', \
-                    u"<b>WARNING:</b><br/>This subject can\'t be processed because it contains .lock files.<br/><br/>" + \
-                    u"Option #1: Someone else is processing the same subject right now. In this case you have to wait until the other computation is done.<br/><br/>" + \
-                    u"Option #2: The previous execution crashed or was closed before the end and BrainVISA could not delete these .lock files properly, they must be deleted manually.<br/><br/>" + \
-                    u"Delete all the lock files now?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            rep = QtGui.QMessageBox.warning(self, 'Confirmation', \
+                    "<b>WARNING:</b><br/>This subject can\'t be processed because it contains .lock files.<br/><br/>" + \
+                    "Option #1: Someone else is processing the same subject right now. In this case you have to wait until the other computation is done.<br/><br/>" + \
+                    "Option #2: The previous execution crashed or was closed before the end and BrainVISA could not delete these .lock files properly, they must be deleted manually.<br/><br/>" + \
+                    "Delete all the lock files now?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
                 for file in lockFiles:
                     os.remove(file)
@@ -1856,7 +1855,7 @@ class ImageImport(QtWidgets.QDialog):
         iFS = [i for i in range(len(hemis)) if 'FreesurferAtlaspre' in hemis[i].attributes()["acquisition"]]
         # Existing segmentation: Ask for confirmation before deleting
         if iFS:
-            rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing FreeSurfer+Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            rep = QtGui.QMessageBox.warning(self, 'Confirmation', "<font color='red'><b>WARNING:</b> There is an existing FreeSurfer+Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
                 self.deleteExistingMeshes(hemis[iFS[0]], 'FreesurferAtlaspre')
             else:
@@ -1904,7 +1903,7 @@ class ImageImport(QtWidgets.QDialog):
         idxT1pre = [i for i in range(len(hemis)) if 'T1pre' in hemis[i].attributes()["acquisition"]]
         # Existing segmentation: Ask for confirmation before deleting
         if idxT1pre:
-            rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>WARNING:</b> There is an existing BrainVISA/Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            rep = QtGui.QMessageBox.warning(self, 'Confirmation', "<font color='red'><b>WARNING:</b> There is an existing BrainVISA/Morphologist segmentation for this subject. Running this pipeline will delete the existing meshes and MarsAtlas parcels.<br/><br/>Delete existing meshes and MarsAtlas parcels?</font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
             if (rep == QtGui.QMessageBox.Yes):
                 self.deleteExistingMeshes(hemis[idxT1pre[0]], 'T1pre')
             else:
@@ -2014,7 +2013,7 @@ class ImageImport(QtWidgets.QDialog):
     def validateAcPc(self, ):
         if not all(k in self.AcPc for k in ('AC','PC','IH','LH')):
             # Some values are missing
-            QtGui.QMessageBox.warning(self, 'Missing points', u"You have entered the following points %s, You have to enter AC, PC, IH and LH"%repr(self.AcPc.keys()))
+            QtGui.QMessageBox.warning(self, 'Missing points', "You have entered the following points %s, You have to enter AC, PC, IH and LH"%repr(list(self.AcPc.keys())))
             return
 
         # Close the display, disable the buttons and forget AcPc coordinates (they could be mistakenly used for another subject !)
@@ -2025,17 +2024,17 @@ class ImageImport(QtWidgets.QDialog):
         self.ui.regPcButton.setStyleSheet("")
         self.ui.regIhButton.setStyleSheet("")
         self.ui.regLhButton.setStyleSheet("")
-        self.setStatus(u"Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
+        self.setStatus("Starting segmentation BrainVisa/Morphologist2015 of the image T1 pre-implantation")
         # Start computation in a separate thread
         errMsg = ProgressDialog.call(lambda thr:self.validateAcPcWorker(thr), True, self, "Processing...", "BrainVISA segmentation")
         # Display error messages
         if errMsg:
-            QtGui.QMessageBox.critical(self, u'Segmentation error', u"Errors occured during the segmentation: \n\n" + u"\n".join(errMsg))
+            QtGui.QMessageBox.critical(self, 'Segmentation error', "Errors occured during the segmentation: \n\n" + "\n".join(errMsg))
         
         
     def validateAcPcWorker(self, thread=None):
         # No gado
-        if (not 'Gado' in self.mriAcPc.attributes().keys()) or (not self.mriAcPc.attributes()['Gado']):
+        if (not 'Gado' in list(self.mriAcPc.attributes().keys())) or (not self.mriAcPc.attributes()['Gado']):
             if thread:
                 thread.progress_text.emit("Running Morphologist 2015...")
                 thread.progress.emit(10)
@@ -2069,7 +2068,7 @@ class ImageImport(QtWidgets.QDialog):
             if thread:
                 thread.progress_text.emit("SPM image segmentation...")
                 thread.progress.emit(15)
-            print self.currentSubject + ": Running segmentation to remove Gado on T1 no bias..."
+            print(self.currentSubject + ": Running segmentation to remove Gado on T1 no bias...")
             nobiasRDI = ReadDiskItem("T1 MRI Bias Corrected", 'BrainVISA volume formats',requiredAttributes={"center":self.currentProtocol,"subject":self.currentSubject})
             nobiasimages = list( nobiasRDI._findValues( {}, None, False ) )
             id_pre = [x for x in range(len(nobiasimages)) if 'pre' in str(nobiasimages[x])]
@@ -2098,13 +2097,13 @@ class ImageImport(QtWidgets.QDialog):
             errMsg = matlabRun(call)
             if errMsg:
                 return errMsg
-            print self.currentSubject + ": Segmentation gado done."
+            print(self.currentSubject + ": Segmentation gado done.")
             
             # Replace segmented nobias image with segmented image
             if thread:
                 thread.progress_text.emit("Saving new segmented image...")
                 thread.progress.emit(20)
-            print self.currentSubject + ": Replacing nobias.nii with segmented image..."
+            print(self.currentSubject + ": Replacing nobias.nii with segmented image...")
             nobiasBak = os.path.join(getTmpDir(),self.currentSubject + 'backup.nii')
             cmd1 = ['mv', nobiasPre, nobiasBak]
             cmd2 = ['cp', nogadoPre, nobiasPre]
@@ -2114,7 +2113,7 @@ class ImageImport(QtWidgets.QDialog):
             ret = subprocess.call(['AimsFileConvert', '-i', nobiasPre, '-o', nobiasPre, '-t', 'S16'])
             if ret < 0:
                 #QtGui.QMessageBox.warning(self, "Error", u"Error in the conversion of the segmented image to int16.")
-                print "Error: Error in the conversion of the segmented image to int16." 
+                print("Error: Error in the conversion of the segmented image to int16.") 
                 return
             
             # Execute the rest of the Morphologist pipeline
@@ -2137,9 +2136,9 @@ class ImageImport(QtWidgets.QDialog):
                     posterior_commissure = self.AcPc['PC'], interhemispheric_point = self.AcPc['IH'], left_hemisphere_point = self.AcPc['LH'], perform_sulci_recognition = True)
 
             # Task finishesd
-            self.taskfinished(self.currentSubject + u': BrainVISA segmentation and meshes generation')
+            self.taskfinished(self.currentSubject + ': BrainVISA segmentation and meshes generation')
             # Restore initial nobias image
-            print self.currentSubject + ": Restoring original nobias.nii..."
+            print(self.currentSubject + ": Restoring original nobias.nii...")
             cmd = ['mv', nobiasBak, nobiasPre]
             line1 = runCmd(cmd)
             
@@ -2151,8 +2150,8 @@ class ImageImport(QtWidgets.QDialog):
         
 
     def hiphopStart(self, center, subject, acq):
-        self.taskfinished(self.currentSubject + u': Morphologist segmentation and meshes generation')
-        self.setStatus(self.currentSubject + u": Starting Hip-Hop")
+        self.taskfinished(self.currentSubject + ': Morphologist segmentation and meshes generation')
+        self.setStatus(self.currentSubject + ": Starting Hip-Hop")
 
         Lrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'left', 'subject':subject, 'center':center, 'acquisition':acq})
         Rrdi = ReadDiskItem('Labelled Cortical folds graph', 'Graph and data', requiredAttributes={ 'side': 'right', 'subject':subject, 'center':center, 'acquisition':acq})
@@ -2167,7 +2166,7 @@ class ImageImport(QtWidgets.QDialog):
             return
     
         self.brainvisaContext.runProcess('Hip-Hop Cortical Parameterization', Lgraph = Lrdi[0], Rgraph = Rrdi[0], sulcus_identification ='label')
-        self.taskfinished(u'Hip-Hop done')
+        self.taskfinished('Hip-Hop done')
 
     def spmNormalize(self, image, protocol, patient, acq):
         """ Normalize one image (filepath of nifti file) to the T1 template MNI referential""" 
@@ -2196,7 +2195,7 @@ class ImageImport(QtWidgets.QDialog):
         rdi = ReadDiskItem('Scanner Based Referential', 'Referential', requiredAttributes={'modality':'t1mri', 'subject':patient, 'center':protocol})
         allT1s = list (rdi._findValues( {}, None, False ) )
         for t1 in allT1s:
-            if t1.attributes()['acquisition'].startswith(u'T1pre'):
+            if t1.attributes()['acquisition'].startswith('T1pre'):
                 return t1
         return None
 
@@ -2204,14 +2203,14 @@ class ImageImport(QtWidgets.QDialog):
         rdi = ReadDiskItem('Referential of Raw T1 MRI', 'Referential', requiredAttributes={'subject':patient, 'center':protocol})
         allT1s = list (rdi._findValues( {}, None, False ) )
         for t1 in allT1s:
-            if t1.attributes()['acquisition'].startswith(u'T1pre'):
+            if t1.attributes()['acquisition'].startswith('T1pre'):
                 return t1
         return None
 
     def setResampledToT1pre(self, image, registeredPath):
         ret = subprocess.call(['AimsFileConvert', '-i', str(registeredPath), '-o', str(image.fileName()), '-t', 'S16'])
         if ret < 0:
-            print "ERROR: Cannot import the image resampled by SPM : "+repr(registeredPath)
+            print("ERROR: Cannot import the image resampled by SPM : "+repr(registeredPath))
             #QtGui.QMessageBox.warning(self, "Error", u"the image has not been resampled by SPM !")
             return
         # TODO # Should destroy existing referentials for this image
@@ -2237,18 +2236,18 @@ class ImageImport(QtWidgets.QDialog):
         """Inserts a TRM file in the DB as the transformation between image and the T1pre scanner-based ref from the same subject"""
         # Check that transformation file exists
         if not os.path.exists(trmpath):
-            print "Error : file %s does not exist : cannot insert it as a TRM for image %s"%(trmpath, image.fileName())
+            print("Error : file %s does not exist : cannot insert it as a TRM for image %s"%(trmpath, image.fileName()))
         # Get the source (image) and destination (T1pre) referentials
         t1preRef = self.getT1preScannerBasedRef(image.attributes()['center'], image.attributes()['subject'])
         imageRef = self.getScannerBasedRef(image)
         if t1preRef is None or imageRef is None:
-            print "Error: Cannot find referentials to declare coregister transform to T1pre."
+            print("Error: Cannot find referentials to declare coregister transform to T1pre.")
             return
         # Get new transformation file
         wdiTransformT1 = WriteDiskItem( 'Transform '+ self.modas[image.attributes()['modality']] +' to another image', 'Transformation matrix', exactType=True, requiredAttributes = {'modalityTarget':t1preRef.attributes()['modality'], 'acquisitionTarget':t1preRef.attributes()['acquisition']} )
         transformT1 = wdiTransformT1.findValue(image)
         if transformT1 is None:
-            print "Error: Cannot find path for T1pre transform in database for %s-> transformation NOT stored !"%(image.fileName())
+            print("Error: Cannot find path for T1pre transform in database for %s-> transformation NOT stored !"%(image.fileName()))
             return
         # Remove the existing .trm file first
         if os.path.exists(transformT1.fullPath()):
@@ -2263,7 +2262,7 @@ class ImageImport(QtWidgets.QDialog):
             pass
         # Set and update database
         self.transfoManager.setNewTransformationInfo( transformT1, source_referential=imageRef, destination_referential=t1preRef)
-        print "Added transformation: from %s to %s for %s"%(repr(imageRef), repr(t1preRef), repr(transformT1))
+        print("Added transformation: from %s to %s for %s"%(repr(imageRef), repr(t1preRef), repr(transformT1)))
         return transformT1
 
     def insertSPMdeformationFile(self, protocol, patient, acq):
@@ -2278,15 +2277,15 @@ class ImageImport(QtWidgets.QDialog):
         if not os.path.isfile(di_write.fileName()):
             print("Error: Impossible to find a valid path for the T1 coregistered into the MNI")
         else:
-            print "Declaring T1 registered MNI in BrainVisa DB : " + di_write.fileName()
+            print("Declaring T1 registered MNI in BrainVisa DB : " + di_write.fileName())
             neuroHierarchy.databases.insertDiskItem(di_write, update = True)
             self.setNormalizedToT1pre(di_write,di_write.fileName())
         # The file should already be there : if it is not, abort with an error, otherwise declare it in the DB
         if os.path.isfile(di.fileName()):
-            print "Declaring SPM normalization in BrainVisa DB : " + di.fileName()
+            print("Declaring SPM normalization in BrainVisa DB : " + di.fileName())
             neuroHierarchy.databases.insertDiskItem( di, update=True )
         else:
-            print "No SPM normalization file found ! The normalization probably failed..."
+            print("No SPM normalization file found ! The normalization probably failed...")
             return
 
 
@@ -2458,13 +2457,13 @@ class ImageImport(QtWidgets.QDialog):
             wdirightamygdala = WriteDiskItem('rightAmygdala', 'GIFTI file' )
             dirightamygdala = wdirightamygdala.findValue(constraints)
             if dirightamygdala is None:
-                print "mesh export : could not find valid path"
+                print("mesh export : could not find valid path")
             else:
                 if not os.path.isdir(os.path.dirname(dirightamygdala.fullPath())):
                     os.makedirs(os.path.dirname(dirightamygdala.fullPath()))
                 ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'rightamygdala.nii'), '-o', dirightamygdala.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dirightamygdala, update = True)
-                if 'referential' in T1pre.attributes().keys():
+                if 'referential' in list(T1pre.attributes().keys()):
                     self.transfoManager.setReferentialTo(dirightamygdala, T1pre.attributes()['referential'] )
 
         if AmygdalaLeft:
@@ -2480,17 +2479,17 @@ class ImageImport(QtWidgets.QDialog):
             wdileftamygdala = WriteDiskItem('leftAmygdala', 'GIFTI file' )
             dileftamygdala = wdileftamygdala.findValue(constraints)
             if dileftamygdala is None:
-                print "mesh export : could not find valid path"
+                print("mesh export : could not find valid path")
             else:
                 if not os.path.isdir(os.path.dirname(dileftamygdala.fullPath())):
                     os.makedirs(os.path.dirname(dileftamygdala.fullPath()))
                 ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'leftamygdala.nii'), '-o', dileftamygdala.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dileftamygdala, update = True)
-                if 'referential' in T1pre.attributes().keys():
+                if 'referential' in list(T1pre.attributes().keys()):
                     self.transfoManager.setReferentialTo(dileftamygdala, T1pre.attributes()['referential'] )
 
         #pour pouvoir decouper les hippocampes en deux
-        if isinstance(T1pre.attributes()['SB_Transform'],basestring):
+        if isinstance(T1pre.attributes()['SB_Transform'],str):
             import ast
             m = aims.Motion(ast.literal_eval(T1pre.attributes()['SB_Transform']))
         else:
@@ -2509,13 +2508,13 @@ class ImageImport(QtWidgets.QDialog):
             wdirighthippo =  WriteDiskItem('rightHippo', 'GIFTI file' )
             dirightHippo = wdirighthippo.findValue(constraints)
             if dirightHippo is None:
-                print "mesh export : could not find valid path"
+                print("mesh export : could not find valid path")
             else:
                 if not os.path.isdir(os.path.dirname(dirightHippo.fullPath())):
                     os.makedirs(os.path.dirname(dirightHippo.fullPath()))
             ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'righthippo.nii'), '-o', dirightHippo.fullPath()])
             neuroHierarchy.databases.insertDiskItem(dirightHippo, update = True)
-            if 'referential' in T1pre.attributes().keys():
+            if 'referential' in list(T1pre.attributes().keys()):
                 self.transfoManager.setReferentialTo(dirightHippo, T1pre.attributes()['referential'] )
 
             wdirighthippoantero =  WriteDiskItem('rightanteroHippocampus', 'GIFTI file' )
@@ -2557,7 +2556,7 @@ class ImageImport(QtWidgets.QDialog):
             if coords2[1] > coords1[1]:
                 #2 est l'antero; 1 est posterieur
                 if dirighthippoantero is None or dirighthippopostero is None:
-                    print "mesh export : could not find valid path"
+                    print("mesh export : could not find valid path")
                 else:
                     cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dirighthippoantero.fullPath())]
                     cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dirighthippopostero.fullPath())]
@@ -2565,13 +2564,13 @@ class ImageImport(QtWidgets.QDialog):
                     line2 = runCmd(cmd2)
                     neuroHierarchy.databases.insertDiskItem(dirighthippoantero, update = True)
                     neuroHierarchy.databases.insertDiskItem(dirighthippopostero, update = True)
-                    if 'referential' in T1pre.attributes().keys():
+                    if 'referential' in list(T1pre.attributes().keys()):
                         self.transfoManager.setReferentialTo(dirighthippoantero, T1pre.attributes()['referential'] )
                         self.transfoManager.setReferentialTo(dirighthippopostero, T1pre.attributes()['referential'] )
             elif coords2[1] < coords1[1]:
                 #1 est l'antero; 2 est le posterieur
                 if dirighthippoantero is None or dirighthippopostero is None:
-                    print "mesh export : could not find valid path"
+                    print("mesh export : could not find valid path")
                 else:
                     cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dirighthippoantero.fullPath())]
                     cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dirighthippopostero.fullPath())]
@@ -2579,7 +2578,7 @@ class ImageImport(QtWidgets.QDialog):
                     line2 = runCmd(cmd2)
                     neuroHierarchy.databases.insertDiskItem(dirighthippoantero, update = True)
                     neuroHierarchy.databases.insertDiskItem(dirighthippopostero, update = True)
-                    if 'referential' in T1pre.attributes().keys():
+                    if 'referential' in list(T1pre.attributes().keys()):
                         self.transfoManager.setReferentialTo(dirighthippoantero, T1pre.attributes()['referential'] )
                         self.transfoManager.setReferentialTo(dirighthippopostero, T1pre.attributes()['referential'] )
 
@@ -2613,15 +2612,15 @@ class ImageImport(QtWidgets.QDialog):
                 hippo_vol_antero *= 5301
                 hippo_vol_postero *= 5302
                 hippo_vol_full = hippo_vol_antero + hippo_vol_postero
-                for z in xrange(hippo_vol_full.getSizeZ()):
-                    for y in xrange(hippo_vol_full.getSizeY()):
-                        for x in xrange(hippo_vol_full.getSizeX()):
+                for z in range(hippo_vol_full.getSizeZ()):
+                    for y in range(hippo_vol_full.getSizeY()):
+                        for x in range(hippo_vol_full.getSizeX()):
                             if hippo_vol_full.value(x, y, z) >5302:
                                 hippo_vol_full.setValue(5302, x, y, z)
 
                 aims.write(hippo_vol_full,str(dirightHippoNII.fullPath()))
                 neuroHierarchy.databases.insertDiskItem(dirightHippoNII, update = True)
-                if 'referential' in T1pre.attributes().keys():
+                if 'referential' in list(T1pre.attributes().keys()):
                     self.transfoManager.setReferentialTo(dirightHippoNII, T1pre.attributes()['referential'] )
 
 
@@ -2637,13 +2636,13 @@ class ImageImport(QtWidgets.QDialog):
             wdilefthippo =  WriteDiskItem('leftHippo', 'GIFTI file' )
             dileftHippo = wdilefthippo.findValue(constraints)
             if dileftHippo is None:
-                print "mesh export : could not find valid path"
+                print("mesh export : could not find valid path")
             else:
                 if not os.path.isdir(os.path.dirname(dileftHippo.fullPath())):
                     os.makedirs(os.path.dirname(dileftHippo.fullPath()))
                 ret = subprocess.call(['AimsMeshBrain', '-i', os.path.join(getTmpDir(),'lefthippo.nii'), '-o', dileftHippo.fullPath()])
                 neuroHierarchy.databases.insertDiskItem(dileftHippo, update = True)
-                if 'referential' in T1pre.attributes().keys():
+                if 'referential' in list(T1pre.attributes().keys()):
                     self.transfoManager.setReferentialTo(dileftHippo, T1pre.attributes()['referential'] )
 
                 wdilefthippoantero =  WriteDiskItem('leftanteroHippocampus', 'GIFTI file' )
@@ -2683,7 +2682,7 @@ class ImageImport(QtWidgets.QDialog):
                 if coords2[1] > coords1[1]:
                     #2 est l'antero; 1 est posterieur
                     if dilefthippoantero is None or dilefthippopostero is None:
-                        print "mesh export : could not find valid path"
+                        print("mesh export : could not find valid path")
                     else:
                         cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dilefthippoantero.fullPath())]
                         cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dilefthippopostero.fullPath())]
@@ -2691,13 +2690,13 @@ class ImageImport(QtWidgets.QDialog):
                         line2 = runCmd(cmd2)
                         neuroHierarchy.databases.insertDiskItem(dilefthippoantero, update = True)
                         neuroHierarchy.databases.insertDiskItem(dilefthippopostero, update = True)
-                        if 'referential' in T1pre.attributes().keys():
+                        if 'referential' in list(T1pre.attributes().keys()):
                             self.transfoManager.setReferentialTo(dilefthippoantero, T1pre.attributes()['referential'] )
                             self.transfoManager.setReferentialTo(dilefthippopostero, T1pre.attributes()['referential'] )
                 elif coords2[1] < coords1[1]:
                     #1 est l'antero; 2 est le posterieur
                     if dilefthippoantero is None or dilefthippopostero is None:
-                        print "mesh export : could not find valid path"
+                        print("mesh export : could not find valid path")
                     else:
                         cmd1 = ['mv', os.path.join(getTmpDir(),'testhippocut.gii'), str(dilefthippoantero.fullPath())]
                         cmd2 = ['mv', os.path.join(getTmpDir(),'testhippocut2.gii'), str(dilefthippopostero.fullPath())]
@@ -2705,7 +2704,7 @@ class ImageImport(QtWidgets.QDialog):
                         line2 = runCmd(cmd2)
                         neuroHierarchy.databases.insertDiskItem(dilefthippoantero, update = True)
                         neuroHierarchy.databases.insertDiskItem(dilefthippopostero, update = True)
-                        if 'referential' in T1pre.attributes().keys():
+                        if 'referential' in list(T1pre.attributes().keys()):
                             self.transfoManager.setReferentialTo(dilefthippoantero, T1pre.attributes()['referential'] )
                             self.transfoManager.setReferentialTo(dilefthippopostero, T1pre.attributes()['referential'] )
 
@@ -2738,20 +2737,20 @@ class ImageImport(QtWidgets.QDialog):
                     hippo_vol_antero *= 1701
                     hippo_vol_postero *= 1702
                     hippo_vol_full = hippo_vol_antero + hippo_vol_postero
-                    for z in xrange(hippo_vol_full.getSizeZ()):
-                        for y in xrange(hippo_vol_full.getSizeY()):
-                            for x in xrange(hippo_vol_full.getSizeX()):
+                    for z in range(hippo_vol_full.getSizeZ()):
+                        for y in range(hippo_vol_full.getSizeY()):
+                            for x in range(hippo_vol_full.getSizeX()):
                                 if hippo_vol_full.value(x, y, z) >1702:
                                     hippo_vol_full.setValue(1702, x, y, z)
 
                     aims.write(hippo_vol_full,str(dileftHippoNII.fullPath()))
                     neuroHierarchy.databases.insertDiskItem(dileftHippoNII, update = True)
-                    if 'referential' in T1pre.attributes().keys():
+                    if 'referential' in list(T1pre.attributes().keys()):
                         self.transfoManager.setReferentialTo(dileftHippoNII, T1pre.attributes()['referential'] )
 
 
-        print "generation of amygdala and hippocamp meshes done"
-        self.setStatus(u"generation of amygdala and hippocamp meshes done")
+        print("generation of amygdala and hippocamp meshes done")
+        self.setStatus("generation of amygdala and hippocamp meshes done")
 
 
     def fitvolumebyellipse(self,volumeposition):
@@ -2802,7 +2801,7 @@ class ImageImport(QtWidgets.QDialog):
 
         ret = subprocess.call(['AimsFileConvert', '-i', str(registeredPath), '-o', str(image.fileName()), '-t', 'S16'])
         if ret < 0:
-            print "Error: Cannot import the SPM resampled image : "+repr(registeredPath)
+            print("Error: Cannot import the SPM resampled image : "+repr(registeredPath))
             #QtGui.QMessageBox.warning(self, "Error", u"The image has not been resampled by SPM !")
             return
         # TODO # Should destroy existing referentials for this image
@@ -2813,7 +2812,7 @@ class ImageImport(QtWidgets.QDialog):
 
     def taskfinished(self, message, threadObj=None):
         """ When a task (thread) is finished, display the message and launch the waiting callbacks"""
-        self.setStatus(u"Task done : "+message) #+' : '+repr(threadObj)
+        self.setStatus("Task done : "+message) #+' : '+repr(threadObj)
         if threadObj is None:
             return
         # Looking for callback functions waiting
@@ -2837,13 +2836,13 @@ class ImageImport(QtWidgets.QDialog):
     # Preference tab : set the SPM T1 template path
     def setSpmTemplatePath(self, path=None):
         if path is None or type(path)==bool:
-            path = QtGui.QFileDialog.getExistingDirectory(self, u"Select SPM path")
+            path = QtGui.QFileDialog.getExistingDirectory(self, "Select SPM path")
         if path is not None and type(path) != bool:
             self.ui.prefSpmTemplateEdit.setText(path)
 
     def setANTsPath(self, path=None):
         if path is None or type(path)==bool:
-            path = QtGui.QFileDialog.getExistingDirectory(self, u"Select ANTs path")
+            path = QtGui.QFileDialog.getExistingDirectory(self, "Select ANTs path")
         if path is not None and type(path) != bool:
             self.ui.prefANTsEdit.setText(path)
 
@@ -2856,7 +2855,7 @@ class ImageImport(QtWidgets.QDialog):
 
     def setBidsPath(self, path=None):
         if path is None or type(path)==bool:
-            path = QtGui.QFileDialog.getExistingDirectory(self, u"Select BIDS database")
+            path = QtGui.QFileDialog.getExistingDirectory(self, "Select BIDS database")
         if path is not None and type(path) != bool:
             self.ui.prefBidsEdit.setText(path)
             

@@ -253,7 +253,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         if (loadAll == True) and isGui:
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
-            self.a.onCursorNotifier.add(self.clickHandler)
+            #self.a.onCursorNotifier.add(self.clickHandler) # BRAINVISA 5 MANIK -> crash
             
             # Create 4 windows
             self.wins = []
@@ -364,9 +364,9 @@ class LocateElectrodes(QtWidgets.QDialog):
                 if (os.path.exists(prefpath_imageimport)):
                     filein = open(prefpath_imageimport, 'rU')
                     prefs_imageimport = pickle.load(filein)
-                    if 'spm' in prefs_imageimport.keys():
+                    if 'spm' in list(prefs_imageimport.keys()):
                         self.spmpath = prefs_imageimport['spm']
-                    if 'bids' in prefs_imageimport.keys():
+                    if 'bids' in list(prefs_imageimport.keys()):
                         self.bidspath = prefs_imageimport['bids']
                     filein.close()
             except:
@@ -501,7 +501,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         """Returns the path of the MNI transformation and compute it if necessary"""
         # If not T1pre: error
         if 'T1pre' not in self.diskItems:
-            print "No T1pre loaded : cannot get MNI transform from it"
+            print("No T1pre loaded : cannot get MNI transform from it")
             return None
         # Look for an existing y inverse file
         rdi_inv_read = ReadDiskItem('SPM normalization inverse deformation field', 'NIFTI-1 image')
@@ -512,7 +512,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         rdi_y = ReadDiskItem('SPM normalization deformation field','NIFTI-1 image')
         di_y = rdi_y.findValue(self.diskItems['T1pre'])
         if not di_y:
-            print "SPM MNI deformation field not found: Recompute MNI normalization from ImageImport."
+            print("SPM MNI deformation field not found: Recompute MNI normalization from ImageImport.")
             return None
         # Compute y inverse
         else:
@@ -525,14 +525,14 @@ class LocateElectrodes(QtWidgets.QDialog):
             # Compute inverse deformation with SPM12
             errMsg = matlabRun(spm12_inverse_y%("'"+self.spmpath+"'","'"+str(di_y.fileName())+"'","'"+self.dispObj['T1pre'].fileName()+"'","'"+name_yinverse.replace('.nii','_inverse.nii')+"'","'"+dir_yinverse+"'"))
             if errMsg:
-                print errMsg
+                print(errMsg)
                 return None
             # Check that output file exists
             if os.path.exists(di_inv_write.fileName()):
                 neuroHierarchy.databases.insertDiskItem(di_inv_write, update=True)
                 return di_inv_write.fileName()
             else:
-                print "Error: Could not compute SPM MNI inverse deformation field"
+                print("Error: Could not compute SPM MNI inverse deformation field")
                 return None
 
 
@@ -589,7 +589,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             errMsg += ["", "The various images may not be aligned correctly.", 
                        "Close LocateElectrodes, start ImageImport, delete the extra images (the ones added last), then start again LocateEletrodes and try again. ", 
                        "If the images and electrodes are still not aligned correctly, you may need to delete the patient and start over."]
-            QtGui.QMessageBox.warning(self, u'Database error', "\n".join(errMsg))
+            QtGui.QMessageBox.warning(self, 'Database error', "\n".join(errMsg))
     
 
     def loadPatientWorker(self, patient, thread=None, isGui=True):
@@ -624,30 +624,30 @@ class LocateElectrodes(QtWidgets.QDialog):
             na = None
             # Add elements in the display list
             if (t.attributes()['modality'] == 't1mri') and ('FreesurferAtlaspre' in t.attributes()['acquisition']):
-                if ('MRI FreeSurfer' in dictionnaire_list_images.keys()):
+                if ('MRI FreeSurfer' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple FreesurferAtlaspre images found"]
                 dictionnaire_list_images.update({'MRI FreeSurfer':['FreesurferT1pre', 'electrodes']})
                 na = 'FreesurferT1pre'
             elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'no'):
-                if ('MRI pre' in dictionnaire_list_images.keys()):
+                if ('MRI pre' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T1pre images found"]
                 dictionnaire_list_images.update({'MRI pre':['T1pre', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('T1pre' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'yes') :
-                if ('Normalized MRI pre' in dictionnaire_list_images.keys()):
+                if ('Normalized MRI pre' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T1pre-Norm images found"]
                 dictionnaire_list_images.update({'Normalized MRI pre':['preNorm', 'electrodes']})
                 na = 'preNorm'         
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'no'):
-                if ('MRI post-op' in dictionnaire_list_images.keys()):
+                if ('MRI post-op' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T1postOp images found"]
                 dictionnaire_list_images.update({'MRI post-op':['T1postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't1mri') and ('postOp' in t.attributes()['acquisition']) and (t.attributes()['normalized'] == 'yes') :
-                if ('Normalized MRI post-op' in dictionnaire_list_images.keys()):
+                if ('Normalized MRI post-op' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T1postOp-Norm images found"]
                 dictionnaire_list_images.update({'Normalized MRI post-op':['postOpNorm', 'electrodes']})
                 na = 'postOpNorm'   
             elif (t.attributes()['modality'] == 't1mri') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
-                if ('MRI post' in dictionnaire_list_images.keys()):
+                if ('MRI post' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T1post images found"]
                 dictionnaire_list_images.update({'MRI post':['T1post', 'electrodes']})
                 if not pre_select_1:
@@ -657,19 +657,19 @@ class LocateElectrodes(QtWidgets.QDialog):
                 if not pre_select_3:
                     pre_select_3 = 'MRI post'
             elif (t.attributes()['modality'] == 't2mri') and ('pre' in t.attributes()['acquisition']):
-                if ('MRI pre T2' in dictionnaire_list_images.keys()):
+                if ('MRI pre T2' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T2pre images found"]
                 dictionnaire_list_images.update({'MRI pre T2':['T2pre', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('postOp' in t.attributes()['acquisition']):
-                if ('MRI post-op T2' in dictionnaire_list_images.keys()):
+                if ('MRI post-op T2' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T2postOp images found"]
                 dictionnaire_list_images.update({'MRI post-op T2':['T2postOp', 'electrodes']})
             elif (t.attributes()['modality'] == 't2mri') and ('post' in t.attributes()['acquisition']):
-                if ('MRI post T2' in dictionnaire_list_images.keys()):
+                if ('MRI post T2' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple T2post images found"]
                 dictionnaire_list_images.update({'MRI post T2':['T2post', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('post' in t.attributes()['acquisition']) and not ('postOp' in t.attributes()['acquisition']):
-                if ('CT post' in dictionnaire_list_images.keys()):
+                if ('CT post' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple CTpost images found"]
                 dictionnaire_list_images.update({'CT post':['CTpost', 'electrodes']})
                 if not pre_select_1:
@@ -679,23 +679,23 @@ class LocateElectrodes(QtWidgets.QDialog):
                 if not pre_select_3:
                     pre_select_3 = 'CT post'
             elif (t.attributes()['modality'] == 'ct') and ('pre' in t.attributes()['acquisition']):
-                if ('CT pre' in dictionnaire_list_images.keys()):
+                if ('CT pre' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple CTpre images found"]
                 dictionnaire_list_images.update({'CT pre':['CTpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'ct') and ('postOp' in t.attributes()['acquisition']):
-                if ('CT post-op' in dictionnaire_list_images.keys()):
+                if ('CT post-op' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple CTpostOp images found"]
                 dictionnaire_list_images.update({'CT post-op':['CTpostOp', 'electrodes']})
             elif (t.attributes()['modality'] == 'pet') and ('pre' in t.attributes()['acquisition']):
-                if ('PET pre' in dictionnaire_list_images.keys()):
+                if ('PET pre' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple PETpre images found"]
                 dictionnaire_list_images.update({'PET pre':['PETpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'flair') and ('pre' in t.attributes()['acquisition']):
-                if ('FLAIR pre' in dictionnaire_list_images.keys()):
+                if ('FLAIR pre' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple FLAIRpre images found"]
                 dictionnaire_list_images.update({'FLAIR pre':['FLAIRpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'fgatir') and ('pre' in t.attributes()['acquisition']):
-                if ('FGATIR pre' in dictionnaire_list_images.keys()):
+                if ('FGATIR pre' in list(dictionnaire_list_images.keys())):
                     errMsg += ["Multiple FGATIRpre images found"]
                 dictionnaire_list_images.update({'FGATIR pre':['FGATIRpre', 'electrodes']})
             elif (t.attributes()['modality'] == 'fmri_epile') and ('pre' in t.attributes()['acquisition']):
@@ -752,12 +752,12 @@ class LocateElectrodes(QtWidgets.QDialog):
                     elif moda == 'Electrode Implantation Sagittal Image':
                         na = 'ImplantationSag'
                     else:
-                        print "CANNOT find a nameAcq for ", repr(t)
+                        print("CANNOT find a nameAcq for ", repr(t))
                         na = 'unknown'
             
             # Try setting referential if not defined in the .minf
-            if (na == 'T1pre') and (not 'referential' in t.attributes().keys()):
-                print "*** DATABASE FIX: Adding the referential "
+            if (na == 'T1pre') and (not 'referential' in list(t.attributes().keys())):
+                print("*** DATABASE FIX: Adding the referential ")
                 # Look for referential file for this volume
                 rdi = ReadDiskItem('Referential of Raw T1 MRI', 'Referential', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
                 volReferential = list(rdi.findValues({}, None, False))
@@ -765,8 +765,8 @@ class LocateElectrodes(QtWidgets.QDialog):
                 if (len(volReferential) == 1):
                     t.setMinf('referential', volReferential[0].uuid())
                     neuroHierarchy.databases.insertDiskItem(t, update=True)
-            if ((na == 'preNorm') or (na == 'postOpNorm')) and (not 'referential' in t.attributes().keys()):
-                print "*** DATABASE FIX: Adding the referential "
+            if ((na == 'preNorm') or (na == 'postOpNorm')) and (not 'referential' in list(t.attributes().keys())):
+                print("*** DATABASE FIX: Adding the referential ")
                 # Look for referential file for this volume
                 rdi = ReadDiskItem('Referential of Raw T1 MRI', 'Referential', exactType=True, requiredAttributes={'subject':t['subject'], 'center':t['center'], 'acquisition':t['acquisition']})
                 volReferential = list(rdi.findValues({}, None, False))
@@ -804,18 +804,18 @@ class LocateElectrodes(QtWidgets.QDialog):
                             trans = [inf['translation'][0] - acInScannerBased[0], inf['translation'][1] - acInScannerBased[1], inf['translation'][2] - acInScannerBased[2]]
                             m = aims.Motion(rot[:3] + [trans[0]] + rot[3:6] + [trans[1]] + rot[6:] + [trans[2]] + [0, 0, 0, 1])
                             self.refConv.setTransformMatrix('AC-centered Scanner-Based', m.inverse(), m)
-                except Exception, e:
-                    print "Cannot load Scanner-based referential from T1 pre MRI : " + repr(e)
+                except Exception as e:
+                    print("Cannot load Scanner-based referential from T1 pre MRI : " + repr(e))
 
                 # Load standard transformations (AC-PC, T1pre Scanner-based, BrainVisa Talairach)
                 try:
                     self.refConv.loadACPC(t)
-                except Exception, e:
-                    print "Cannot load AC-PC referential from T1 pre MRI : " + repr(e)
+                except Exception as e:
+                    print("Cannot load AC-PC referential from T1 pre MRI : " + repr(e))
                 try:
                     self.refConv.loadTalairach(t)
-                except Exception, e:
-                    print "Cannot load Talairach referential from T1 pre MRI : " + repr(e)
+                except Exception as e:
+                    print("Cannot load Talairach referential from T1 pre MRI : " + repr(e))
             
             elif (na == 'FreesurferT1pre'):
                 if (na == 'FreesurferT1pre'):
@@ -1088,7 +1088,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                            requiredAttributes={'modality':'t1mri', 'subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']})
         allTransf = list (rdi._findValues( {}, None, False ) )
         for trsf in allTransf:
-            if trsf.attributes()['acquisition'].startswith(u'T1pre'):
+            if trsf.attributes()['acquisition'].startswith('T1pre'):
                 srcrDiskItem = self.transfoManager.referential( trsf.attributes()['source_referential'] )
                 srcr = self.a.createReferential(srcrDiskItem)
                 dstrDiskItem = self.transfoManager.referential(trsf.attributes()['destination_referential'])
@@ -1110,7 +1110,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         loadedTrm = []
         for trm in allTransf:
             # Skip incomplete transformations
-            if ('source_referential' not in trm.attributes().keys()) or ('destination_referential' not in trm.attributes().keys()):
+            if ('source_referential' not in list(trm.attributes().keys())) or ('destination_referential' not in list(trm.attributes().keys())):
                 continue
             # Get source referential
             srcrDiskItem = self.transfoManager.referential(trm.attributes()['source_referential'])
@@ -1126,13 +1126,13 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Delete existing normalized transformations, otherwise we can't match the T1pre and FreeSurferT1 scanner-based exactly
         for trm in self.a.getTransformations():
             if trm.getInfos()\
-            and ('source_referential' in trm.getInfos().keys()) \
+            and ('source_referential' in list(trm.getInfos().keys())) \
             and (trm.getInfos()['source_referential'] == obj.getReferential().getInfo()['uuid']):
                 # Remove only normalized transformations
                 for ref in self.a.getReferentials():
-                    if ('destination_referential' in trm.getInfos().keys()) \
+                    if ('destination_referential' in list(trm.getInfos().keys())) \
                     and (ref.getInfo()['uuid'] == trm.getInfos()['destination_referential']) \
-                    and ref.getInfo() and ('name' in ref.getInfo().keys()) \
+                    and ref.getInfo() and ('name' in list(ref.getInfo().keys())) \
                     and ((ref.getInfo()['name'] == 'Talairach-MNI template-SPM') or (ref.getInfo()['name'] == 'Talairach-AC/PC-Anatomist')):
                         self.a.deleteElements(trm)
 
@@ -1146,15 +1146,15 @@ class LocateElectrodes(QtWidgets.QDialog):
         curr = str(self.referentialCombo.currentText())
         self.referentialCombo.clear()
         # Add items from the referential converter
-        refs = self.refConv.availableReferentials().keys() + ['Natif',]
+        refs = list(self.refConv.availableReferentials().keys()) + ['Natif',]
         self.referentialCombo.addItems(refs)
         # Add available atlases
-        if ('FreesurferAtlaspre' in self.dispObj.keys()):
+        if ('FreesurferAtlaspre' in list(self.dispObj.keys())):
             self.referentialCombo.addItems(["Destrieux"])
             self.referentialCombo.setCurrentIndex( self.referentialCombo.count() - 1 )
-        if ('DKT' in self.dispObj.keys()):
+        if ('DKT' in list(self.dispObj.keys())):
             self.referentialCombo.addItems(["DKT"])
-        if ('HCP-MMP1' in self.dispObj.keys()):
+        if ('HCP-MMP1' in list(self.dispObj.keys())):
             self.referentialCombo.addItems(["HCP-MMP1"])
 
     def updateCoordsDisplay(self, text):
@@ -1192,7 +1192,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 load_new_file = True               
             else:
                 #ask if you want to replace the loaded data
-                rep = QtGui.QMessageBox.warning(self, u'Use database or Import?', u"Use sEEG stim result from the database ? (if no, it will ask for a file)", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel, QtGui.QMessageBox.Cancel)
+                rep = QtGui.QMessageBox.warning(self, 'Use database or Import?', "Use sEEG stim result from the database ? (if no, it will ask for a file)", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel, QtGui.QMessageBox.Cancel)
                 if rep == QtGui.QMessageBox.Yes:
                     load_new_file = False 
                 elif rep == QtGui.QMessageBox.No:    
@@ -1238,10 +1238,10 @@ class LocateElectrodes(QtWidgets.QDialog):
                 new_label = json.loads(fin.read())
                 fin.close()
     
-            bipole_label_sorted = sorted(new_label['contacts'].keys(),key=natural_keys)
+            bipole_label_sorted = sorted(list(new_label['contacts'].keys()),key=natural_keys)
             plotsT1preRef = self.getPlotsT1preRef()
             info_plotsT1Ref= []
-            for k,v in plotsT1preRef.iteritems():
+            for k,v in plotsT1preRef.items():
                 plot_name_split = k.split('-$&_&$-')
                 info_plotsT1Ref.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v.list()))
                 
@@ -1283,7 +1283,7 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     def updateElectrodeMeshes(self, clear=False, bipole=False):
         if clear:
-            if 'electrodes' not in self.dispObj.keys():
+            if 'electrodes' not in list(self.dispObj.keys()):
                 return
             self.a.removeObjects(self.dispObj['electrodes'], self.wins)
             self.dispObj['electrodes'] = []
@@ -1318,13 +1318,13 @@ class LocateElectrodes(QtWidgets.QDialog):
             isTransparent = True
         if refId is not None:
             if self.preReferential().uuid() != refId:
-                print "ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId)
+                print("ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId))
         # Create electrode meshes
         for el in self.electrodes:
             if name == el['name']:
                 name = self.findFreeElectrodeName()
         if str(model) not in self.elecModelListByName:
-            print("ERROR: Could not find electrode model named " + str(model) + ". Ignoring electrode. Please check that the model is installed in IntrAnat database !")
+            print(("ERROR: Could not find electrode model named " + str(model) + ". Ignoring electrode. Please check that the model is installed in IntrAnat database !"))
             #QtGui.QMessageBox.warning(self, u'Error', u"Could not load electrode model %s. Please check it is installed in IntrAnat database !"%str(model))
             return
         (newRef, transf, elecModel) = createElectrode(target, entry, self.preReferential(), self.a,\
@@ -1350,7 +1350,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             return
         if refId is not None:
             if self.preReferential().uuid() != refId:
-                print "ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId)     
+                print("ERROR : the electrode is not defined in reference to the T1 pre image (%s) but in reference to %s !\nGoing on anyway..."%(self.preReferential().uuid(), refId))     
         #check is name is already taken
         if len(self.bipoles)>0:
             for bip in self.bipoles:
@@ -1360,7 +1360,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         #je met un objet elecmodel ici ou juste le mesh ? un objet elecmodel de 1 contact ?
         rdiEM = ReadDiskItem('Electrode Model', 'Electrode Model format', requiredAttributes={'center':self.currentProtocol})
         listEM = list(rdiEM.findValues({},None,False))
-        matches = filter((lambda x: u"bipole" in str(x)), listEM)
+        matches = list(filter((lambda x: "bipole" in str(x)), listEM))
             
         (newRef, transf, elecModel) = createBipole(positionbip.tolist(), entry_bipole.tolist(), self.preReferential(), self.a, model = matches[0], dispMode = 'bipole', dispParams = None)
         self.bipoles.append({'name': name, 'ref':newRef, 'transf':transf, 'target':positionbip.tolist(), 'entry': entry_bipole.tolist(), 'elecModel':elecModel}) #to change target and entry
@@ -1374,7 +1374,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         else:
             electrodes = [electrode,]
         for el in electrodes:
-            for name, element in el['elecModel'].getDisplayed().iteritems():
+            for name, element in el['elecModel'].getDisplayed().items():
                 if element['mesh'] is not None:
                     if element['type'] == 'Plot':
                         element['mesh'].setName(name.replace('Plot', el['name']))
@@ -1388,7 +1388,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         else:
             bipoles = [bipole,]
         for bp in bipoles:
-            for name, element in bp['elecModel'].getDisplayed().iteritems():
+            for name, element in bp['elecModel'].getDisplayed().items():
                 element['mesh'].setName(bp['name'])  
 
     def findFreeElectrodeName(self):
@@ -1528,7 +1528,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             if sameNameItems[0] == self.electrodeList.item(idx): # Name was not changed
                 return
             else:
-                QtGui.QMessageBox.warning(self, u'Error', u"The name %s is already used by another electrode. Choose an other one !"%name)
+                QtGui.QMessageBox.warning(self, 'Error', "The name %s is already used by another electrode. Choose an other one !"%name)
                 self.nameEdit.setText(self.electrodeList.item(idx).text())
         self.electrodes[idx]['name'] = name
         self.setElectrodeMeshesNames(self.electrodes[idx])
@@ -1545,11 +1545,11 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Select the contacts in anatomist
         g = self.a.getDefaultWindowsGroup()
         g.setSelection(el['elecModel'].plotMeshes())
-        self.currentContacts = dict((name.replace('Plot', el['name']), element['mesh']) for name, element in el['elecModel'].getDisplayed().iteritems() if element['type'] == 'Plot' and element['mesh'] is not None)
+        self.currentContacts = dict((name.replace('Plot', el['name']), element['mesh']) for name, element in el['elecModel'].getDisplayed().items() if element['type'] == 'Plot' and element['mesh'] is not None)
         self.currentElectrodes = [el,]
         #Update contact list
         self.contactList.clear()
-        self.contactList.addItems(sorted(self.currentContacts.keys(), key=natural_keys))
+        self.contactList.addItems(sorted(list(self.currentContacts.keys()), key=natural_keys))
         # Update electrode referential (if selected)
         if (self.electrodeRefCheck.checkState() == QtCore.Qt.Checked):
             self.updateElectrodeView()
@@ -1591,7 +1591,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 xyz = transf.transform(xyz)
             self.wins[0].moveLinkedCursor(xyz)
         except:
-            print "Error moving the cursor to the contact"
+            print("Error moving the cursor to the contact")
 
     # Center the cursor on all the anatomist views
     def centerCursor(self):
@@ -1601,7 +1601,7 @@ class LocateElectrodes(QtWidgets.QDialog):
     def getElectrodeTemplates(self):
         """Returns a list of Electrode objects, one for each available electrode template model available in the DB"""
         if self.electrodeTemplateStubs == []:
-            self.electrodeTemplateStubs = dict([(n, ElectrodeModel(modelPath=model.fullPath(), dispMode='off')) for n, model in self.elecModelListByName.iteritems()])
+            self.electrodeTemplateStubs = dict([(n, ElectrodeModel(modelPath=model.fullPath(), dispMode='off')) for n, model in self.elecModelListByName.items()])
         return self.electrodeTemplateStubs
 
 
@@ -1611,9 +1611,9 @@ class LocateElectrodes(QtWidgets.QDialog):
     
         models = self.getElectrodeTemplates()
         uniformModelsLength = {}
-        for n, model in models.iteritems():
+        for n, model in models.items():
             interPlotsM = []
-            plotsM = sorted([[int(''.join(e for e in namePlot if e.isdigit())), ] + content['center'] for namePlot, content in model.getPlots().iteritems()], key=lambda p:p[0])
+            plotsM = sorted([[int(''.join(e for e in namePlot if e.isdigit())), ] + content['center'] for namePlot, content in model.getPlots().items()], key=lambda p:p[0])
     
             for p in range(len(plotsM) - 1):
                 interPlotsM.append(math.sqrt((plotsM[p][1] - plotsM[p + 1][1]) ** 2 + (plotsM[p][2] - plotsM[p + 1][2]) ** 2 + (plotsM[p][3] - plotsM[p + 1][3]) ** 2))
@@ -1621,10 +1621,10 @@ class LocateElectrodes(QtWidgets.QDialog):
             if len(set(interPlotsM)) == 1:  # All intervals are identical
                 uniformModelsLength[n] = lengthM
         if length >= max(uniformModels.values()):
-            return [m for m, l in uniformModels.iteritems() if l == max(uniformModels.values())][0]
+            return [m for m, l in uniformModels.items() if l == max(uniformModels.values())][0]
         else:
-            largerModels = dict([(m, l) for m, l in uniformModels.iteritems() if l >= length])
-            return [m for m, l in largerModels.iteritems() if l == min(largerModels.values())][0]
+            largerModels = dict([(m, l) for m, l in uniformModels.items() if l >= length])
+            return [m for m, l in largerModels.items() if l == min(largerModels.values())][0]
 
 
     def fitElecModelToPlots(self, plots):
@@ -1637,22 +1637,22 @@ class LocateElectrodes(QtWidgets.QDialog):
         for p in range(len(plots)-1):
             interPlots.append(math.sqrt((plots[p][1]-plots[p+1][1])**2 + (plots[p][2]-plots[p+1][2])**2 + (plots[p][3]-plots[p+1][3])**2))
         # Find electrode models with a similar number of plots
-        models = dict([(n,tpl) for n,tpl in self.getElectrodeTemplates().iteritems() if tpl.countPlots() == len(plots)]) # identical number
+        models = dict([(n,tpl) for n,tpl in self.getElectrodeTemplates().items() if tpl.countPlots() == len(plots)]) # identical number
         if len(models) == 0:
-            print "Cannot find a template with the right number of contacts (%i), trying longer ones"%len(plots)
-            nbPlotsModels = dict([(n, tpl.countPlots()) for n,tpl in self.getElectrodeTemplates().iteritems() if tpl.countPlots() > len(plots)])
+            print("Cannot find a template with the right number of contacts (%i), trying longer ones"%len(plots))
+            nbPlotsModels = dict([(n, tpl.countPlots()) for n,tpl in self.getElectrodeTemplates().items() if tpl.countPlots() > len(plots)])
             if len(nbPlotsModels) == 0:
-                print "Cannot find a template with enough contacts for this electrode ! (available : %s)\nWill match with the largest available electrodes !\n THIS WILL LOSE SOME PLOTS"%repr(nbPlotsModels.values())
-                nbPlotsModels = dict([(n, tpl.countPlots()) for n,tpl in self.getElectrodeTemplates().iteritems()])
-                models = dict([(n,tpl) for n,tpl in self.getElectrodeTemplates().iteritems() if tpl.countPlots() == max(nbPlotsModels.values())])
+                print("Cannot find a template with enough contacts for this electrode ! (available : %s)\nWill match with the largest available electrodes !\n THIS WILL LOSE SOME PLOTS"%repr(list(nbPlotsModels.values())))
+                nbPlotsModels = dict([(n, tpl.countPlots()) for n,tpl in self.getElectrodeTemplates().items()])
+                models = dict([(n,tpl) for n,tpl in self.getElectrodeTemplates().items() if tpl.countPlots() == max(nbPlotsModels.values())])
             else:
-                models = dict([(n,tpl) for n,tpl in self.getElectrodeTemplates().iteritems() if tpl.countPlots() == min(nbPlotsModels.values())])
+                models = dict([(n,tpl) for n,tpl in self.getElectrodeTemplates().items() if tpl.countPlots() == min(nbPlotsModels.values())])
 
         # Now, check the interPlots distance in the model and compare with the template
         distanceFromModel = {}
-        for n,model in models.iteritems():
+        for n,model in models.items():
             interPlotsM=[]
-            plotsM = sorted([[int(''.join(e for e in namePlot if e.isdigit())), ] + content['center'] for namePlot, content in model.getPlots().iteritems()], key=lambda p:p[0])
+            plotsM = sorted([[int(''.join(e for e in namePlot if e.isdigit())), ] + content['center'] for namePlot, content in model.getPlots().items()], key=lambda p:p[0])
             
             for p in range(len(plotsM)-1):
                 interPlotsM.append(math.sqrt((plotsM[p][1]-plotsM[p+1][1])**2 + (plotsM[p][2]-plotsM[p+1][2])**2 + (plotsM[p][3]-plotsM[p+1][3])**2))
@@ -1661,11 +1661,11 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Choose the model with the smallest distance, or the first one if a few are equally good, reject if sum is more than 1mm per contact
         minDist = min(distanceFromModel.values())
         if minDist > 1.0*len(plots):
-            print "Cannot match a template : minimum distance found is %f mm, should be %f or less !"%(minDist, 1.0*len(plots))
+            print("Cannot match a template : minimum distance found is %f mm, should be %f or less !"%(minDist, 1.0*len(plots)))
             return None
         # We have a winner !
         goodModel = [m for m in distanceFromModel if distanceFromModel[m] == minDist][0]
-        print "Found model %s, match distance = %f"%(goodModel, minDist)
+        print("Found model %s, match distance = %f"%(goodModel, minDist))
         entry = plots[-1][1:]
         # Target is not the center of the first contact, but its end ! -> coords - lengthOfPlot/2*vector(plot0->plotLast)
         target = array(plots[0][1:]) - (array(plotsarr[-1][1:])-array(plots[0][1:]))/linalg.norm(array(plots[-1][1:])-array(plots[0][1:])) * 0.5 * self.getElectrodeTemplates()[goodModel].getCylinder('Plot1')['length']
@@ -1700,14 +1700,14 @@ class LocateElectrodes(QtWidgets.QDialog):
         f.close()
     
         # The coordinates in the PTS are expressed in which referential ?
-        refOfPts = self.comboMessageBox(u'Importation d\'un fichier PTS. Choisissez le référentiel utilisé (Scanner-based...)', sorted(self.refConv.availableReferentials().keys()))
+        refOfPts = self.comboMessageBox('Importation d\'un fichier PTS. Choisissez le référentiel utilisé (Scanner-based...)', sorted(self.refConv.availableReferentials().keys()))
         if refOfPts is None:
-            print "User cancelled PTS importation, or no valid referential found"
+            print("User cancelled PTS importation, or no valid referential found")
             return
-        print "PTS import referential : %s"%repr(refOfPts)
+        print("PTS import referential : %s"%repr(refOfPts))
         lines.reverse()
         if not lines.pop().startswith('ptsfile'):
-            print 'This is not a valid PTS file !'
+            print('This is not a valid PTS file !')
             return (refId, [])
         lines.pop() # Useless line 1 1 1
         nb = int(lines.pop()) # Number of contacts
@@ -1715,7 +1715,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             l = lines.pop().rstrip().split() # name x y z 0 0 0 2 2.0 (last ones may be contact length/diameter ?)
             name = ''.join(e for e in l[0] if not e.isdigit())
             
-            print l[0]
+            print(l[0])
             plot = ''.join(e for e in l[0] if e.isdigit())
             if plot == '':
                 continue
@@ -1728,13 +1728,13 @@ class LocateElectrodes(QtWidgets.QDialog):
             nameplot = l[0]
             elecs[name].append ( [plot,] + coords)
         # Iterate over all electrodes
-        for k,l in elecs.iteritems():
+        for k,l in elecs.items():
             # Try to get a real model from l [[numPlot, x,y,z], [...], ...]
             res = self.fitElecModelToPlots(l)
             if res is not None:
                 els.append( {'name':k.lower(), 'model':res[0], 'target': res[1], 'entry':res[2]} )
             else:
-                print "Could not find model matching electrode %s, adding individual contacts."%k
+                print("Could not find model matching electrode %s, adding individual contacts."%k)
                 for pl in l:
                     coords = pl[1:]
                     els.append( {'name':k+str(pl[0]), 'model':'plot2mmD1mmCentered', 'target': coords, 'entry':coords[0:2]+[coords[2]+1.0,]} )
@@ -1751,23 +1751,23 @@ class LocateElectrodes(QtWidgets.QDialog):
         lines.reverse()
     
         # The coordinates in the TXT are expressed in which referential ?
-        refOfTxt = self.comboMessageBox(u'Importation d\'un fichier electrode TXT. Choisissez le référentiel utilisé (Scanner-based a priori)', sorted(self.refConv.availableReferentials().keys()))
+        refOfTxt = self.comboMessageBox('Importation d\'un fichier electrode TXT. Choisissez le référentiel utilisé (Scanner-based a priori)', sorted(self.refConv.availableReferentials().keys()))
         if refOfTxt is None:
-            print "User cancelled electrode TXT importation, or no valid referential found"
+            print("User cancelled electrode TXT importation, or no valid referential found")
             return
-        print "TXT electrode import referential : %s"%repr(refOfTxt)
+        print("TXT electrode import referential : %s"%repr(refOfTxt))
     
         while (len(lines) >= 3):
             try:
                 name = lines.pop()
-                targ = map (float,lines.pop().replace(',','.').split())
-                entr = map (float,lines.pop().replace(',','.').split())
+                targ = list(map (float,lines.pop().replace(',','.').split()))
+                entr = list(map (float,lines.pop().replace(',','.').split()))
                 if len(targ) == 3 and len(entr) == 3 and len(name)>0:
                     targ = list(self.refConv.anyRef2Real(targ, refOfTxt))
                     entr = list(self.refConv.anyRef2Real(entr, refOfTxt))
                     els.append( {'name':name.lower(), 'model':fitElecModelToLength(targ, entr), 'target': targ, 'entry':entr} )
                 else:
-                    print "Invalid lines in electrode txt file : %s, %s, %s"%(repr(name), repr(targ), repr(entr))
+                    print("Invalid lines in electrode txt file : %s, %s, %s"%(repr(name), repr(targ), repr(entr)))
             except:
                 pass
     
@@ -1787,10 +1787,10 @@ class LocateElectrodes(QtWidgets.QDialog):
             if len(elecs) == 1:
                 path = elecs[0].fileName()
             elif len(elecs) > 1:
-                print "CAREFUL : more than one electrode implantation are available, strange -> load the first found one" # TODO Dialogue de choix
+                print("CAREFUL : more than one electrode implantation are available, strange -> load the first found one") # TODO Dialogue de choix
                 path = elecs[0].fileName()
             else: # No implantation available
-                print "no electrode implantation found"
+                print("no electrode implantation found")
                 return
     
         if not path:
@@ -1818,11 +1818,11 @@ class LocateElectrodes(QtWidgets.QDialog):
             (refId, els) = self.loadPTS(path)
           # Demander le référentiel, ou deviner si le nom contient _MNI ?
         else:
-            print "file format unknown : %s !"%extension
-            QtGui.QMessageBox.warning(self, u'Erreur', u"the file format has not been recognized : %s"%extension)
+            print("file format unknown : %s !"%extension)
+            QtGui.QMessageBox.warning(self, 'Erreur', "the file format has not been recognized : %s"%extension)
     
         if refId != self.preReferential().uuid():
-            print "CAREFUL: electrodes load are defined in an other referential that the one of the T1 pre, problem possible !"
+            print("CAREFUL: electrodes load are defined in an other referential that the one of the T1 pre, problem possible !")
         for e in els:
             self.addElectrode(e['name'], e['model'], e['target'], e['entry'], refId, False, isGui)
         # Update display
@@ -1845,8 +1845,8 @@ class LocateElectrodes(QtWidgets.QDialog):
             wdi = WriteDiskItem( 'Electrode implantation', 'Electrode Implantation format' )
             di = wdi.findValue({'subject':self.brainvisaPatientAttributes['subject'], 'center':self.brainvisaPatientAttributes['center']} )
             if not di:
-                print "Cannot find a valid path to store the electrode implantation for the current patient !"
-                QtGui.QMessageBox.warning(self, u'Erreur', u"Cannot find a valid path to store the electrode implantation for the current patient !")
+                print("Cannot find a valid path to store the electrode implantation for the current patient !")
+                QtGui.QMessageBox.warning(self, 'Erreur', "Cannot find a valid path to store the electrode implantation for the current patient !")
             else:
                 path = di.fileName()
                 createItemDirs(di)
@@ -1860,7 +1860,7 @@ class LocateElectrodes(QtWidgets.QDialog):
     
         plotsT1preRef = self.getPlotsT1preRef()
         info_plotsT1Ref= []
-        for k,v in plotsT1preRef.iteritems():
+        for k,v in plotsT1preRef.items():
             plot_name_split = k.split('-$&_&$-')
             info_plotsT1Ref.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v.list()))
             #plots_label[k]=(label,label_name)
@@ -1874,7 +1874,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         fileout.close()
         if di is not None:
             neuroHierarchy.databases.insertDiskItem( di, update=True )
-        QtGui.QMessageBox.information(self, u'Implantation saved', u"Implantation has been saved in database.\nThe MNI coordinates of the contacts must be computed before the CSV generation.")
+        QtGui.QMessageBox.information(self, 'Implantation saved', "Implantation has been saved in database.\nThe MNI coordinates of the contacts must be computed before the CSV generation.")
         self.isModified = False
         
     
@@ -1929,9 +1929,9 @@ class LocateElectrodes(QtWidgets.QDialog):
             # Display errors and new files (if processing only one subject)
             if (len(selPatients) == 1) and res:
                 if res[1]:    # errMsg
-                    QtGui.QMessageBox.critical(self, u'Export error', u"Errors occured during the export: \n\n" + u"\n".join(res[1]))
+                    QtGui.QMessageBox.critical(self, 'Export error', "Errors occured during the export: \n\n" + "\n".join(res[1]))
                 if res[0]:    # newFiles
-                    QtGui.QMessageBox.information(self, u'Export done', u"New files saved in the database: \n\n" + u"\n".join(res[0]))
+                    QtGui.QMessageBox.information(self, 'Export done', "New files saved in the database: \n\n" + "\n".join(res[0]))
             # If processing multiple subjects: log success/failure
             elif res:
                 if res[1]:
@@ -1943,13 +1943,13 @@ class LocateElectrodes(QtWidgets.QDialog):
                 
         # Display final report after a loop of export of multiple subjects
         if pFailed or pSuccess:
-            strSummary = u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed))
+            strSummary = "%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed))
             strDetails = "Success: \n" + "\n".join(pSuccess) + "\n\nFailed:\n" + "\n".join(pFailed)
             # QtGui.QMessageBox.information(self, u'Export done', u"%d patients exported successfully\n%d patients failed\n\nCheck the console for more details."%(len(pSuccess), len(pFailed)))
-            print("\n\n" + strDetails)
+            print(("\n\n" + strDetails))
             msgBox = QtGui.QMessageBox()
             msgBox.setText(strSummary)
-            msgBox.setWindowTitle(u'Export done')
+            msgBox.setWindowTitle('Export done')
             msgBox.setDetailedText(strDetails)
             msgBox.exec_()
 
@@ -2138,7 +2138,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         
         if diMaskleft is None or diMaskright is None or diMaskGW_right is None or diMaskGW_left is None :
             #if a parcellation is missing we won't be able to make the screenshot, so we exit the function
-            print "No parcellisation found."  
+            print("No parcellisation found.")  
             return []
         else:
             #we take out the cursor
@@ -2187,14 +2187,14 @@ class LocateElectrodes(QtWidgets.QDialog):
             #puts the cursor back
             self.a.config()[ 'linkedCursor' ] = 1
             #opens the pictures of the left and right brain which were taken previously
-            images1 = map(Image.open, [os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittal.png"),\
-                                       os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittalRot.png")])
-            images2 = map(Image.open, [os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittal.png"),\
-                                       os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittalRot.png")])
+            images1 = list(map(Image.open, [os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittal.png"),\
+                                       os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"RightHemiSagittalRot.png")]))
+            images2 = list(map(Image.open, [os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittal.png"),\
+                                       os.path.join(getTmpDir(),self.brainvisaPatientAttributes['subject']+"LeftHemiSagittalRot.png")]))
             
             #calculates the width and height of the new picture we are going to make
-            widths1, heights1 = zip(*(i.size for i in images1))
-            widths2, heights2 = zip(*(i.size for i in images2))
+            widths1, heights1 = list(zip(*(i.size for i in images1)))
+            widths2, heights2 = list(zip(*(i.size for i in images2)))
             
             total_width1 = sum(widths1)
             max_height1 = max(heights1)
@@ -2221,7 +2221,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             new_im2.save(os.path.join(getTmpDir(),'associated2.png'))
             
             #pastes the two images obtained previously by the y axis
-            images = map(Image.open, [os.path.join(getTmpDir(),"associated1.png"), os.path.join(getTmpDir(),"associated2.png")])    
+            images = list(map(Image.open, [os.path.join(getTmpDir(),"associated1.png"), os.path.join(getTmpDir(),"associated2.png")]))    
             new_im=Image.new('RGB', (total_width1, max_height1*2))
             
             y_offset = 0
@@ -2235,7 +2235,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             di=wdi.findValue(self.diskItems['T1pre'])
         
             if di is None:
-                print "Can't generate file"
+                print("Can't generate file")
                 return []
             else:
                 try:
@@ -2380,7 +2380,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             di=wdi.findValue(self.diskItems['T1post'])
               
         if di is None:
-            print "Can't generate file"
+            print("Can't generate file")
             return []
         else:
             try:
@@ -2409,7 +2409,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             
         
         if diMaskleft is None or diMaskright is None or diMaskGW_right is None or diMaskGW_left is None :
-            print "No parcellisation found."          
+            print("No parcellisation found.")          
         else:
             #Right hemisphere
             w2=self.a.createWindow("Sagittal")
@@ -2480,8 +2480,8 @@ class LocateElectrodes(QtWidgets.QDialog):
             new_list_image = []
             j=0
             while j<350:
-                images = map(Image.open,[os.path.join(getTmpDir(),"gifL%03i.png"%(j)), os.path.join(getTmpDir(),"gifR%03i.png"%(j))])
-                widths, heights = zip(*(i.size for i in images))
+                images = list(map(Image.open,[os.path.join(getTmpDir(),"gifL%03i.png"%(j)), os.path.join(getTmpDir(),"gifR%03i.png"%(j))]))
+                widths, heights = list(zip(*(i.size for i in images)))
                 total_width = sum(widths)
                 max_height = max(heights)
                 new_im = Image.new('RGB', (total_width, max_height))
@@ -2498,7 +2498,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             di=wdi.findValue(self.diskItems['T1pre'])
 
             if di is None:
-                print "Can't generate file"
+                print("Can't generate file")
                 return []
             else:
                 try:
@@ -2577,27 +2577,27 @@ class LocateElectrodes(QtWidgets.QDialog):
             Maskright = aims.read(diMaskright.fullPath())
             nprightMarsAtlas = Maskright.arraydata()
         except:
-            print "No parcellation found"
+            print("No parcellation found")
             return []
         #take voxel size of T1 pre
         volume = aims.read(str(self.diskItems['T1pre']))
         sizeT1=volume.getVoxelSize()
         
         #calculate the total volume of the parcels
-        for key, value in labels['MarsAtlas'].items():
+        for key, value in list(labels['MarsAtlas'].items()):
             if value[0].lower()=='l':
                 parcel1 = numpy.where(npleftMarsAtlas == key)
             else:
                 parcel1 = numpy.where(nprightMarsAtlas == key)
-            coord=zip(parcel1[1],parcel1[2],parcel1[3])
+            coord=list(zip(parcel1[1],parcel1[2],parcel1[3]))
             tailleG+=len(coord)
                 
-        print 'tailleG Done'     
+        print('tailleG Done')     
         
         t=1
         #we do the computations for each parcel
-        for key, value in labels['MarsAtlas'].items():
-            print 'doing parcel ' ,value ,t
+        for key, value in list(labels['MarsAtlas'].items()):
+            print('doing parcel ' ,value ,t)
             t+=1
             par=0
             #we locate the parcel in the right or left hemispheres (if they begin with 'L':left, 'R':right)
@@ -2608,7 +2608,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                     parcel=copy.deepcopy(npleftMarsAtlas[0,parcel1[1].min():parcel1[1].max()+1,parcel1[2].min():parcel1[2].max()+1,parcel1[3].min():parcel1[3].max()+1])
                 except:
                     #if the parcel is absent we update it with the value 'not found'
-                    print 'no parcel found'
+                    print('no parcel found')
                     parcels.update({value:"not found"})
                     par=None
             else:
@@ -2616,13 +2616,13 @@ class LocateElectrodes(QtWidgets.QDialog):
                 try:
                     parcel=copy.deepcopy(nprightMarsAtlas[0,parcel1[1].min():parcel1[1].max()+1,parcel1[2].min():parcel1[2].max()+1,parcel1[3].min():parcel1[3].max()+1])
                 except:
-                    print 'no parcel found'
+                    print('no parcel found')
                     parcels.update({value:"not found"})
                     par=None
             #if the parcel has been computed        
             if par is not None:       
                 #take the coordinates of the points
-                coord=zip(parcel1[1],parcel1[2],parcel1[3])
+                coord=list(zip(parcel1[1],parcel1[2],parcel1[3]))
                 #volume of the parcel
                 taille=len(coord)
                 infos.update({"volume":int(taille)})
@@ -2640,12 +2640,12 @@ class LocateElectrodes(QtWidgets.QDialog):
                     while d<len(parcelPositionN):
                         parcelPositionNT.append(parcelPositionN[d])
                         d+=downSamp
-                    print "Downsampling more"  
-                    print 'downSamp',downSamp
+                    print("Downsampling more")  
+                    print('downSamp',downSamp)
                     parcelPositionN=parcelPositionNT
                 #approximation by an ellips which will give the length width and height 
                 fit=self.fitvolumebyellipse(parcelPositionN)
-                print fit
+                print(fit)
                 width=fit[0]
                 height=fit[1]
                 length=fit[2]
@@ -2669,14 +2669,14 @@ class LocateElectrodes(QtWidgets.QDialog):
         
         field = self.getT1preMniTransform()
         if field is None:
-            print "MNI deformation field not found"
+            print("MNI deformation field not found")
             return []
         tmpOutput = os.path.join(getTmpDir(),'test.csv') #pour tester
         arr = numpy.asarray(points) #tous tes centres de masses pour toutes les parcels tel quel ([ [1,2,3], [4,5,6], [7,8,9] ])
         numpy.savetxt(tmpOutput, arr, delimiter=",")
         errMsg = matlabRun(spm12_normalizePoints % ("'"+self.spmpath+"'",field, tmpOutput, tmpOutput))
         if errMsg:
-            print errMsg
+            print(errMsg)
             return []
         out = numpy.loadtxt(tmpOutput, delimiter=",")
         os.remove(tmpOutput)
@@ -2697,7 +2697,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         #updates the database
         neuroHierarchy.databases.insertDiskItem(di, update=True )
         
-        print "parcel metrics done"
+        print("parcel metrics done")
         return [di.fullPath()]
     
 
@@ -2775,14 +2775,14 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Write file
         with open(fileCsv, 'w') as fout:
             # Get new field InitialSegmentation
-            if 'InitialSegmentation' in eleclabel['Template'].keys():
+            if 'InitialSegmentation' in list(eleclabel['Template'].keys()):
                 InitialSegmentation = eleclabel['Template']['InitialSegmentation']
             else:
                 InitialSegmentation = 'missing_info'
             # Write file header
             writer = csv.writer(fout, delimiter='\t')
-            writer.writerow([u'Contacts Positions'])
-            writer.writerow([u'Use of MNI Template', \
+            writer.writerow(['Contacts Positions'])
+            writer.writerow(['Use of MNI Template', \
                 'MarsAtlas', eleclabel['Template']['MarsAtlas'], \
                 'Freesurfer', eleclabel['Template']['Freesurfer'], \
                 'InitialSegmentation', InitialSegmentation])
@@ -2822,13 +2822,13 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'MNI-JulichBrain', \
                 'Resection rate']
             # Add list of column names
-            colNames = [u'contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlasFull'] + parcelNames
+            colNames = ['contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlasFull'] + parcelNames
             # Print column names
             writer.writerow(colNames)
             
             # Print all contacts
             dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label'].items()))
-            for kk,vv in dict_sorted_tmp.iteritems():
+            for kk,vv in dict_sorted_tmp.items():
                 # Upper case for all the letters except from "p" that stand for ' (prime)
                 contact_label = list(kk)
                 for i in range(len(contact_label)):
@@ -2847,12 +2847,12 @@ class LocateElectrodes(QtWidgets.QDialog):
                     listwrite.append([float(format(plots_SB[kk][i],'.3f')) for i in range(3)])
                 else:
                     listwrite.append("N/A")
-                if 'MarsAtlasFull' in vv.keys():
+                if 'MarsAtlasFull' in list(vv.keys()):
                     listwrite.append(vv['MarsAtlasFull'])
                 else:
                     listwrite.append("N/A")
                 for p in parcelNames:
-                    if p in vv.keys():
+                    if p in list(vv.keys()):
                         listwrite.append(vv[p][1])
                     else:
                         listwrite.append("N/A")
@@ -2862,7 +2862,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             
             # Print all dipoles contacts
             dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label_bipolar'].items()))
-            for kk,vv in dict_sorted_tmp.iteritems():
+            for kk,vv in dict_sorted_tmp.items():
                 # Upper case for all the letters except from "p" that stand for ' (prime)
                 contact_label = list(kk)
                 for i in range(len(contact_label)):
@@ -2881,12 +2881,12 @@ class LocateElectrodes(QtWidgets.QDialog):
                     listwrite.append([float(format(bip_SB[kk][i],'.3f')) for i in range(3)])
                 else:
                     listwrite.append("N/A")
-                if 'MarsAtlasFull' in vv.keys():
+                if 'MarsAtlasFull' in list(vv.keys()):
                     listwrite.append(vv['MarsAtlasFull'])
                 else:
                     listwrite.append("N/A")
                 for p in parcelNames:
-                    if p in vv.keys():
+                    if p in list(vv.keys()):
                         listwrite.append(vv[p][1])
                     else:
                         listwrite.append("N/A")
@@ -2901,21 +2901,21 @@ class LocateElectrodes(QtWidgets.QDialog):
             fin.close()
             with open(fileCsv, 'a') as fout:
                 writer = csv.writer(fout, delimiter='\t')
-                writer.writerow([u'Resection Information'])
-                for kk,vv in info_label_resec.iteritems():
+                writer.writerow(['Resection Information'])
+                for kk,vv in info_label_resec.items():
                     #writer.writerow([kk])
                     if type(vv) == type(float()):
                         listwrite = [kk,format(vv,'.1f')]
                         writer.writerow(listwrite)
                     else:
                         writer.writerow([kk])
-                        for ll,bb in vv.iteritems():
+                        for ll,bb in vv.items():
                             listwrite = [ll, format(float(bb[1]),'.1f')]
                             writer.writerow(listwrite)
 
         # Reference csv file in the database
         neuroHierarchy.databases.insertDiskItem(di, update=True)
-        print "Export csv done."
+        print("Export csv done.")
         return [[fileCsv], []]
     
     
@@ -2978,7 +2978,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         
         # === GENERATE ALL TSV ===
         outfiles = []
-        for space in plots.keys():
+        for space in list(plots.keys()):
             # Output TSV filename
             fileTsv = os.path.join(ieegPath, bidsSub + '_' + bidsSes + '_acq-intranat_space-' + space + '_electrodes.tsv')
             fileJson = os.path.join(ieegPath, bidsSub + '_' + bidsSes + '_acq-intranat_space-' + space + '_coordsystem.json')
@@ -3040,7 +3040,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 writer.writerow(colNames)
                 # Print all contacts
                 dict_sorted_tmp = OrderedDict(sorted(eleclabel['plots_label'].items()))
-                for kk,vv in dict_sorted_tmp.iteritems():
+                for kk,vv in dict_sorted_tmp.items():
                     # name
                     listwrite = [self.fixContactLabel(kk)]
                     # x y z
@@ -3069,7 +3069,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 outfiles += [fileTsv]
                 outfiles += [fileJson]
         # Return success
-        print "Export BIDS TSV done."
+        print("Export BIDS TSV done.")
         return [outfiles, []]
     
     
@@ -3091,7 +3091,7 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     def sortContacts(self, dict_contacts):
         contacts = []
-        for plotName, plotCoords in dict_contacts.iteritems():
+        for plotName, plotCoords in dict_contacts.items():
             plotName_split = plotName.split('-$&_&$-')
             ct = dict()
             ct['elecc'] = plotName_split[0]
@@ -3110,7 +3110,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         if len(di_resec)==0:
             print('Warning: No resection image found')
             return []
-        print "TODO: computeMarsatlasResection: Use the FreeSurfer segmentation when available"
+        print("TODO: computeMarsatlasResection: Use the FreeSurfer segmentation when available")
         # MarsAtlas left
         Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats',requiredAttributes={'subject':self.brainvisaPatientAttributes['subject'], 'center':self.currentProtocol })
         diMaskleft = Mask_left.findValue(self.diskItems['T1pre'])
@@ -3165,7 +3165,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         fout.write(json.dumps({'Volume resection (mm3): ': Vol_resection_mm}))
         fout.close() 
         neuroHierarchy.databases.insertDiskItem(di, update=True )
-        print "export resection info done"
+        print("export resection info done")
         return [di.fullPath()]
 
 
@@ -3201,7 +3201,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 return [[], errMsg]
             # Sort by contact names
             info_plot = []
-            for k,v in plots.iteritems():
+            for k,v in plots.items():
                 plot_name_split = k.split('-$&_&$-')
                 info_plot.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
             plots = sorted(info_plot, key=lambda plot_number: plot_number[0])
@@ -3228,7 +3228,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Convert MNI coordinates to voxels in MNI atlas files 
         matrix_MNI_Nativ = numpy.matrix([[  -1.,    0.,    0.,   90.],[0.,   -1.,    0.,   91.],[0.,    0.,   -1.,  109.],[0.,    0.,    0.,    1.]])
         plots_MNI = {}
-        for vv,kk in plots_MNI_dict.iteritems():
+        for vv,kk in plots_MNI_dict.items():
             inter_pos = [kk[0], kk[1], kk[2], 1]
             inter_pos = numpy.matrix(inter_pos).reshape([4,1])
             result_pos = numpy.dot(matrix_MNI_Nativ,inter_pos)
@@ -3246,7 +3246,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             # Generate 3D version of the MarsAtlas surface-based atlas
             try:
                 self.brainvisaContext.runProcess('2D Parcellation to 3D parcellation', Side = "Both", left_gyri = diLeftGyri)
-            except Exception, e:
+            except Exception as e:
                 errMsg += ["Could not interpolate MarsAtlas in 3D: " + repr(e)]
             # Get volume MarsAtlas
             Mask_left = ReadDiskItem('Left Gyri Volume', 'Aims writable volume formats', requiredAttributes={'subject':subject, 'center':center, 'acquisition':diLeftGyri['acquisition']})
@@ -3344,7 +3344,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                     vol['Destrieux'] = aims.read(rdiFs[iFile[0]].fileName())
                 else:
                     vol[name] = aims.read(rdiFs[iFile[0]].fileName())
-        if not 'Destrieux' in vol.keys():
+        if not 'Destrieux' in list(vol.keys()):
             errMsg += ["Freesurfer atlas not found"]
             
         # ===== READ: RESECTION =====
@@ -3449,8 +3449,8 @@ class LocateElectrodes(QtWidgets.QDialog):
         fout = open(fileEleclabel,'w')
         fout.write(json.dumps({ \
             'Template' : {\
-                'MarsAtlas' : str(not 'MarsAtlas' in vol.keys()), \
-                'Freesurfer' : str(not 'Freesurfer' in vol.keys()), \
+                'MarsAtlas' : str(not 'MarsAtlas' in list(vol.keys())), \
+                'Freesurfer' : str(not 'Freesurfer' in list(vol.keys())), \
                 'InitialSegmentation' : initSegmentation}, \
             'plots_label' : plots_label, \
             'plots_label_bipolar' : bip_label, \
@@ -3486,7 +3486,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 pos_SB = [round(plots[pindex][1][i] / info_image['voxel_size'][i]) for i in range(3)]
                 pos_fs = [round(plots_fs[pindex][1][i] / info_fs['voxel_size'][i]) for i in range(3)]
                 if math.isnan(pos_SB[0]) or math.isnan(pos_fs[0]):
-                    print("ERROR: Invalid coordinates for contact: " + plots[pindex][0])
+                    print(("ERROR: Invalid coordinates for contact: " + plots[pindex][0]))
                     continue
                 # Positions depending on the segmentation: MarsAtlas, Grey-White
                 if initSegmentation == "FreeSurfer":
@@ -3500,7 +3500,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 value = 0
                 label = 'N/A'
                 full_MA = 'N/A'
-                if 'MarsAtlas' in vol.keys():
+                if 'MarsAtlas' in list(vol.keys()):
                     vox = self.getSphVoxels(vol['MarsAtlas'], pos_seg, Nsph_seg, sphere_size)
                     if vox:
                         vox = [x for x in vox if x != 0 and x !=255 and x != 100]
@@ -3510,13 +3510,13 @@ class LocateElectrodes(QtWidgets.QDialog):
                             full_count = Counter(vox).most_common()
                             full_MA = [(labels['MarsAtlas'][iLabel[0]],float(iLabel[1])/len(vox)*100) for iLabel in full_count]
                     else:
-                        print pname + '-MarsAtlas: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])
+                        print(pname + '-MarsAtlas: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2]))
                 plots_label[pname]['MarsAtlas'] = (value, label)
                 plots_label[pname]['MarsAtlasFull'] = full_MA          
                 
                 # === PROCESS GREY/WHITE ===
                 value = 255
-                if ('GW' in vol.keys()):
+                if ('GW' in list(vol.keys())):
                     vox = self.getSphVoxels(vol['GW'], pos_seg, Nsph_seg, sphere_size)
                     if vox:
                         vox = [x for x in vox if x !=255 and x !=0]
@@ -3526,14 +3526,14 @@ class LocateElectrodes(QtWidgets.QDialog):
                         else:
                             value = vol['GW'].value(pos_seg[0],pos_seg[1],pos_seg[2])
                     else:
-                        print pname + '-GW: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2])                
+                        print(pname + '-GW: Invalid coordinates (%d,%d,%d)'%(pos_seg[0],pos_seg[1],pos_seg[2]))                
                 GW_label_name = {0:'N/A',100:'GreyMatter',200:'WhiteMatter',255:'N/A'}[value]
                 plots_label[pname]['GreyWhite'] = (value, GW_label_name)
                 
                 # === PROCESS: DESTRIEUX ===
                 value = 0
                 label = 'N/A'
-                if ('Destrieux' in vol.keys()):
+                if ('Destrieux' in list(vol.keys())):
                     # Destrieux Atlas is reinterpolated in the t1pre space 
                     vox = self.getSphVoxels(vol['Destrieux'], pos_SB, Nsph, sphere_size)
                     if vox:
@@ -3541,7 +3541,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                         if vox:
                             value,N = Counter(vox).most_common(1)[0]
                             # Check if it's in the hippocampus
-                            if (value == 53 or value == 17) and ('hip' in vol.keys()):
+                            if (value == 53 or value == 17) and ('hip' in list(vol.keys())):
                                 vox = self.getSphVoxels(vol['hip'], pos_SB, Nsph, sphere_size)
                                 vox = [x for x in vox if x != 0 and x != 2 and x != 41]
                                 try:
@@ -3556,14 +3556,14 @@ class LocateElectrodes(QtWidgets.QDialog):
                             else:
                                 label = labels['Destrieux'][value]
                     else:
-                        print pname + '-Destrieux: Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
+                        print(pname + '-Destrieux: Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2]))
                 plots_label[pname]['Destrieux'] = (value, label)
     
                 # === PROCESS: OTHER FREESURFER ATLASES ===
                 for name in ['DKT', 'VEP', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
                     value = 0
                     label = 'N/A'
-                    if (name in vol.keys()):
+                    if (name in list(vol.keys())):
                         # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
                         vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
                         if vox:
@@ -3574,16 +3574,16 @@ class LocateElectrodes(QtWidgets.QDialog):
                                     label = labels[name][value]
                                 except:
                                     label = 'N/A'
-                                    print('labels ' + str(name) + ' -> ' + str(value) + ' NOT FOUND')
+                                    print(('labels ' + str(name) + ' -> ' + str(value) + ' NOT FOUND'))
                                     #import pdb; pdb.set_trace()
                             else:
                                 value = vol[name].value(pos_SB[0],pos_SB[1],pos_SB[2])
                         else:
-                            print pname + '-' + name + ': Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2])
+                            print(pname + '-' + name + ': Invalid coordinates (%d,%d,%d)'%(pos_SB[0],pos_SB[1],pos_SB[2]))
                     plots_label[pname][name] = (value, label)
     
                 # === PROCESS: RESECTION ===
-                if ('resec' in vol.keys()):
+                if ('resec' in list(vol.keys())):
                     vox = self.getSphVoxels(vol['resec'], pos_SB, Nsph, sphere_size)
                     valResec,N = Counter(vox).most_common(1)[0]
                     value = max(vox) 
@@ -3603,12 +3603,12 @@ class LocateElectrodes(QtWidgets.QDialog):
             if plots_MNI:
                 # Contact name
                 if not pname:
-                    pname = plots_MNI.keys()[pindex]
+                    pname = list(plots_MNI.keys())[pindex]
                     plots_label[pname] = {}
                 # Get MNI coordinates
                 pos_MNI = [round(plots_MNI[pname][i]) for i in range(3)]
                 if math.isnan(pos_MNI[0]):
-                    print("ERROR: Invalid MNI coordinates for contact: " + pname)
+                    print(("ERROR: Invalid MNI coordinates for contact: " + pname))
                     continue
                 # Process all MNI volumes
                 for atlas in files_MNI:
@@ -3631,13 +3631,13 @@ class LocateElectrodes(QtWidgets.QDialog):
                                 else:
                                     label = "%d" % (value)
                             else:
-                                if value in labels[atlas].keys():
+                                if value in list(labels[atlas].keys()):
                                     label = labels[atlas][value]
                                 else:
-                                    print atlas + '-' + pname + ": Missing label: " + str(value)
+                                    print(atlas + '-' + pname + ": Missing label: " + str(value))
                                     label = 'N/A'
                     else:
-                        print pname + '-' + atlas + ': Invalid coordinates (%d,%d,%d)'%(pos_MNI[0],pos_MNI[1],pos_MNI[2])
+                        print(pname + '-' + atlas + ': Invalid coordinates (%d,%d,%d)'%(pos_MNI[0],pos_MNI[1],pos_MNI[2]))
                     plots_label[pname][atlas] = (value, label)
 
             # Add to list of exported plot names
@@ -3647,21 +3647,21 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     def getPlotsT1preRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the T1pre native referential"""
-        return dict((el['name']+'-$&_&$-'+plotName, el['transf'].transform(plotCoords)) for el in self.electrodes for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems())
+        return dict((el['name']+'-$&_&$-'+plotName, el['transf'].transform(plotCoords)) for el in self.electrodes for plotName, plotCoords in getPlotsCenters(el['elecModel']).items())
 
     def getPlotsT1preScannerBasedRef(self):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the T1pre scanner-based referential"""
         transfo = self.t1pre2ScannerBased()
         if not transfo:
             return None
-        return dict((key, transfo.transform(coords)) for key, coords in self.getPlotsT1preRef().iteritems())
+        return dict((key, transfo.transform(coords)) for key, coords in self.getPlotsT1preRef().items())
 
     def getPlotsAnyReferential(self, referential):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the provided referential (must be available in referential converter self.refConv)"""
         if not self.refConv.isRefAvailable(referential):
-            print "Trying to convert to unknown referential %s"%repr(referential)
+            print("Trying to convert to unknown referential %s"%repr(referential))
             return None
-        return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getPlotsT1preRef().iteritems())
+        return dict((key, self.refConv.real2AnyRef(coords, referential)) for key, coords in self.getPlotsT1preRef().items())
 
     def getPlotsMNIRef(self, isShortName=True):
         """Return a dictionary {'ElectrodeName-$&_&$-PlotName':[x,y,z], ...} where x,y,z is in the MNI referential"""
@@ -3671,11 +3671,11 @@ class LocateElectrodes(QtWidgets.QDialog):
         impl = list(rdi.findValues({},None,False))
         if len(impl) == 0:
             #QtGui.QMessageBox.critical(self, "Error", "Can't find implantation, you have to add electrodes and save your modifications first.")
-            print "ERROR: Can't find implantation, you have to add electrodes and save your modifications first."
+            print("ERROR: Can't find implantation, you have to add electrodes and save your modifications first.")
             return None
         elif not os.path.exists(str(impl[0])):
             #QtGui.QMessageBox.critical(self, "Error", "Can't find implantation file. Update your BrainVISA database.")
-            print "ERROR: Can't find implantation file. Update your BrainVISA database."
+            print("ERROR: Can't find implantation file. Update your BrainVISA database.")
             return None
         # Read implantation file
         filein = open(str(impl[0]), 'rb')
@@ -3687,13 +3687,13 @@ class LocateElectrodes(QtWidgets.QDialog):
             dic_impl = pickle.load(filein)
             filein.close()
         # Return existing coordinates
-        if 'plotsMNI' in dic_impl.keys():
+        if 'plotsMNI' in list(dic_impl.keys()):
             dict_fileMNI = dict(dic_impl['plotsMNI'])
             # Convert keys to long plot names: eg. "A01" => "A-$&_&$-Plot1"
             if not isShortName:
                 plots_MNI = dict()
                 for el in self.electrodes:
-                    for plotName, plotCoords in getPlotsCenters(el['elecModel']).iteritems():
+                    for plotName, plotCoords in getPlotsCenters(el['elecModel']).items():
                         contactName = el['name'] + plotName[4:].zfill(2)
                         if contactName in dict_fileMNI:
                             plots_MNI[el['name']+'-$&_&$-'+plotName] = dict_fileMNI[contactName]
@@ -3702,7 +3702,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 return dict_fileMNI
         # If not available: Compute MNI coordinates
         else:
-            print "WARNING: MNI position not available. Compute SPM normalization first."
+            print("WARNING: MNI position not available. Compute SPM normalization first.")
             return None
         
         
@@ -3715,7 +3715,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Get MNI transformation field
         field = self.getT1preMniTransform()
         if field is None:
-            print "ERROR: MNI deformation field not found."
+            print("ERROR: MNI deformation field not found.")
             return [None,[]]
         
         # Save coordinates in a .csv file, to be passed to MATLAB/SPM
@@ -3725,22 +3725,22 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Run SPM normalization
         errMsg = matlabRun(spm12_normalizePoints % ("'"+self.spmpath+"'", field, tmpOutput, tmpOutput))
         if errMsg:
-            print errMsg
+            print(errMsg)
             return [None,[]]
         # Read MNI coordinates from output .csv file
         out = numpy.loadtxt(tmpOutput, delimiter=",")
         os.remove(tmpOutput)
         if numpy.array_equal(out, arr):
-            print "ERROR: Points to MNI: Result is identical to input"
+            print("ERROR: Points to MNI: Result is identical to input")
             return [None,[]]
         if (out.shape != arr.shape):
-            print "ERROR: Points to MNI: Result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr))
+            print("ERROR: Points to MNI: Result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr)))
             return [None,[]]
         mniCoords = out.tolist()
         if mniCoords is None:
             return [None,[]]
         # Convert back to an electrode dictionnary
-        plotsMNI = dict(zip(sorted(plots.keys()), mniCoords))
+        plotsMNI = dict(list(zip(sorted(plots.keys()), mniCoords)))
 
         # Get elecimplant file
         rdi = ReadDiskItem( 'Electrode implantation', 'Electrode Implantation format', requiredAttributes={'center':self.brainvisaPatientAttributes['center'],'subject':self.brainvisaPatientAttributes['subject']})
@@ -3761,7 +3761,7 @@ class LocateElectrodes(QtWidgets.QDialog):
     
         # Add new coordinates to the existing json
         info_plotMNI= []
-        for k,v in plotsMNI.iteritems():
+        for k,v in plotsMNI.items():
             plot_name_split = k.split('-$&_&$-')
             info_plotMNI.append((plot_name_split[0]+plot_name_split[1][4:].zfill(2),v))
         plotMNI_sorted = sorted(info_plotMNI, key=lambda plot_number: plot_number[0])
@@ -3772,9 +3772,9 @@ class LocateElectrodes(QtWidgets.QDialog):
         fout.write(json.dumps(previous_data))
         fout.close()
         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True )
-        print ".elecimplant saved with MNI"
+        print(".elecimplant saved with MNI")
 
-        return [plotsMNI, [ldi[0].fullPath() + u"\xa0(MNI)"]]
+        return [plotsMNI, [ldi[0].fullPath() + "\xa0(MNI)"]]
 
 
     def saveTXT(self, contacts=None, path=None, pathPos=None, pathName=None):
@@ -3796,7 +3796,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         fileName = open(pathName, 'wb')
         filePos = open(pathPos, 'wb')
         # Iteration over electrodes
-        for contactName in sorted(contacts.keys(), key=natural_keys):
+        for contactName in sorted(list(contacts.keys()), key=natural_keys):
             (elName, plotName) = contactName.split('-$&_&$-')
             # Name of each contact is name of electrode (p for prime) + number of the plot (electrode A' contact 5 is "Ap5")
             fileName.write(elName.replace('\'', 'p') + plotName.replace('Plot','') + "\n")
@@ -3818,7 +3818,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             return None
     
         plots=[]
-        for contactName in sorted(contacts.keys(), key=natural_keys):
+        for contactName in sorted(list(contacts.keys()), key=natural_keys):
             coords = contacts[contactName]
             (elName, plotName) = contactName.split('-$&_&$-')
             # Name of each contact is name of electrode (prime ' replaced by the letter p) + number of the plot (electrode A' contact 5 is "Ap5")
@@ -4032,7 +4032,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             # Update anatomist windows
             self.updateAllWindows()
         else:
-            print "one of the image is not recognized"
+            print("one of the image is not recognized")
             return
 
 
@@ -4041,7 +4041,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         if not self.brainvisaPatientAttributes or not self.brainvisaPatientAttributes['subject']:
             return
         # Ask for confirmation
-        rep = QtGui.QMessageBox.warning(self, u'Confirmation', u"<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        rep = QtGui.QMessageBox.warning(self, 'Confirmation', "<font color='red'><b>ATTENTION</b><br/>You are gonna delete MarsAtlas files, are you sure?<br/><b>DELETE MARSATLAS ?</b></font>", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
         if not (rep == QtGui.QMessageBox.Yes):
             return
         # Get files to delete

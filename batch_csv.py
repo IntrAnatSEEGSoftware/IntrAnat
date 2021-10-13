@@ -16,7 +16,7 @@ def generateCsv(w, subject, isCsv, isBids):
     # Load patient
     try:
         # Unload disk items
-        for k in w.diskItems.keys():
+        for k in list(w.diskItems.keys()):
             del w.diskItems[k]
         w.diskItems = dict()
         # Unload electrodes
@@ -44,7 +44,7 @@ def generateCsv(w, subject, isCsv, isBids):
 #         for element in referentials:
 #             w.a.deleteElements(element)
         # Unload disk items
-        for k in w.dispObj.keys():
+        for k in list(w.dispObj.keys()):
             del w.dispObj[k]
         w.dispObj = dict()
         # Delete all the graphical objects
@@ -180,7 +180,7 @@ def main(isCsv, isBids, start_index, stop_index, logFilename):
         # Write patient name to log
         tstamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
         strPatient = ("[%s] Patient #%4d: %" + str(maxLen) + "s...    ") % (tstamp, iSubj+1, w.subjects[iSubj])
-        print "\n" + strPatient
+        print("\n" + strPatient)
         log.write(strPatient)
         log.flush()
         # Create CSV
@@ -207,9 +207,9 @@ if __name__ == "__main__":
     defLog = "log_csv_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H.%M.%S') + ".txt"
     # Help
     if (len(sys.argv) < 2) or ((sys.argv[1] != "--all") and (sys.argv[1] != "--csv-only") and (sys.argv[1] != "--bids-only")):
-        print("USAGE: batch_csv.py --all       [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]")
-        print("       batch_csv.py --csv-only  [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]")
-        print("       batch_csv.py --bids-only [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]")
+        print(("USAGE: batch_csv.py --all       [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]"))
+        print(("       batch_csv.py --csv-only  [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]"))
+        print(("       batch_csv.py --bids-only [start_index=1] [stop_index=0] [logfile=$HOME/" + defLog + "]"))
         sys.exit(2)
     # Get command
     if (sys.argv[1] == "--all"):
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         logFilename = os.path.join(os.path.expanduser("~"), defLog)
     # Call processing function
     Nleft = main(isCsv, isBids, start_index, stop_index, logFilename)
-    print("Remaining: %s" % (Nleft))
+    print(("Remaining: %s" % (Nleft)))
     # Close application
     os._exit(Nleft)
     

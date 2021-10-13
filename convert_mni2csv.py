@@ -33,7 +33,7 @@ def main(mniFile, subject):
         # Separate electrode name / contact index (find last letter)
         origName = list(contactInfo[0])
         iLastLetter = None
-        for i in reversed(range(len(origName))):
+        for i in reversed(list(range(len(origName)))):
             if not origName[i].isdigit():
                 iLastLetter = i
                 break

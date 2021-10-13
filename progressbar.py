@@ -134,12 +134,12 @@ class Example(QtGui.QWidget):
 
     def test(self):
         res = ProgressDialog.call(self.activeWait, False, self, "Processing...", "Example process")
-        print res
+        print(res)
         
     def activeWait(self, thread):
         import time
         for n in range(0,200):
-            print n
+            print(n)
             if (n > 20):
                 thread.progress.emit(n)
             thread.progress_text.emit("Processing event #{}".format(n))

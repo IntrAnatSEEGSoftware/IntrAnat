@@ -167,37 +167,37 @@ resection_content = (
 
 insert( '{protocol}/{subject}',
   't2mri', SetWeakAttr( 'modality', 't2mri' ),
-    apply( SetContent, t2mri_content)
+    SetContent(*t2mri_content)
 )
 
 insert( '{protocol}/{subject}',
   'flair', SetWeakAttr( 'modality', 'flair' ),
-    apply( SetContent, flair_content)
+    SetContent(*flair_content)
 )
 
 insert( '{protocol}/{subject}',
   'ct', SetWeakAttr( 'modality', 'ct' ),
-    apply( SetContent, ct_content)
+    SetContent(*ct_content)
 )
 
 insert( '{protocol}/{subject}',
   'pet', SetWeakAttr( 'modality', 'pet' ),
-    apply( SetContent, pet_content)
+    SetContent(*pet_content)
 )
 
 insert( '{protocol}/{subject}',
   'fmri_epile', SetWeakAttr( 'modality', 'fmri_epile' ),
-    apply( SetContent, fMRI_content)
+    SetContent(*fMRI_content)
 )
 
 insert( '{protocol}/{subject}',
   'Statistic-Data', SetWeakAttr( 'modality', 'Statistic-Data' ),
-    apply( SetContent, Statistics_content)
+    SetContent(*Statistics_content)
 )
 
 insert( '{center}/{subject}',
   'Resection', SetWeakAttr( 'modality', 'resection' ),
-    apply( SetContent,resection_content)
+    SetContent(*resection_content)
 )
 
 insertFirst( '{protocol}/{subject}/t1mri/{acquisition}/registration', 'T1-<subject>_<acquisition>_TO_{modalityTarget}_{acquisitionTarget}', SetType( 'Transform Raw T1 MRI to another image' )

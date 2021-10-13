@@ -13,7 +13,6 @@ from brainvisa.data import neuroHierarchy
 # from brainvisa.processes import *
 from soma.qt_gui.qt_backend import QtGui, QtCore, uic
 from brainvisa.data.readdiskitem import ReadDiskItem
-from __builtin__ import False
 
 
 # ===== IMPORT FREESURFER =====
@@ -113,7 +112,7 @@ def main(input_dir, logFilename):
             FsSubjDir = db.directory
             break
     if not FsSubjDir:
-        print "ERROR: No local FreeSurfer database found."
+        print("ERROR: No local FreeSurfer database found.")
         return
     
     # Find subjects in BrainVISA database
@@ -126,7 +125,7 @@ def main(input_dir, logFilename):
         bvSubjects[sub] = s.attributes()['subject']
         bvCenter[sub] = s.attributes()['center']
     if not bvSubjects:
-        print "ERROR: No subjects to update in the BrainVISA database."
+        print("ERROR: No subjects to update in the BrainVISA database.")
         return
     
     # Find subjects in input dir
@@ -135,13 +134,13 @@ def main(input_dir, logFilename):
         if os.path.exists(os.path.join(input_dir, sub, 'freesurfer', 'mri', 'aparc.DKTatlas+aseg.mgz')):
             fsSubjects[sub.split(' ')[0]] = sub
     if not fsSubjects:
-        print "ERROR: No FreeSurfer segmentations found in input folder."
+        print("ERROR: No FreeSurfer segmentations found in input folder.")
         return
     
     # Subjects to import
     subList = sorted(list(set(fsSubjects.keys()) & set(fsSubjects.keys())))
     if not subList:
-        print "ERROR: No subjects found both in input folder and BrainVISA database."
+        print("ERROR: No subjects found both in input folder and BrainVISA database.")
         return
     
     # Open log file
@@ -157,7 +156,7 @@ def main(input_dir, logFilename):
         # Write patient name to log
         tstamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
         strPatient = ("[%s] Patient #%4d: %" + str(maxLen) + "s...    ") % (tstamp, iSub+1, subList[iSub])
-        print "\n" + strPatient
+        print("\n" + strPatient)
         log.write(strPatient)
         log.flush()
         # Current protocol: based on selected subject
@@ -189,7 +188,7 @@ if __name__ == "__main__":
     defLog = "log_importfs_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H.%M.%S') + ".txt"
     # Test input parameters
     if (len(sys.argv) < 2) or not os.path.exists(sys.argv[1]):
-        print("USAGE: batch_importfs.py input_dir [logfile=$HOME/" + defLog + "]")
+        print(("USAGE: batch_importfs.py input_dir [logfile=$HOME/" + defLog + "]"))
         sys.exit(2)
     inputDir = sys.argv[1]
     # Log file

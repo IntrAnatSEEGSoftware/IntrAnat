@@ -138,18 +138,18 @@ class TemplateMRI:
 
   def normalizeCoordinates(self, coords, referential):
     """ Fonction that normalizes a list of (x,y,z) to the template referential if sufficient data is available for the provided referential (MUST BE REIMPLEMENTED BY EACH KIND OF TEMPLATE) """
-    print "TemplateMRI : normalization not implemented for generic class !"
+    print("TemplateMRI : normalization not implemented for generic class !")
     return []
     pass
   def denormalizeCoordinates(self, coords, referential):
     """ Fonction that denormalizes a list of (x,y,z) from the template referential if sufficient data is available to the provided referential (MUST BE REIMPLEMENTED BY EACH KIND OF TEMPLATE) """
-    print "TemplateMRI : denormalization not implemented for generic class !"
+    print("TemplateMRI : denormalization not implemented for generic class !")
     return []
     pass
 
   def resampleVolume(referential, readPath, writePath):
     """ Resamples the provided volume (Nifti...) in the template referential """
-    print "TemplateMRI : resampling not implemented for generic class !"
+    print("TemplateMRI : resampling not implemented for generic class !")
     return []
     pass
 
@@ -174,44 +174,44 @@ class TemplateMNI(TemplateMRI):
     diT1 = rdiT1.findValue(refDiskitem)
     di = rdi.findValue(diT1)
     if di is None:
-      print "SPM deformation _sn.mat not found in database"
+      print("SPM deformation _sn.mat not found in database")
       return None
     # Convert to field
     wdi = WriteDiskItem( 'SPM normalization inverse deformation field', 'NIFTI-1 image' )
     diField = wdi.findValue(di)
     if diField is None:
-      print "Cannot find path to save MNI vector field in the DB"
+      print("Cannot find path to save MNI vector field in the DB")
       return None
     #For a file /database/y_SubjectName_inverse.nii, get SubjectName_inverse
     ofname = os.path.basename(diField.fullPath()).lstrip('y_').rsplit('.',1)[0]
     if not os.path.exists(diField.fullPath()):
       matlabRun(spm_SnToField%(str(di.fullPath()), str(diT1.fullPath()),  ofname) )
     else:
-      print "Deformation field already present : not recomputed in %s"%diField.fullPath()
+      print("Deformation field already present : not recomputed in %s"%diField.fullPath())
     if os.path.exists(diField.fullPath()):
       return diField.fullPath()
     else:
-      print "Matlab did not convert the MNI transform to vector field !"
+      print("Matlab did not convert the MNI transform to vector field !")
       return None
 
   def convertT1ScannerBasedToMni(self, points, refId):
     """Converts an array of points [x,y,z] in scanner-based coords to MNI coords if deformation field is available"""
     field = self.getT1preMniTransform(refId)
     if field is None:
-      print "MNI deformation field not found"
+      print("MNI deformation field not found")
       return None
     tmpOutput = getTmpFilePath('csv')
     arr = numpy.asarray(points)#([ [1,2,3], [4,5,6], [7,8,9] ])
     numpy.savetxt(tmpOutput, arr, delimiter=",")
-    print "Launching SPM NORMALIZE POINTS with %s"%tmpOutput
+    print("Launching SPM NORMALIZE POINTS with %s"%tmpOutput)
     matlabRun(spm_normalizePoints % (field, tmpOutput, tmpOutput))
     out = numpy.loadtxt(tmpOutput, delimiter=",")
     os.remove(tmpOutput)
     if numpy.array_equal(out, arr):
-      print "Points to MNI : Error, result read is identical to input"
+      print("Points to MNI : Error, result read is identical to input")
       return None
     if out.shape != arr.shape:
-      print "Points to MNI : Error, result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr))
+      print("Points to MNI : Error, result (%s) has not the same number of elements as input (%s)"%(repr(out),repr(arr)))
       return None
     return out.tolist()
 

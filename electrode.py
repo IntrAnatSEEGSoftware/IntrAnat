@@ -36,7 +36,7 @@ class ElectrodeModel:
   # Load an Electrode Definition file
   def open(self, path=None, dispMode = None, dispParams=None,bipole=None):
     if path is None or not os.path.isfile(path):
-      print 'No electrode model at '+repr(path)
+      print('No electrode model at '+repr(path))
       return False
 
     filein = open(path, 'rb')
@@ -67,7 +67,7 @@ class ElectrodeModel:
   # Save an Electrode Definition file
   def save(self, path = None):
     if path is None or not os.path.isfile(path):
-      print "Cannot write electrode definition : invalid file path  " + repr(path)
+      print("Cannot write electrode definition : invalid file path  " + repr(path))
       return False
     fileout = open(path, 'wb')
     pickle.dump(self.cylinders, fileout)
@@ -78,11 +78,11 @@ class ElectrodeModel:
   # Display functions
   
   def setDisplayMode(self, mode='real', parameters={}):
-	""" Mode display : 'real', 'sphere', 'off'... parameters is {'diameter: 2mm} for the sphere mode"""
-	self.dispMode = mode
-	self.dispParams = parameters
-	
-	
+    """ Mode display : 'real', 'sphere', 'off'... parameters is {'diameter: 2mm} for the sphere mode"""
+    self.dispMode = mode
+    self.dispParams = parameters
+
+
   def displayCylinder(self, name):
     # If it is already there, remove it
     self.undisplayCylinder(name)
@@ -97,7 +97,7 @@ class ElectrodeModel:
       self.displayed[name] = {'mesh':None, 'type':t}
       return
     if self.dispMode not in ['real', 'sphere', 'bipole']:
-      print "Unknown dispMode %s for electrode !  Using 'real'..."%repr(self.dispMode)
+      print("Unknown dispMode %s for electrode !  Using 'real'..."%repr(self.dispMode))
       self.dispMode = 'real'
       
     if self.dispMode == 'real':
@@ -106,7 +106,7 @@ class ElectrodeModel:
       self.a.releaseObject(newCyl)
     elif self.dispMode == 'sphere':
       diam = 2.0
-      if self.dispParams.has_key('diameter'):
+      if 'diameter' in self.dispParams:
         diam = float(self.dispParams['diameter'])
       if t == 'Plot': # Ignore the other parts
         pCenter = (p[0] + v[0]*self.cylinders[name]['length']/2.0, p[1] + v[1]*self.cylinders[name]['length']/2.0, p[2] + v[2]*self.cylinders[name]['length']/2.0)
@@ -132,10 +132,10 @@ class ElectrodeModel:
 
   def undisplayCylinder(self, name):
     if name in self.displayed:
-      print "electrode : undisplay cylinder "+name
+      print("electrode : undisplay cylinder "+name)
       if self.displayed[name]['mesh'] is not None:
         self.a.deleteObjects(self.displayed[name]['mesh'])
-        print "UNDISPLAY cylinder : DELETED %s"%name
+        print("UNDISPLAY cylinder : DELETED %s"%name)
         self.displayed[name]['mesh'] = None # CURRENT
 
   def updateDisplay(self):
@@ -152,7 +152,7 @@ class ElectrodeModel:
     # Destroy all anatomist objects and reset "displayed" list
     if len(self.displayed) != 0:
       meshes = [self.displayed[name]['mesh'] for name in self.displayed if self.displayed[name]['mesh'] is not None]
-      print "electrode : Removing all meshes"
+      print("electrode : Removing all meshes")
       #traceback.print_stack(limit=4)
       try:
         self.a.deleteObjects(meshes) # Does not work from locateElectrodes.py... CURRENT
@@ -172,7 +172,7 @@ class ElectrodeModel:
     return self.cylinders
     
   def getPlots(self):
-    return dict([(k,p) for k,p in self.cylinders.iteritems() if p['type'] == 'Plot'])
+    return dict([(k,p) for k,p in self.cylinders.items() if p['type'] == 'Plot'])
     
   def countPlots(self):
     return len(self.getPlots())
@@ -181,10 +181,10 @@ class ElectrodeModel:
     return len(self.cylinders)
 
   def getAnatomistObjects(self):
-	return [self.displayed[n]['mesh'] for n in self.displayed if self.displayed[n]['mesh'] is not None]
+    return [self.displayed[n]['mesh'] for n in self.displayed if self.displayed[n]['mesh'] is not None]
     
   def plotMeshes(self):
-	return [self.displayed[n]['mesh'] for n in self.displayed if self.displayed[n]['type'] == 'Plot' and self.displayed[n]['mesh'] is not None]
+    return [self.displayed[n]['mesh'] for n in self.displayed if self.displayed[n]['type'] == 'Plot' and self.displayed[n]['mesh'] is not None]
     
   def setDisplayReferential(self, referential):
     for name in self.displayed:

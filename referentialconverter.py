@@ -31,7 +31,7 @@ class ReferentialConverter:
     return self.availableRefs
 
   def isRefAvailable(self, ref):
-    return self.availableRefs.has_key(ref)
+    return ref in self.availableRefs
 
 
   ############################ Generic transformation matrices ####################
@@ -63,7 +63,7 @@ class ReferentialConverter:
           return mat
       elif type(mat) == list:
           return aims.Motion(mat)
-      elif mat.__dict__.has_key('getInfos'):
+      elif 'getInfos' in mat.__dict__:
           infos = anaTransf.getInfos()
           rot = infos['rotation_matrix']
           trans = infos['translation']
@@ -110,16 +110,16 @@ class ReferentialConverter:
       self.withMatrixToReal[refName] = matrixFromReal
 
   def applyMatrix(self, x, y, z, matrix):
-    return matrix.transform( aims.Point3df(x,y,z) ).items()
+    return list(matrix.transform( aims.Point3df(x,y,z) ).items())
 
   ############################ AC-PC intra-subject referential (no normalization)
   def loadACPC(self, image):
-	""" Loads the .APC file linked to the provided Image Disk Item and sets AC-PC referential"""
-	# print "****refConv**** Loading ACPC referential"
-	rdi = ReadDiskItem( 'Commissure coordinates', 'Commissure coordinates' )
-	apcfile = rdi.findValue( image )
-	points = apctools.apcRead(apcfile.fullPath())
-	self.setACPC(points['acmm'], points['pcmm'], points['ihmm'])
+    """ Loads the .APC file linked to the provided Image Disk Item and sets AC-PC referential"""
+    # print "****refConv**** Loading ACPC referential"
+    rdi = ReadDiskItem( 'Commissure coordinates', 'Commissure coordinates' )
+    apcfile = rdi.findValue( image )
+    points = apctools.apcRead(apcfile.fullPath())
+    self.setACPC(points['acmm'], points['pcmm'], points['ihmm'])
 
   def setACPC(self, ac, pc, ih):
     """ Set AC, PC and InterHemispheric points to define the AC-PC referentials """
@@ -260,7 +260,7 @@ class ReferentialConverter:
 	      self.Oppn[1] + xg*(self.XGppn[1] - self.Oppn[1]) + yg*(self.Yppn[1] - self.Oppn[1]) + zg*(self.Zppn[1] - self.Oppn[1]),\
 	      self.Oppn[2] + xg*(self.XGppn[2] - self.Oppn[2]) + yg*(self.Yppn[2] - self.Oppn[2]) + zg*(self.Zppn[2] - self.Oppn[2])]
     else:
-      print "ERROR : side value in invalid in g2Real : "+repr(side)
+      print("ERROR : side value in invalid in g2Real : "+repr(side))
 
   # Est-on à droite de la ligne médiane ?
   def isRightSideGoetz(self, x, y, z):
@@ -300,7 +300,7 @@ class ReferentialConverter:
       matrice = hstack((oxg.T, oy.T, oz.T))
       result = dot(array([[nxg, ny, nz]])*u, linalg.inv(matrice)) + array(self.Oppn)
     else:
-      print "ERROR : side value is invalid in g2RealOrth : "+repr(side)
+      print("ERROR : side value is invalid in g2RealOrth : "+repr(side))
 
     return result.tolist()[0]
 
@@ -333,7 +333,7 @@ class ReferentialConverter:
       matrice = vstack((oxg, oy, oz))
       result = linalg.solve(matrice, array([nxg, ny, nz])*u[0]) + array(self.Oppn)
     else:
-      print "ERROR : side value is invalid in g2RealOrth : "+repr(side)
+      print("ERROR : side value is invalid in g2RealOrth : "+repr(side))
     return result.tolist()
 
 
@@ -396,25 +396,25 @@ class ReferentialConverter:
   def anyRef2Real(self, coords, referential):
     """Convert coords [x,y,z] or [x,y,z,side] to native coordinates from any defined referential"""
     if not self.isRefAvailable(referential):
-      print "Referential %s not available"%referential
+      print("Referential %s not available"%referential)
       return None
     withSide = {'PPNparaGoetz':self.g2Real, 'PPNorthoGoetz':self.g2RealOrth}
     noSide = {'Bens':self.bens2Real, 'AC-PC':self.AcPc2Real,'real':lambda x,y,z:[x,y,z]}
     if referential in self.withMatrixToReal:
       return self.applyMatrix(coords[0], coords[1], coords[2], self.withMatrixToReal[referential])
     if referential in withSide and size(coords)>3:
-	    return withSide[referential](coords[0], coords[1], coords[2], coords[3])
+      return withSide[referential](coords[0], coords[1], coords[2], coords[3])
     elif referential in noSide:
-	    return noSide[referential](coords[0], coords[1], coords[2])
+      return noSide[referential](coords[0], coords[1], coords[2])
     else:
-	    print "anyRef2Real : no such referential or invalid coords : "+repr(referential)+" -> "+repr(coords)
-	    return None
+      print("anyRef2Real : no such referential or invalid coords : "+repr(referential)+" -> "+repr(coords))
+      return None
 
   # UNIVERSAL REFERENTIAL CONVERTER from REAL MRI COORDS
   def real2AnyRef(self, coords, referential):
     """Convert coords [x,y,z] or [x,y,z,side] to any defined referential from native coordinates"""
     if not self.isRefAvailable(referential):
-      print "Referential %s not available"%referential
+      print("Referential %s not available"%referential)
       return None
     withSide = {}
     noSide = {'Bens':self.real2Bens, 'AC-PC':self.real2AcPc,'real':lambda x,y,z:[x,y,z], 'PPNparaGoetz':self.real2G, 'PPNorthoGoetz':self.real2Gorth}
@@ -422,20 +422,21 @@ class ReferentialConverter:
     if referential in self.withMatrixFromReal:
       return self.applyMatrix(coords[0], coords[1], coords[2], self.withMatrixFromReal[referential])
     elif referential in withSide and size(coords)>3:
-	    return withSide[referential](coords[0], coords[1], coords[2], coords[3])
+      return withSide[referential](coords[0], coords[1], coords[2], coords[3])
     elif referential in noSide:
-	    return noSide[referential](coords[0], coords[1], coords[2])
+      return noSide[referential](coords[0], coords[1], coords[2])
     else:
-	    print "anyRef2Real : no such referential or invalid coords : "+repr(referential)+" -> "+repr(coords)
-	    return None
+      print("anyRef2Real : no such referential or invalid coords : "+repr(referential)+" -> "+repr(coords))
+      return None
 
   # Converts coords from any ref to any other referential
   def anyRef2AnyRef(self, coords, referentialFrom, referentialTo):
-	"""Convert coords [x,y,z] or [x,y,z,side] from any referential to any other referential"""
-	reals = self.anyRef2Real(coords, referentialFrom)
-	if reals is None:
-	      print "Cannot convert to real !"
-	      return None
-	if size(coords) > 3: # There is side information in coords[3]
-	  reals = reals[:3]+coords[3:] # Keep the side information in case it is needed by the destination referential
-	return self.real2AnyRef(reals,referentialTo)
+    """Convert coords [x,y,z] or [x,y,z,side] from any referential to any other referential"""
+    reals = self.anyRef2Real(coords, referentialFrom)
+    if reals is None:
+      print("Cannot convert to real !")
+      return None
+    if size(coords) > 3: # There is side information in coords[3]
+      reals = reals[:3]+coords[3:] # Keep the side information in case it is needed by the destination referential
+      return self.real2AnyRef(reals,referentialTo)
+
