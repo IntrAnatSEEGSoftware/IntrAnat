@@ -196,7 +196,6 @@ def getPlotsCenters(elecModel):
     plots = getPlots(elecModel)
     return dict((p, plots[p]['center']) for p in plots)
 
-
 # ==========================================================================
 # ===== MAIN WINDOW ========================================================
 # ==========================================================================
@@ -253,7 +252,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         if (loadAll == True) and isGui:
             #self.a.config()['setAutomaticReferential'] = 1
             #self.a.config()['commonScannerBasedReferential'] = 1
-            #self.a.onCursorNotifier.add(self.clickHandler) # BRAINVISA 5 MANIK -> crash
+            #self.a.onCursorNotifier.add(self.clickHandler) # BRAINVISA 5 MANIK -> crash {'position': float vector size 4, 'window': AWindow}
             
             # Create 4 windows
             self.wins = []
@@ -1003,7 +1002,7 @@ class LocateElectrodes(QtWidgets.QDialog):
 
 
     # Get the click events
-    def clickHandler(self, eventName, params):
+    def clickHandler(self, event=None, params=None):
         # If a real mouse click: save position
         if params:
             self.lastClickedPos = params['position']
@@ -1159,7 +1158,7 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     def updateCoordsDisplay(self, text):
         self.coordsDisplayRef = str(text)
-        self.clickHandler(None, None)
+        self.clickHandler(None)
 
     def updateDispMode(self, index):
         """ Update the display mode of all electrodes """
@@ -1298,9 +1297,12 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     # Add an electrode from a template
     def addElectrode(self, name=None, model=None, target=None, entry=None, refId=None, isUpdate=True, isGui=True):
-        if name is None:
+        if name is None or type(name) is bool:
             name = str(self.nameEdit.text())
+            print("Creating electrode without a name, using nameEdit content:", name)
             self.isModified = True
+        else:
+            print("Creating electrode with a name : ", name)
         if model is None:
             model = str(self.typeComboBox.currentText())
         isTransparent = False
@@ -1323,6 +1325,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         for el in self.electrodes:
             if name == el['name']:
                 name = self.findFreeElectrodeName()
+                print("Changing name already in use to: ", name)
         if str(model) not in self.elecModelListByName:
             print(("ERROR: Could not find electrode model named " + str(model) + ". Ignoring electrode. Please check that the model is installed in IntrAnat database !"))
             #QtGui.QMessageBox.warning(self, u'Error', u"Could not load electrode model %s. Please check it is installed in IntrAnat database !"%str(model))
@@ -1334,7 +1337,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                                 'target':target, 'entry':entry, 'model':model})
         # Add electrode name in GUI
         self.electrodeList.addItem(name)
-        self.electrodeList.setCurrentRow(self.electrodeList.count() - 1)
+        self.electrodeList.setCurrentRow(self.electrodeList.count() - 1) # MANIK DEBUG -> CRASH double delete + QObject::connect: Cannot queue arguments of type 'QItemSelection' ?
         # Redraw electrodes
         if isUpdate and isGui:
             self.updateElectrodeMeshes()
@@ -1398,7 +1401,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         newName = n[-1]
         firstletter = newName[::-1][-1]
         if firstletter in string.ascii_uppercase:
-            newName = string.uppercase[(string.uppercase.find(firstletter)+1)%len(string.uppercase)] + newName[1:]
+            newName = string.ascii_uppercase[(string.ascii_uppercase.find(firstletter)+1)%len(string.ascii_uppercase)] + newName[1:]
         if newName in n:
             while newName in n:
                 newName = newName+'_'
@@ -1473,46 +1476,54 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     def updateEntry(self, e=None):
         """ Updates the current electrode entry point from the cursor position"""
-        el = self.currentElectrode()
-        pos = self.positionPreRef()
-        # Just ignore if new entry is identical to target
-        if pos == el['target']:
-            return
-        # Update electrode meshes
-        meshes = el['elecModel'].getAnatomistObjects()
-        (newRef, transf) = moveElectrode(el['target'], pos, self.preReferential(), el['ref'], self.a, meshes)
-        # Save modifications
-        el['entry'] = pos
-        el['transf'] = transf
-        self.isModified = True
-        # If target was not set and now electrode is fully visible: make meshes visible
-        if self.t1preCenter and (el['target'] != self.t1preCenter) and (el['entry'] != [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]):
-            for m in meshes:
-                mat = m.getInternalRep().GetMaterial().genericDescription()['diffuse']
-                m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 1])
+        try:
+            el = self.currentElectrode()
+            pos = self.positionPreRef()
+            # Just ignore if new entry is identical to target
+            if pos == el['target']:
+                return
+            # Update electrode meshes
+            meshes = el['elecModel'].getAnatomistObjects()
+            (newRef, transf) = moveElectrode(el['target'], pos, self.preReferential(), el['ref'], self.a, meshes)
+            # Save modifications
+            el['entry'] = pos
+            el['transf'] = transf
+            self.isModified = True
+            # If target was not set and now electrode is fully visible: make meshes visible
+            if self.t1preCenter and (el['target'] != self.t1preCenter) and (el['entry'] != [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]):
+                for m in meshes:
+                    mat = m.getInternalRep().GetMaterial().genericDescription()['diffuse']
+                    m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 1])
+        except Exception as e:
+            print("Exception in updateEntry : ", e)
                 
                 
     def updateTarget(self, t=None):
         """ Updates the current electrode target point from the cursor position"""
-        el = self.currentElectrode()
-        if el is None:
-            return
-        pos = self.positionPreRef()
-        # Just ignore if new target is identical to entry
-        if pos == el['entry']:
-            return
-        # Update electrode meshes
-        meshes = el['elecModel'].getAnatomistObjects()
-        (newRef, transf) = moveElectrode(pos, el['entry'], self.preReferential(), el['ref'], self.a, meshes)
-        # Save modifications
-        el['target'] = pos
-        el['transf'] = transf
-        self.isModified = True
-        # If target was not set and now electrode is fully visible: make meshes visible
-        if self.t1preCenter and (el['target'] != self.t1preCenter) and (el['entry'] != [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]):
-            for m in meshes:
-                mat = m.getInfos()["material"]["diffuse"]
-                m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 1])
+        try:
+            el = self.currentElectrode()
+            if el is None:
+                return
+            print("Update target of electrode: ", repr(el))
+            pos = self.positionPreRef()
+            print(" TO POSITION: ", repr(pos))
+            # Just ignore if new target is identical to entry
+            if pos == el['entry']:
+                return
+            # Update electrode meshes
+            meshes = el['elecModel'].getAnatomistObjects()
+            (newRef, transf) = moveElectrode(pos, el['entry'], self.preReferential(), el['ref'], self.a, meshes)
+            # Save modifications
+            el['target'] = pos
+            el['transf'] = transf
+            self.isModified = True
+            # If target was not set and now electrode is fully visible: make meshes visible
+            if self.t1preCenter and (el['target'] != self.t1preCenter) and (el['entry'] != [self.t1preCenter[0], self.t1preCenter[1], self.t1preCenter[2] - 0.1]):
+                for m in meshes:
+                    mat = m.getInfos()["material"]["diffuse"]
+                    m.setMaterial(diffuse=[mat[0], mat[1], mat[2], 1])
+        except Exception as e:
+            print("Exception in updateTarget : ", e)
                 
             
     def editElectrodeName(self):
