@@ -285,26 +285,26 @@ class ImageImport(QtWidgets.QDialog):
             self.ui.bvSubjectCombo.currentIndexChanged[str].connect(self.selectBvSubject)
             self.ui.bvSubjectCombo.activated[str].connect(self.setCurrentSubject)
             self.ui.bvImageList.itemDoubleClicked.connect(self.selectBvImage)
-            self.ui.bvNewSubjectButton.clicked.connect(self.addBvSubject)
-            self.ui.bvDeleteImageButton.clicked.connect(self.deleteBvImage)
-            self.ui.bvDeleteSubjectButton.clicked.connect(self.deleteBvSubject)
-            self.ui.bvEditPref.clicked.connect(self.editBvPref)
-            self.ui.bvUpdateDb.clicked.connect(self.updateBvDb)
-            self.ui.bvImportBids.clicked.connect(self.importBids)
+            self.ui.bvNewSubjectButton.clicked.connect(lambda x: self.addBvSubject())
+            self.ui.bvDeleteImageButton.clicked.connect(lambda x: self.deleteBvImage())
+            self.ui.bvDeleteSubjectButton.clicked.connect(lambda x: self.deleteBvSubject())
+            self.ui.bvEditPref.clicked.connect(lambda x: self.editBvPref())
+            self.ui.bvUpdateDb.clicked.connect(lambda x: self.updateBvDb())
+            self.ui.bvImportBids.clicked.connect(lambda x: self.importBids())
             # TAB2: Add subject
             self.ui.subjectSiteCombo.activated[str].connect(self.updatePatientCode)
             self.ui.subjectSiteCombo.editTextChanged[str].connect(self.updatePatientCode)
             self.ui.subjectYearSpinbox.valueChanged.connect(self.updatePatientCode)
             self.ui.subjectPatientName.textChanged[str].connect(self.updatePatientCode)
             self.ui.subjectPatientFirstName.textChanged[str].connect(self.updatePatientCode)
-            self.ui.subjectAddSubjectButton.clicked.connect(self.storePatientInDB)
+            self.ui.subjectAddSubjectButton.clicked.connect(lambda x: self.storePatientInDB())
             # TAB3: Import to BrainVisa
-            self.ui.chooseNiftiButton.clicked.connect(self.chooseNifti)
-            self.ui.niftiImportButton.clicked.connect(self.importNifti)
-            self.ui.niftiSetBraincenterButton.clicked.connect(self.setBrainCenter)
-            self.ui.ImportFSoutputspushButton.clicked.connect(self.importFSoutput)
-            self.ui.buttonImportLausanne.clicked.connect(self.importLausanne2008)
-            self.ui.buttonImportVEP.clicked.connect(self.importVEP)
+            self.ui.chooseNiftiButton.clicked.connect(lambda x:self.chooseNifti())
+            self.ui.niftiImportButton.clicked.connect(lambda x:self.importNifti())
+            self.ui.niftiSetBraincenterButton.clicked.connect(lambda x:self.setBrainCenter())
+            self.ui.ImportFSoutputspushButton.clicked.connect(lambda x:self.importFSoutput())
+            self.ui.buttonImportLausanne.clicked.connect(lambda x:self.importLausanne2008())
+            self.ui.buttonImportVEP.clicked.connect(lambda x:self.importVEP())
             self.ui.niftiSubjectCombo.activated[str].connect(self.setCurrentSubject)
             self.ui.niftiSeqType.currentIndexChanged[str].connect(self.enable_disable_gadooption)
             # TAB4: Coregistration
@@ -312,19 +312,19 @@ class ImageImport(QtWidgets.QDialog):
             self.ui.regSubjectCombo.activated[str].connect(self.setCurrentSubject)
             self.ui.regImageList.itemDoubleClicked.connect(self.selectRegImage)
             self.ui.regImageList2.itemDoubleClicked.connect(self.selectRegImage2)
-            self.ui.registerNormalizeSubjectButton.clicked.connect(self.registerNormalizeSubject)
-            self.ui.segmentationHIPHOPbutton.clicked.connect(self.runPipelineBV)
-            self.ui.runMarsAtlasFreesurferButton.clicked.connect(self.runPipelineFS)
-            self.ui.runHiphopOnly.clicked.connect(self.runProcessHiphop)        
+            self.ui.registerNormalizeSubjectButton.clicked.connect(lambda x: self.registerNormalizeSubject())
+            self.ui.segmentationHIPHOPbutton.clicked.connect(lambda x: self.runPipelineBV())
+            self.ui.runMarsAtlasFreesurferButton.clicked.connect(lambda x: self.runPipelineFS())
+            self.ui.runHiphopOnly.clicked.connect(lambda x: self.runProcessHiphop())        
             # TAB5: Preferences
-            self.ui.prefSpmTemplateButton.clicked.connect(self.setSpmTemplatePath)
-            self.ui.prefANTsButton.clicked.connect(self.setANTsPath)
-            self.ui.prefFreesurferButton.clicked.connect(self.setFreesurferPath)
-            self.ui.prefBidsButton.clicked.connect(self.setBidsPath)
-            self.ui.prefANTScheckbox.clicked.connect(lambda: self.setPrefCoregister('ANTS'))
-            self.ui.prefSPMcheckbox.clicked.connect(lambda: self.setPrefCoregister('SPM'))
+            self.ui.prefSpmTemplateButton.clicked.connect(lambda x: self.setSpmTemplatePath())
+            self.ui.prefANTsButton.clicked.connect(lambda x: self.setANTsPath())
+            self.ui.prefFreesurferButton.clicked.connect(lambda x: self.setFreesurferPath())
+            self.ui.prefBidsButton.clicked.connect(lambda x: self.setBidsPath())
+            self.ui.prefANTScheckbox.clicked.connect(lambda x: self.setPrefCoregister('ANTS'))
+            self.ui.prefSPMcheckbox.clicked.connect(lambda x: self.setPrefCoregister('SPM'))
             self.ui.prefProjectCombo.currentIndexChanged[str].connect(self.setPrefProject)
-            self.ui.prefSaveButton.clicked.connect(self.savePreferences)
+            self.ui.prefSaveButton.clicked.connect(lambda x: self.savePreferences())
     
         self.warningMEDIC()
 
@@ -336,7 +336,7 @@ class ImageImport(QtWidgets.QDialog):
         self.ui.regPcButton.clicked.connect(lambda:setDictValue(self.AcPc,'PC',list(self.a.linkCursorLastClickedPosition()),self.ui.regPcButton))
         self.ui.regIhButton.clicked.connect(lambda:setDictValue(self.AcPc,'IH',list(self.a.linkCursorLastClickedPosition()),self.ui.regIhButton))
         self.ui.regLhButton.clicked.connect(lambda:setDictValue(self.AcPc,'LH',list(self.a.linkCursorLastClickedPosition()),self.ui.regLhButton))
-        self.ui.regAcPcValidateButton.clicked.connect(self.validateAcPc)
+        self.ui.regAcPcValidateButton.clicked.connect(lambda x: self.validateAcPc())
         
         # Finds the available protocols in brainvisa database and fills the comboboxes
         self.analyseBrainvisaDB()
@@ -344,7 +344,7 @@ class ImageImport(QtWidgets.QDialog):
         # Show anatomist
         self.showAnatomist.setIcon(QtGui.QIcon('logoAnatomist.png'))
         self.showAnatomist.setIconSize(QtGui.QSize(24, 24))
-        self.showAnatomist.clicked.connect(self.toggleAnatomistWindow)
+        self.showAnatomist.clicked.connect(lambda x: self.toggleAnatomistWindow())
 
 
     def __del__ (self):
@@ -419,6 +419,9 @@ class ImageImport(QtWidgets.QDialog):
             self.ui.subjectSiteCombo.clear()
             self.ui.subjectSiteCombo.addItems(self.prefs['sites'])
 
+        if 'projectSelected' not in self.prefs:
+            self.prefs['projectSelected'] = 'Other' #'CHUGA':
+
         # Check what spm path has been defined in BrainVisa
         configuration = Application().configuration
         brainvisa_spm12_path = configuration.SPM.spm12_path
@@ -462,7 +465,7 @@ class ImageImport(QtWidgets.QDialog):
             if brainvisa_freesurfer_home_path != self.prefs['freesurfer']:
                 QtGui.QMessageBox.warning(self, "Freesurfer", "Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
                 print("Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
-            self.setFreesurferPath(self.prefs['freesurfer'])
+            #self.setFreesurferPath(self.prefs['freesurfer'])
         else:
             self.setFreesurferPath(brainvisa_freesurfer_home_path)
 
@@ -1222,7 +1225,7 @@ class ImageImport(QtWidgets.QDialog):
         if not diT1pre:
             errMsg = "No T1pre found"
             if isGui:
-                QtGui.QMessageBox.warning(self, "Error", subject + ": " + errMsg)
+                QtGui.QMessageBox.warning(self, "Error for subject ", repr(subject) + ": " + errMsg)
             return [False, [errMsg]]
 
         # Find FreeSurfer database
@@ -2848,7 +2851,7 @@ class ImageImport(QtWidgets.QDialog):
 
     def setFreesurferPath(self, path=None):
         if path is None or type(path)==bool:
-            #path = QtGui.QFileDialog.getExistingDirectory(self, u"Select FREESURFER path")
+            path = QtGui.QFileDialog.getExistingDirectory(self, u"Select FREESURFER path")
             print("PLEASE SET FREESURFER PATH IN PREFERENCES")
         if path is not None and type(path) != bool:
             self.ui.prefFreesurferEdit.setText(path)
