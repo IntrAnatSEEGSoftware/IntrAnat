@@ -82,7 +82,10 @@ def matlabRun(cmd):
     # Save matlab script
     matlabCall = saveMatlabCall(cmd)
     # Run code
-    [result, errMsg] = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env = myEnv).communicate()
+    try:
+        [result, errMsg] = subprocess.Popen(matlabCall['code'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env = myEnv).communicate()
+    except Exception as e:
+        errMsg = "Exception running matlab command: " + repr(e)
     # Delete temp file
     os.remove(matlabCall['fullpath'])
     # Print error message
