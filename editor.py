@@ -196,8 +196,14 @@ class ElectrodeEditorDialog(QtGui.QWidget):
   
   # Update the currently selected cylinder
   def updateCylinder(self):
-    # TODO if the name changes ?
-    name = str(self.cylinderList.currentItem().text())
+    name = str(self.nameEdit.text())
+    # if the name changes just remove and add the cylinder
+    if name != self.currentCylinder:
+      print("Changing contact name is not well supported")
+      self.addCylinder()
+      self.deleteCylinder(self.currentCylinder) # Remove it from the contact list, from Anatomist display and from the dictionary
+      return
+      
     (ax, vec) = self.getAxisVector()
     v = self.lengthValue.value()
     self.cylinders[name] = {'axis':ax,
@@ -213,6 +219,7 @@ class ElectrodeEditorDialog(QtGui.QWidget):
   # Display a cylinder selected from the list
   def selectCylinder(self, name):
     cyl = self.cylinders[name]
+    self.nameEdit.setText(name)
     self.axisCombo.setCurrentIndex(self.axisCombo.findText(cyl['axis']))
     v = cyl['vector']
     self.xValue.setValue(v[0])
@@ -228,12 +235,21 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     self.typeCombo.setCurrentIndex(self.typeCombo.findText(cyl['type']))
 
     self.displaySelect(name)
+    self.currentCylinder = name
 
   # Delete the selected 
-  def deleteCylinder(self):
-    item = self.cylinderList.takeItem(self.cylinderList.currentRow())
+  def deleteCylinder(self, name=None):
+    if type(name) == str:
+      itms = self.cylinderList.findItems(name, QtCore.Qt.MatchExactly)
+      if len(itms) == 1:
+        item = self.cylinderList.takeItem(self.cylinderList.row(itms[0]))
+      else:
+          print("DeleteCylinder: could not find one and only one item with name ", repr(name), " -> found ", repr(itms))
+    else:
+      item = self.cylinderList.takeItem(self.cylinderList.currentRow())
     self.undisplayCylinder(str(item.text()))
     del self.cylinders[str(item.text())]
+    self.currentCylinder = None
     item = None
     
   # Refills the cylinderlist from the stored data
@@ -242,13 +258,16 @@ class ElectrodeEditorDialog(QtGui.QWidget):
     item = None
     for name in sorted(self.cylinders):
       item = QtGui.QListWidgetItem(name,self.cylinderList)
+      self.currentCylinder = name
     self.cylinderList.setCurrentItem(item)
+
     
     
   # Click on an item and column in the list
   def cylinderListClick(self, item,prevItem=None):
     name = str(item.text())
     self.selectCylinder(name)
+    self.currentCylinder = name
 
   def closeEvent(self, event):
     self.quit()     
