@@ -1,4 +1,4 @@
-# Persisent wait bar
+# Persistent wait bar
 #
 # (c) Inserm U1216 2018 - Francois Tadel
 # License GNU GPL v3

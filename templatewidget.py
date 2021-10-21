@@ -9,9 +9,10 @@
 # License GNU GPL v3
 #
 #
-from soma.qt_gui.qt_backend import QtGui, QtCore, uic
+from soma.qt_gui.qt_backend import QtWidgets
 
-import sys, os
+import sys
+import os
 
 
 from brainvisa import axon
@@ -217,15 +218,15 @@ class TemplateMNI(TemplateMRI):
 
 
 
-class TemplateWidget(QtGui.QWidget):
+class TemplateWidget(QtWidgets.QWidget):
   def __init__(self, app=None):
-    QtGui.QWidget.__init__(self)
+    QtWidgets.QWidget.__init__(self)
 
 
 
 
 if __name__ == "__main__":
-  app = QtGui.QApplication(sys.argv)
+  app = QtWidgets.QApplication(sys.argv)
   axon.initializeProcesses()
   from brainvisa.data.readdiskitem import ReadDiskItem
   from brainvisa.data.writediskitem import WriteDiskItem

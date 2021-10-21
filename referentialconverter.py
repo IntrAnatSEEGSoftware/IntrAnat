@@ -3,7 +3,6 @@ from soma import aims
 from soma.aims import apctools
 from numpy import *
 from brainvisa.data.writediskitem import ReadDiskItem
-import pdb
 
 # Conversion de coordonnées d'un référentiel à un autre.
 # Les transformations linéaires (matrices), le référentiel AC-PC,
@@ -14,19 +13,21 @@ import pdb
 #
 # License GNU GPL v3
 class ReferentialConverter:
-  """ This class allows to load linear transformations (matrices) from a referential to the "real" anatomist coordinates (image-based)
-   All declared referentials/transformations can then be used to convert coordinates from one referential to another.
-   Functions are provided to define the Goetz mesencephalon/PPN referential, the AC-PC referential (from the APC file in BrainVisa, brainvisa database access must be initialized by the caller),
-  the BEN referential (Benabid normalization, AC-PC with height normalization using Thalamus height and AC-PC length, no Y normalization). Any matrix transformation can be loaded."""
+  """
+    This class allows to load linear transformations (matrices) from a referential to the "real" anatomist
+    coordinates (image-based)
+    All declared referentials/transformations can then be used to convert coordinates from one referential to another.
+    Functions are provided to define the Goetz mesencephalon/PPN referential, the AC-PC referential (from the APC file
+     in BrainVisa, brainvisa database access must be initialized by the caller),
+    the BEN referential (Benabid normalization, AC-PC with height normalization using Thalamus height and AC-PC length,
+     no Y normalization). Any matrix transformation can be loaded.
+  """
   def __init__(self):
     self.availableRefs = {}
     self.withMatrixFromReal = {}
     self.withMatrixToReal = {}
 
-  #def saveToFile
-    #self.availableRefs, self.Hthal, self.Ac, self.Pc, self.Ih, self.withMatrixFromReal, self.withMatrixToReal
-    #self.Oppn,self.XDppn, self.XGppn, self.Yppn, self.Zppn
-
+  @property
   def availableReferentials(self):
     return self.availableRefs
 
@@ -251,14 +252,14 @@ class ReferentialConverter:
   # Conversion des coordonnées Goetz vers les coordonnées réelles : PROJECTION PARALLELE AUX AXES u=x_u*X+y_u*Y+z_u*Z
   def g2Real(self, xg, yg, zg, side):
     """ Convert normalized parallel Goetz referential to native coordinates"""
-    if side == -1: # Right side
-      return [self.Oppn[0] + xg*(self.XDppn[0] - self.Oppn[0]) + yg*(self.Yppn[0] - self.Oppn[0]) + zg*(self.Zppn[0] - self.Oppn[0]),\
-	      self.Oppn[1] + xg*(self.XDppn[1] - self.Oppn[1]) + yg*(self.Yppn[1] - self.Oppn[1]) + zg*(self.Zppn[1] - self.Oppn[1]),\
-	      self.Oppn[2] + xg*(self.XDppn[2] - self.Oppn[2]) + yg*(self.Yppn[2] - self.Oppn[2]) + zg*(self.Zppn[2] - self.Oppn[2])]
+    if side == -1:  # Right side
+      return [self.Oppn[0] + xg*(self.XDppn[0] - self.Oppn[0]) + yg*(self.Yppn[0] - self.Oppn[0]) + zg*(self.Zppn[0] - self.Oppn[0]),
+          self.Oppn[1] + xg*(self.XDppn[1] - self.Oppn[1]) + yg*(self.Yppn[1] - self.Oppn[1]) + zg*(self.Zppn[1] - self.Oppn[1]),
+          self.Oppn[2] + xg*(self.XDppn[2] - self.Oppn[2]) + yg*(self.Yppn[2] - self.Oppn[2]) + zg*(self.Zppn[2] - self.Oppn[2])]
     elif side == 1: # left side
-      return [self.Oppn[0] + xg*(self.XGppn[0] - self.Oppn[0]) + yg*(self.Yppn[0] - self.Oppn[0]) + zg*(self.Zppn[0] - self.Oppn[0]),\
-	      self.Oppn[1] + xg*(self.XGppn[1] - self.Oppn[1]) + yg*(self.Yppn[1] - self.Oppn[1]) + zg*(self.Zppn[1] - self.Oppn[1]),\
-	      self.Oppn[2] + xg*(self.XGppn[2] - self.Oppn[2]) + yg*(self.Yppn[2] - self.Oppn[2]) + zg*(self.Zppn[2] - self.Oppn[2])]
+      return [self.Oppn[0] + xg*(self.XGppn[0] - self.Oppn[0]) + yg*(self.Yppn[0] - self.Oppn[0]) + zg*(self.Zppn[0] - self.Oppn[0]),
+          self.Oppn[1] + xg*(self.XGppn[1] - self.Oppn[1]) + yg*(self.Yppn[1] - self.Oppn[1]) + zg*(self.Zppn[1] - self.Oppn[1]),
+          self.Oppn[2] + xg*(self.XGppn[2] - self.Oppn[2]) + yg*(self.Yppn[2] - self.Oppn[2]) + zg*(self.Zppn[2] - self.Oppn[2])]
     else:
       print("ERROR : side value in invalid in g2Real : "+repr(side))
 
@@ -301,6 +302,7 @@ class ReferentialConverter:
       result = dot(array([[nxg, ny, nz]])*u, linalg.inv(matrice)) + array(self.Oppn)
     else:
       print("ERROR : side value is invalid in g2RealOrth : "+repr(side))
+      return None
 
     return result.tolist()[0]
 
@@ -334,6 +336,7 @@ class ReferentialConverter:
       result = linalg.solve(matrice, array([nxg, ny, nz])*u[0]) + array(self.Oppn)
     else:
       print("ERROR : side value is invalid in g2RealOrth : "+repr(side))
+      return None
     return result.tolist()
 
 
@@ -402,7 +405,7 @@ class ReferentialConverter:
     noSide = {'Bens':self.bens2Real, 'AC-PC':self.AcPc2Real,'real':lambda x,y,z:[x,y,z]}
     if referential in self.withMatrixToReal:
       return self.applyMatrix(coords[0], coords[1], coords[2], self.withMatrixToReal[referential])
-    if referential in withSide and size(coords)>3:
+    if referential in withSide and size(coords) > 3:
       return withSide[referential](coords[0], coords[1], coords[2], coords[3])
     elif referential in noSide:
       return noSide[referential](coords[0], coords[1], coords[2])

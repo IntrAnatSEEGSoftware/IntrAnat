@@ -33,7 +33,7 @@ setEnv(myEnv)
 from referentialconverter import ReferentialConverter
 from readLabels import readLabels
 from readFreesurferLabelFile import readFreesurferLabelFile
-from TimerMessageBox import *
+from TimerMessageBox import TimerMessageBox
 from generate_contact_colors import *
 from electrode import ElectrodeModel
 from bipoleSEEGColors import bipoleSEEGColors
@@ -1145,7 +1145,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         curr = str(self.referentialCombo.currentText())
         self.referentialCombo.clear()
         # Add items from the referential converter
-        refs = list(self.refConv.availableReferentials().keys()) + ['Natif',]
+        refs = list(self.refConv.availableReferentials.keys()) + ['Natif', ]
         self.referentialCombo.addItems(refs)
         # Add available atlases
         if ('FreesurferAtlaspre' in list(self.dispObj.keys())):
@@ -1711,7 +1711,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         f.close()
     
         # The coordinates in the PTS are expressed in which referential ?
-        refOfPts = self.comboMessageBox('Importation d\'un fichier PTS. Choisissez le référentiel utilisé (Scanner-based...)', sorted(self.refConv.availableReferentials().keys()))
+        refOfPts = self.comboMessageBox('Importation d\'un fichier PTS. Choisissez le référentiel utilisé (Scanner-based...)', sorted(self.refConv.availableReferentials.keys()))
         if refOfPts is None:
             print("User cancelled PTS importation, or no valid referential found")
             return
@@ -1762,7 +1762,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         lines.reverse()
     
         # The coordinates in the TXT are expressed in which referential ?
-        refOfTxt = self.comboMessageBox('Importation d\'un fichier electrode TXT. Choisissez le référentiel utilisé (Scanner-based a priori)', sorted(self.refConv.availableReferentials().keys()))
+        refOfTxt = self.comboMessageBox('Importation d\'un fichier electrode TXT. Choisissez le référentiel utilisé (Scanner-based a priori)', sorted(self.refConv.availableReferentials.keys()))
         if refOfTxt is None:
             print("User cancelled electrode TXT importation, or no valid referential found")
             return

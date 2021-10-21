@@ -28,7 +28,7 @@ from freesurfer.brainvisaFreesurfer import *
 
 from externalprocesses import *
 setEnv(myEnv)
-from TimerMessageBox import *
+from TimerMessageBox import TimerMessageBox
 from progressbar import ProgressDialog
 import DialogCheckbox
 

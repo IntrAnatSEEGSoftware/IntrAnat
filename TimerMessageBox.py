@@ -2,18 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from soma.qt_gui.qt_backend import QtCore
-from soma.qt_gui.qt_backend import QtGui
+from soma.qt_gui.qt_backend import QtCore, QtWidgets
 
 
-class TimerMessageBox(QtGui.QMessageBox):
+class TimerMessageBox(QtWidgets.QMessageBox):
+    """ Message box with a countdown timer that closes automatically """
     def __init__(self, timeout=3, parent=None):
         super(TimerMessageBox, self).__init__(parent)
         self.setWindowTitle("NOT FOR MEDICAL USE")
         self.time_to_wait = timeout
         self.changeContent()
-        #self.setText("wait (closing automatically in {0} secondes.)".format(timeout))
-        self.setStandardButtons(QtGui.QMessageBox.NoButton)
+        self.setStandardButtons(QtWidgets.QMessageBox.NoButton)
         self.timer = QtCore.QTimer(self)
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.changeContent)
@@ -32,10 +31,11 @@ class TimerMessageBox(QtGui.QMessageBox):
         event.accept()
 
 
-class Example(QtGui.QWidget):
+class ExampleTimerMessageBox(QtWidgets.QWidget):
+    """ Class for testing TimerMessageBox """
     def __init__(self):
-        super(Example, self).__init__()
-        btn = QtGui.QPushButton('Button', self)
+        super(ExampleTimerMessageBox, self).__init__()
+        btn = QtWidgets.QPushButton('Button', self)
         btn.resize(btn.sizeHint())
         btn.move(50, 50)
         self.setWindowTitle('Example')
@@ -47,8 +47,8 @@ class Example(QtGui.QWidget):
 
 
 def main():
-    app = QtGui.QApplication(sys.argv)
-    ex = Example()
+    app = QtWidgets.QApplication(sys.argv)
+    ex = ExampleTimerMessageBox()
     ex.show()
     sys.exit(app.exec_())
 
