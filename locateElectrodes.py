@@ -259,6 +259,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
                 # Create anatomist window
                 w = self.a.createWindow('Sagittal', options={'hidden': 1})
+                w.setControl('Selection 3D')  # SelectionControl
                 #w.setParent(wcont)#, no_decoration=True )
                 self.wins.append(w)
                 # Add to main window
