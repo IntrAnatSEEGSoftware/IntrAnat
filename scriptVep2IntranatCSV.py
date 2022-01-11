@@ -8,6 +8,7 @@
 #
 import subprocess
 import glob
+import sys
 
 from brainvisa import axon
 from brainvisa.data.readdiskitem import ReadDiskItem
@@ -16,13 +17,15 @@ from freesurfer.brainvisaFreesurfer import launchFreesurferCommand
 from brainvisa.processes import defaultContext
 from brainvisa.data import neuroHierarchy
 
-from LocateElectrodes import LocateElectrodes
+from soma.qt_gui.qt_backend import QtGui, QtCore
+
+from locateElectrodes import LocateElectrodes
 
 from externalprocesses import createItemDirs
 from batch_csv import generateCsv
 
-freesurferDB = "/gin/data/database/03-preprocessed/Freesurfer"
-brainvisaDB = "/gin/data/database/03-preprocessed/Brainvisa"
+freesurferDB = "/host/media/odavid/FTract/data/database/03-preprocessed/Freesurfer"
+brainvisaDB = "/host/media/odavid/FTract/data/database/03-preprocessed/Brainvisa"
 
 def findT1pre(subject):
     rT1BV = ReadDiskItem('Raw T1 MRI', 'BrainVISA volume formats', requiredAttributes={'subject': subject})
@@ -47,10 +50,10 @@ def importFsAtlas(subject, proto='Epilepsy', imgName='VEP', imgPath="default.mgz
     if not diT1pre:
         diT1pre = findT1pre(subject)
         if not diT1pre:
-            return [False, ['No T1pre found']]
+            return [False, ['No T1pre found ' + repr(subject)]]
     # Where to copy the new files
     acq = str(diT1pre.attributes()['acquisition']).replace('T1', imgName + "-")
-    # Importing Destrieux atlas to BrainVISA database
+    # Importing VEP atlas to BrainVISA database
     wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
     di = wdi.findValue({'center': proto, 'acquisition': acq, 'subject': subject})
     # Create the folder if doesn't exist
@@ -76,6 +79,30 @@ def importFsAtlas(subject, proto='Epilepsy', imgName='VEP', imgPath="default.mgz
     neuroHierarchy.databases.insertDiskItem(di, update=True)
     return True, []
 
+def processVepFile(v):
+    veppath = v
+    v = v.replace(freesurferDB + "/", "").replace("/mri/aparc+aseg.vep.mgz", "")
+    v = v.replace('-','') # From 0013STA_13-01-2014 in Freesurfer to 0013STA_13012014 in Brainvisa
+    # 2) Check if it is already imported
+    # brainvisadb/Epilepsy/0001GRE_25112014/FreesurferAtlas/VEP-pre_2014-1-1/0001GRE_25112014-VEP-pre_2014-1-1.nii
+    vepBV = glob.glob(brainvisaDB + "/Epilepsy/" + v + "/FreesurferAtlas/VEP-pre_*/" + v + "-VEP-pre_*.nii")
+    if len(vepBV) > 0:
+        print("Already imported ", v, " -> ", repr(vepBV))
+        continue
+    else:
+        print("Importing ", v)
+    # 3) Import it into BrainVisa
+    worked, msg = importFsAtlas(v, proto='Epilepsy', imgName='VEP', imgPath=veppath, fileVoxelType='S32')
+    if(worked):
+        print("Successfully imported ", v)
+    else:
+        print("Failed to import ", v, " -> ", msg)
+    print("Exporting CSV")
+    isOk, errMsg = generateCsv(w, v, True, True)
+    if isOk:
+        print(v, ": CSV exported")
+    else:
+        print(v, ": CSV export failed: ", errMsg)
 
 
 if __name__ == '__main__':
@@ -95,28 +122,7 @@ if __name__ == '__main__':
     vepFiles = glob.glob(freesurferDB + "/*/mri/aparc+aseg.vep.mgz")
     print("Found ", len(vepFiles), " VEP files found")
     for v in vepFiles:
-        veppath = v
-        v = v.replace(freesurferDB + "/", "").replace("/mri/aparc+aseg.vep.mgz", "")
-        # 2) Check if it is already imported
-        # brainvisadb/Epilepsy/0001GRE_25112014/FreesurferAtlas/VEP-pre_2014-1-1/0001GRE_25112014-VEP-pre_2014-1-1.nii
-        vepBV = glob.glob(brainvisaDB + "/Epilepsy/" + v + "/FreesurferAtlas/VEP-pre_*/" + v + "-VEP-pre_*.nii")
-        if len(vepBV) > 0:
-            print("Already imported ", v, " -> ", repr(vepBV))
-            continue
-        else:
-            print("Importing ", v)
-        # 3) Import it into BrainVisa
-        worked, msg = importFsAtlas(v, proto='Epilepsy', imgName='VEP', imgPath=veppath, fileVoxelType='S32')
-        if(worked):
-            print("Successfully imported ", v)
-        else:
-            print("Failed to import ", v, " -> ", msg)
-        print("Exporting CSV")
-        isOk, errMsg = generateCsv(w, v, True, True)
-        if isOk:
-            print(v, ": CSV exported")
-        else:
-            print(v, ": CSV export failed: ", errMsg)
+       processVepFile(v) 
 
 
     app.quit()
