@@ -11,9 +11,10 @@ Welcome to IntrAnat's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   install
+   IntranatInstallationBrainVisa5
    user_documentation
    technical_documentation
+
 
 **IntrAnat** is a free database and visualization software for Intracranial Electroencephalographic (iEEG) data
 that allows to locate and register intracerebral electrodes for individual cases as well as
@@ -23,7 +24,7 @@ IntrAnat is for **research purpose only**, not medical usage. It is provided "as
 and its collaborators do not assume any liability or responsibility for
 its use.
 
-IntrAnat Electrodes is based on Brainvisa 4.6
+IntrAnat Electrodes is based on Brainvisa 5.0 (older versions can be used with brainvisa 4.6)
 (http://brainvisa.info/ ). It uses some of brainvisa's
 toolbox such as morphologist
 (http://brainvisa.info/web/morphologist.html ) and cortical surface
@@ -36,9 +37,10 @@ to « MNI space »).
 
 -  Software presentation: https://f-tract.eu/software/intranat
 -  Latest developments:
-   https://github.com/ftadel/IntrAnat/tree/brainvisa\_4.6
+   https://github.com/ftadel/IntrAnat/tree/brainvisa\_5.0.0dev
 -  Installation instructions:
-   https://github.com/ftadel/IntrAnat/wiki/Installation
+   :ref: `IntranatInstallationBrainVisa5`
+   Older installation instructions (Brainvisa 4.6): https://github.com/ftadel/IntrAnat/wiki/Installation
 -  User documentation:
    https://github.com/IntrAnatSEEGSoftware/IntrAnat/blob/brainvisa\_4.6/doc/user\_documentation.pdf
 
