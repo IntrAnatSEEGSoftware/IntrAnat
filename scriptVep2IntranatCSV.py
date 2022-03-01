@@ -24,6 +24,8 @@ from locateElectrodes import LocateElectrodes
 from externalprocesses import createItemDirs
 from batch_csv import generateCsv
 
+import concurrent.futures
+
 freesurferDB = "/host/media/odavid/FTract/data/database/03-preprocessed/Freesurfer"
 brainvisaDB = "/host/media/odavid/FTract/data/database/03-preprocessed/Brainvisa"
 
@@ -88,7 +90,7 @@ def processVepFile(v):
     vepBV = glob.glob(brainvisaDB + "/Epilepsy/" + v + "/FreesurferAtlas/VEP-pre_*/" + v + "-VEP-pre_*.nii")
     if len(vepBV) > 0:
         print("Already imported ", v, " -> ", repr(vepBV))
-        continue
+        return (False, "Already imported "+ v+ " -> "+ repr(vepBV))
     else:
         print("Importing ", v)
     # 3) Import it into BrainVisa
@@ -97,12 +99,15 @@ def processVepFile(v):
         print("Successfully imported ", v)
     else:
         print("Failed to import ", v, " -> ", msg)
+        return (False, "Failed to import " + v + " -> " + str(msg))
     print("Exporting CSV")
     isOk, errMsg = generateCsv(w, v, True, True)
     if isOk:
         print(v, ": CSV exported")
+        return (True, v + ": CSV exported")
     else:
         print(v, ": CSV export failed: ", errMsg)
+        return (False, v + ": CSV export failed: " + errMsg)
 
 
 if __name__ == '__main__':
@@ -121,8 +126,13 @@ if __name__ == '__main__':
     # 1) List subjects who have VEP files in Freesurfer database
     vepFiles = glob.glob(freesurferDB + "/*/mri/aparc+aseg.vep.mgz")
     print("Found ", len(vepFiles), " VEP files found")
-    for v in vepFiles:
-       processVepFile(v) 
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for v in vepFiles:
+            futures.append(executor.submit(processVepFile,v))
+        for future in concurrent.futures.as_completed(futures):
+            print(future.result())
 
 
     app.quit()

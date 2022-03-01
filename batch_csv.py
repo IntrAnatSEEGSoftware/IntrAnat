@@ -2,7 +2,7 @@
 # Author: Francois Tadel, 2018-2021
 # License GNU GPL v3
 
-import sys, os, time, datetime
+import sys, os, time, datetime, glob
 import locateElectrodes
 from soma import aims
 from brainvisa import axon
@@ -168,7 +168,7 @@ def main(isCsv, isBids, start_index, stop_index, logFilename):
         log = open(logFilename, 'a+')
         log.write("\n")
     else:
-        log = open(logFilename, 'wb')
+        log = open(logFilename, 'w')
         log.write("Number of patients: %d\n\n" % len(w.subjects))
     # Until the end
     if stop_index < start_index:
@@ -183,6 +183,22 @@ def main(isCsv, isBids, start_index, stop_index, logFilename):
         print("\n" + strPatient)
         log.write(strPatient)
         log.flush()
+        # Check if CSV is recent, do not start again if it already exists
+        csvFile = glob.glob("/media/odavid/FTract/data/database/03-preprocessed/Brainvisa/Epilepsy/" + w.subjects[iSubj] + "/implantation/" + w.subjects[iSubj] + ".csv")
+        if len(csvFile) < 1:
+            print("No CSV file for "+ w.subjects[iSubj])
+        elif len(csvFile)>1:
+            print("Multiple CSV files for "+ w.subjects[iSubj])
+        else:
+            csvTime = datetime.datetime.fromtimestamp(os.path.getmtime(csvFile[0]))
+            today = datetime.datetime.today()
+            duration = today - csvTime
+            if duration.days < 5:
+                print("CSV ALREADY DONE for "+ w.subjects[iSubj])
+                continue
+            else:
+                print("RUNNING GENERATE_CSV for "+ w.subjects[iSubj])
+
         # Create CSV
         isOk, errMsg = generateCsv(w, w.subjects[iSubj], isCsv, isBids)
         # Handling error/success
