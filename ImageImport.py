@@ -1571,7 +1571,7 @@ class ImageImport(QtWidgets.QDialog):
         if thread:
             thread.progress_text.emit("Importing " + mgzfile + "...")
             # Import file
-            self.importFsAtlas(subject, proto, 'VEP', mgzfile, diT1pre)  # Force 32 bits: fileVoxelType='S32'
+            self.importFsAtlas(subject, proto, 'VEP', mgzfile, diT1pre, fileVoxelType='S32')  # Force 32 bits: fileVoxelType='S32'
 
     # ******************************** Add New Subject
     # ANONYMIZATION TAKES PLACE HERE
