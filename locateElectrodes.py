@@ -2927,6 +2927,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'MNI-HCP-MMP1',
                 'MNI-AICHA',
                 'MNI-JulichBrain',
+                'MNI-insula',
                 'Resection rate']
             # Add list of column names
             colNames = ['contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlasFull'] + parcelNames
@@ -3132,7 +3133,8 @@ class LocateElectrodes(QtWidgets.QDialog):
                     'MNI-Hammers',
                     'MNI-HCP-MMP1',
                     'MNI-AICHA',
-                    'MNI-JulichBrain']
+                    'MNI-JulichBrain',
+                    'MNI-insula']
                 jsonCoord = {
                         "iEEGCoordinateSystem": space,
                         "iEEGCoordinateUnits": "mm",
@@ -3523,6 +3525,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         files_MNI['MNI-Lausanne2008-125'] = {'vol':'MNI_Atlases/Lausanne2008-125.nii.gz',                'labels':labels['Lausanne2008-125']}
         files_MNI['MNI-Lausanne2008-250'] = {'vol':'MNI_Atlases/Lausanne2008-250.nii.gz',                'labels':labels['Lausanne2008-250']}
         files_MNI['MNI-Lausanne2008-500'] = {'vol':'MNI_Atlases/Lausanne2008-500.nii.gz',                'labels':labels['Lausanne2008-500']}
+        files_MNI['MNI-insula'] = {'vol':'MNI_Atlases/insula_icbm152b.nii.gz',                   'labels':'MNI_Atlases/insula_icbm152b_labels.txt'}
         # Load: all MNI volumes and atlases
         for atlas in files_MNI:
             if files_MNI[atlas]['vol']:
