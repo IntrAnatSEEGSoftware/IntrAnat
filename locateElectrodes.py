@@ -261,7 +261,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         if loadAll and isGui:
             # self.a.config()['setAutomaticReferential'] = 1
             # self.a.config()['commonScannerBasedReferential'] = 1
-            # self.a.onCursorNotifier.add(self.clickHandler) # BRAINVISA 5 MANIK -> crash {'position': float vector size 4, 'window': AWindow}
+            self.a.onCursorNotifier.add(self.clickHandler) # {'position': float vector size 4, 'window': AWindow}
 
             # Create 4 windows
             self.wins = []
