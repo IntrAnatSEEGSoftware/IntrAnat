@@ -305,7 +305,9 @@ Add the electrode models to the shared database:
 
 .. code:: bash
 
-   ln -s $INTRANAT_INSTALL/IntrAnat/electrode_models/ /casa/host/install/share/brainvisa-share-5.0Start Brainvisa, set up and update the databases:
+   ln -s $INTRANAT_INSTALL/IntrAnat/electrode_models/ /casa/host/install/share/brainvisa-share-5.0
+  
+Start Brainvisa, set up and update the databases: run the brainvisa command, in the main window select Data management, Update databases. Make sure that the shared database and your own database are checked. Then run the process, wait until brainvisa has finished indexing the electrode models and your own data.
 
 **Matlab license**. Inside the container the home directory is not your
 user directory. To have matlab running, you need to have its license
