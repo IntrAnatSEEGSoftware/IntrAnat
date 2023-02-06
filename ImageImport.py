@@ -666,6 +666,9 @@ class ImageImport(QtWidgets.QDialog):
             if ok & bool(text):
                 wdi = WriteDiskItem('Center', 'Directory')  # 'gz compressed NIFTI-1 image')
                 di = wdi.findValue({'center': str(text)})
+                if di is None:
+                    QtGui.QMessageBox.warning(self, "Center (former protocol)", "Could not create the center/protocole directory in the database. \nHint: BrainVisa must have a database directory set in its preferences!")
+                return
                 os.mkdir(di.fullPath())
                 neuroHierarchy.databases.insertDiskItem(di, update=True)
         if self.currentProtocol in protocols:
