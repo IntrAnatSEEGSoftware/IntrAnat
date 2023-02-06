@@ -731,8 +731,14 @@ class ImageImport(QtWidgets.QDialog):
         rdi = ReadDiskItem('PET', 'BrainVISA volume formats',
                            requiredAttributes={'center': str(protocol), 'subject': str(subj)})
         images += list(rdi._findValues({}, None, False))
-        rdi = ReadDiskItem('fMRI-epile', 'BrainVISA volume formats',
+        try:
+          rdi = ReadDiskItem('fMRI-epile', 'BrainVISA volume formats',
                            requiredAttributes={'center': str(protocol), 'subject': str(subj)})
+        except:
+            print("Error loading fMRI-epile file type: epilepsy toolbox probably not installed in Brainvisa !")
+            QtGui.QMessageBox.warning(self, "Error", "Cannot find fMRI-epile filetype: Intranat's epilepsy-toolbox not installed in Brainvisa !")
+            return images
+
         images += list(rdi._findValues({}, None, False))
         rdi = ReadDiskItem('Statistic-Data', 'BrainVISA volume formats',
                            requiredAttributes={'center': str(protocol), 'subject': str(subj)})
