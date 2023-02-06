@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Localisation graphique des electrodes
@@ -7,7 +7,8 @@
 
 # Standard Python imports
 import os, csv, numpy, re, string, time
-# import subprocess, json, io, sys, pickle
+import json, sys, pickle
+# import subprocess, io
 myEnv = os.environ.copy()
 from numpy import *
 from scipy import ndimage
@@ -261,7 +262,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         if loadAll and isGui:
             # self.a.config()['setAutomaticReferential'] = 1
             # self.a.config()['commonScannerBasedReferential'] = 1
-            self.a.onCursorNotifier.add(self.clickHandler) # BRAINVISA 5 MANIK -> crash {'position': float vector size 4, 'window': AWindow}
+            self.a.onCursorNotifier.add(self.clickHandler) # {'position': float vector size 4, 'window': AWindow}
 
             # Create 4 windows
             self.wins = []
