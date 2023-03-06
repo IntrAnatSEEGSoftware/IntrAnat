@@ -1,4 +1,4 @@
-! /usr/bin/env python
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Localisation graphique des electrodes
@@ -3925,7 +3925,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True)
         print(".elecimplant saved with MNI")
 
-        return [plotsMNI, [ldi[0].fullPath() + "\xa0(MNI)"]]
+        return [plotsMNI, [ldi[0].fullPath() + r'\xa0(MNI)']]
 
     def saveTXT(self, contacts=None, path=None, pathPos=None, pathName=None):
         """ Saves two txt files electrode_Name.txt and electrode_Pos.txt. Path should be supplied as /myPath/electrode.txt
