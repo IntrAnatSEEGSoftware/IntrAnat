@@ -1370,6 +1370,8 @@ class ImageImport(QtWidgets.QDialog):
                                            True, self, "Processing " + subject + "...", "Import FreeSurfer output")
         # iOk, errMsg = self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip)
         if isGui and errMsg:
+            if isinstance(errMsg, list):
+                errMsg = ', '.join(str(errMsg))
             if isOk:
                 QtGui.QMessageBox.warning(self, "Warning", errMsg)
             else:
