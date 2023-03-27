@@ -1,6 +1,7 @@
 # -*-coding:utf-8 -*
 
-import os, sys, pickle, urllib.request, urllib.error, urllib.parse, json, subprocess
+# import os, sys, pickle, urllib2, json, subprocess
+import os, sys, pickle, urllib2, json, subprocess, ssl
 
 from brainvisa import axon
 from brainvisa.data.writediskitem import ReadDiskItem
@@ -12,7 +13,9 @@ from externalprocesses import *
 # Distant account
 # ssh_account = 'odavid@f-tract.eu'
 # ssh_account = 'odavid@gin-serv.ujf-grenoble.fr'
-ssh_account = 'davido@129.88.196.130'
+# ssh_account = 'davido@129.88.196.130'
+ssh_account = 'davido@gin-serv.ins-amu.fr'
+ssh_key = '/home/odavid/.ssh/id_rsa' # Now specified to avoid conflicts with the key in Brainvisa container (/casa/home) when executing ssh commands with pOpen
 
 # Correction problem in the nifti file.
 spm_reinitialiaze_mat = """try
@@ -33,31 +36,31 @@ spmpath = None
 def transferFileRsync(srcDir, destDir, isDelete=False):
     # cmd = ['scp', '-P', '206', '-rp', srcDir, destDir]
     if isDelete:
-        cmd = ['rsync', '-avzh', '-e ssh -p 206', srcDir, destDir + '/', '--delete']
+        cmd = ['rsync', '-avzhO', '-e ssh -p 206 -i ' + ssh_key, srcDir, destDir + '/', '--delete']
     else:
-        cmd = ['rsync', '-avzh', '-e ssh -p 206', srcDir, destDir + '/']
-    print(('Copy: ' + ' '.join(cmd)))
+        cmd = ['rsync', '-avzhO', '-e ssh -p 206 -i ' + ssh_key, srcDir, destDir + '/']
+    print('Copy: ' + ' '.join(cmd))
     subprocess.Popen(cmd, stdout=subprocess.PIPE, env = dict()).communicate()
 
 
 # Transfer files with SCP
 def transferFileScp(srcDir, destDir):
-    cmd = ['scp', '-P', '206', '-rp', srcDir, destDir]
-    print(('Copy: ' + ' '.join(cmd)))
+    cmd = ['scp', '-P', '206', '-i', ssh_key, '-rp', srcDir, destDir]
+    print('Copy: ' + ' '.join(cmd))
     subprocess.Popen(cmd, stdout=subprocess.PIPE, env = dict()).communicate()
 
 
 # Run SSH command remotely
 def runSSH(cmdRemote):
-    cmd = ['ssh', '-Y', ssh_account, '-p', '206', cmdRemote]
-    print(('Register: ' + ' '.join(cmd)))
+    cmd = ['ssh', '-Y', ssh_account, '-p', '206', '-i', ssh_key, cmdRemote]
+    print('Register: ' + ' '.join(cmd))
     subprocess.Popen(cmd, stdout=subprocess.PIPE, env = dict()).communicate()   
 
 
 # Delete local folder
 def deleteLocalFolder(localDir):
     cmd = ['rm', '-rf', localDir]
-    print(('Delete: ' + ' '.join(cmd)))
+    print('Delete: ' + ' '.join(cmd))
     subprocess.Popen(cmd, stdout=subprocess.PIPE, env = dict()).communicate()
 
 
@@ -118,7 +121,7 @@ class ftractTransfer(QtGui.QDialog):
         # Local to playground
         if self.isLocalToPlayground():
             self.ui.CSVcheckBox.setEnabled(True)
-            print("Update patients: Local to playground")
+            print "Update patients: Local to playground"
             rdi = ReadDiskItem( 'Subject', 'Directory',requiredAttributes={'center':'Epilepsy'})
             subjects = list( rdi._findValues( {}, None, False ) )
             self.subjects = dict([(s.attributes()['subject'], {'rdi':s, 'center':s.attributes()['center']}) for s in subjects])
@@ -134,29 +137,32 @@ class ftractTransfer(QtGui.QDialog):
 
         # Playground to local
         else:
-            print("Update patients: Playground to local")
+            print "Update patients: Playground to local"
             self.ui.CSVcheckBox.setEnabled(False)
-            proxy_handler = urllib.request.ProxyHandler({})
-            opener = urllib.request.build_opener(proxy_handler)
-            urllib.request.install_opener(opener)
+            proxy_handler = urllib2.ProxyHandler({})
+            opener = urllib2.build_opener(proxy_handler)
+            urllib2.install_opener(opener)
             # Get the data
             # response = urllib2.urlopen('https://f-tract.eu:85/ftdata/brainvisaCRF/')
-            response = ProgressDialog.call(lambda x:urllib.request.urlopen('https://f-tract.eu:85/ftdata/brainvisaCRF/'), True, self, "Getting list from server...", "Load patients")
+            # response = ProgressDialog.call(lambda x:urllib2.urlopen('https://f-tract.eu:85/ftdata/brainvisaCRF/'), True, self, "Getting list from server...", "Load patients")
+            req = urllib2.Request('https://f-tract.eu:85/ftdata/brainvisaCRF/', headers={ 'X-Mashape-Key': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' })
+	    context = ssl._create_unverified_context()  # Only for gangstars
+            response = ProgressDialog.call(lambda x:urllib2.urlopen(req, context=context), True, self, "Getting list from server...", "Load patients")
             if not response:
                 self.ui.radioButtonLtoP.setChecked(True)
                 return
             
             # Convert from json
             data = json.load(response)
-            if data['status'] != 'ok':
-                print("status from django : not ok ")
+            if data['status'] != u'ok':
+                print "status from django : not ok "
                 return
 
             self.subjects = []
             sites = ['*']
             years = ['*']
 
-            for ii in list(data['crf'].keys()):
+            for ii in data['crf'].keys():
                 info = ii.split(" - ")
                 date = info[1].split('/')
                 self.subjects.append(ii)
@@ -177,7 +183,7 @@ class ftractTransfer(QtGui.QDialog):
 
         # Look for csv
         filteredPatients = []
-        subs = list(self.subjects.keys())
+        subs = self.subjects.keys()
         for patname in subs:
             wdi_csv = ReadDiskItem('Final Export Dictionaries','CSV file',requiredAttributes={'subject':patname})
             di_csv = list(wdi_csv.findValues({},None,False))
@@ -188,9 +194,9 @@ class ftractTransfer(QtGui.QDialog):
                 pass
                 #print "no csv for this patient"
             elif len(di_csv)>=2:
-                print("Error: More that one csv, delete one of the two before continuing.")
+                print "Error: More that one csv, delete one of the two before continuing."
                 for f in di_csv:
-                    print("       " + str(f))
+                    print "       " + str(f)
                 return
 
         if str(self.filterSiteCombo.currentText()) != '*':
@@ -248,9 +254,9 @@ class ftractTransfer(QtGui.QDialog):
 
     def moveSelectedItemsToOtherListWidget(self, lwFrom, lwTo):
         """Takes the selected items of the list 'from' and adds them to the 'to' list"""
-        for idx in reversed(list(range(lwFrom.count()))):
+        for idx in reversed(range(lwFrom.count())):
             it = lwFrom.item(idx)
-            if lwFrom.isItemSelected(it):
+            if it.isSelected():
                 lwTo.addItem(str(it.text()))
                 lwFrom.takeItem(idx)
         lwTo.sortItems()
@@ -286,7 +292,7 @@ class ftractTransfer(QtGui.QDialog):
         
         # Overwrite existing files?
         if patientsExist:
-            ret = DialogOverwrite(self, 'Overwrite',  "The following folders already exist locally:\n" + "\n".join(patientsExist) + "\n\nOverwrite existing files ?")
+            ret = DialogOverwrite(self, 'Overwrite',  u"The following folders already exist locally:\n" + "\n".join(patientsExist) + u"\n\nOverwrite existing files ?")
             if ret.isOverwrite == None:
                 return
             else:
@@ -311,8 +317,11 @@ class ftractTransfer(QtGui.QDialog):
             for i in range(nPatients):
                 # Update progress bar
                 if thread is not None:
-                    thread.emit(QtCore.SIGNAL("PROGRESS"), round(100*i/nPatients))
-                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying patient: " + patients[i] + "...")
+                    #thread.emit(QtCore.SIGNAL("PROGRESS"), round(100*i/nPatients))
+                    #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Copying patient: " + patients[i] + "...")
+                    # Refactored according to PyQt5                    
+                    thread.progress.emit(round(100*i/nPatients))
+                    thread.progress_text.emit("Copying patient: " + patients[i] + "...")
                 # Get source and destination
                 srcDir = str(self.subjects[patients[i]]['rdi'])
                 destDir = dbDir
@@ -332,13 +341,15 @@ class ftractTransfer(QtGui.QDialog):
                 # Update progress bar
                 if thread is not None:
                     strWait = "Copying patient: " + patients[i] + "..."
-                    thread.emit(QtCore.SIGNAL("PROGRESS"), round(100*i/nPatients))
-                    thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait)
+                    #thread.emit(QtCore.SIGNAL("PROGRESS"), round(100*i/nPatients))
+                    #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait)
+                    thread.progress.emit(round(100*i/nPatients))
+                    thread.progress_text.emit(strWait)
                 # Get subject info
                 infoT1 = self.data['t1paths'][patients[i]]
                 infoPost = self.data['postpaths'][patients[i]]
                 infoPostop = self.data['postoppaths'][patients[i]]
-                if 'DestrieuxLabelling' in list(self.data.keys()):
+                if 'DestrieuxLabelling' in self.data.keys():
                     infoDestrieuxLabelling = self.data['DestrieuxLabelling'][patients[i]]
                 else:
                     infoDestrieuxLabelling = []
@@ -352,7 +363,8 @@ class ftractTransfer(QtGui.QDialog):
                 preDir = destDir + '/' + 'pre'
                 if infoT1 and (not os.path.exists(preDir) or (isOverwrite == 1)):
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (pre)')
+                        #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (pre)')
+                        thread.progress_text.emit(strWait + ' (pre)')
                     # Create pre folder
                     if not os.path.exists(preDir):
                         os.mkdir(preDir)
@@ -366,7 +378,8 @@ class ftractTransfer(QtGui.QDialog):
                 postDir = destDir + '/' + 'post'
                 if infoPost and (not os.path.exists(postDir) or (isOverwrite == 1)):
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (post)')
+                        #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (post)')
+                        thread.progress_text.emit(strWait + ' (post)')
                     # Create pre folder
                     if not os.path.exists(postDir):
                         os.mkdir(postDir)
@@ -380,7 +393,8 @@ class ftractTransfer(QtGui.QDialog):
                 postopDir = destDir + '/' + 'postop'
                 if infoPostop and (not os.path.exists(postopDir) or (isOverwrite == 1)):
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (postop)')
+                        #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (postop)')
+                        thread.progress_text.emit(strWait + ' (postop)')
                     # Create postop folder
                     if not os.path.exists(postopDir):
                         os.mkdir(postopDir)
@@ -394,7 +408,8 @@ class ftractTransfer(QtGui.QDialog):
                 fsDirLocal = destDir + '/' + 'freesurfer'
                 if infoDestrieuxLabelling and (not os.path.exists(fsDirLocal) or (isOverwrite >= 1)):
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (freesurfer)')
+                        #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (freesurfer)')
+                        thread.progress_text.emit(strWait + ' (freesurfer)')
                     # Delete existing local Freesurfer folder
                     deleteLocalFolder(fsDirLocal)
                     # Copy entire FreeSurfer folder
@@ -405,7 +420,8 @@ class ftractTransfer(QtGui.QDialog):
                     lausanneDirLocal = fsDirLocal + '/' + 'parcellation_Lausanne2008'
                     if (not os.path.exists(lausanneDirLocal)):
                         if thread is not None:
-                            thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (lausanne2008)')
+                            #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), strWait + ' (lausanne2008)')
+                            thread.progress_text.emit(strWait + ' (lausanne2008)')
                         # Copy Lausanne subfolder
                         try:
                             lausanneDir = os.path.dirname(os.path.dirname(infoDestrieuxLabelling[0])) + '/' + 'parcellation_Lausanne2008'
@@ -416,9 +432,10 @@ class ftractTransfer(QtGui.QDialog):
                 # Fix transformation matrix with SPM
                 for kk in range(len(spmFiles)):
                     if thread is not None:
-                        thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Reinitialize transformations: " + str(kk+1) + "/" + str(len(spmFiles)))
+                        #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Reinitialize transformations: " + str(kk+1) + "/" + str(len(spmFiles)))
+                        thread.progress_text.emit("Reinitialize transformations: " + str(kk+1) + "/" + str(len(spmFiles)))
                     #check if .mat, .private.mat and .private.mat0 are simalar, if not rewrite the file.
-                    print("SPM: Reinitialize .mat .private.mat and .private.mat0 in \"" + spmFiles[kk] + "\"")
+                    print "SPM: Reinitialize .mat .private.mat and .private.mat0 in \"" + spmFiles[kk] + "\""
                     call = spm_reinitialiaze_mat%("'"+spmpath+"'", "'"+spmFiles[kk]+"'")
                     matlabRun(call)
 
@@ -435,8 +452,8 @@ if __name__ == "__main__":
     except:
         pass
     if not spmpath or not os.path.exists(spmpath):
-        print('ERROR: SPM path not set.')
-        print('Open ImageImport and select the SPM path in the preferences tab.')
+        print 'ERROR: SPM path not set.'
+        print 'Open ImageImport and select the SPM path in the preferences tab.'
         sys.exit(1)
     
     # Start application

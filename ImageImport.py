@@ -1326,9 +1326,9 @@ class ImageImport(QtWidgets.QDialog):
         allFiles['anat'] =           {'side':None,    'type':'RawFreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig/001.mgz'}
         allFiles['T1_orig'] =        {'side':None,    'type':'T1 FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig.mgz'}
         allFiles['nu'] =             {'side':None,    'type':'Nu FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/nu.mgz'}
-        allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
-        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',            'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
-        allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
+#        allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
+#        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',            'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
+#        allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
         allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
         allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
         allFiles['leftWhite'] =      {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/lh.white'}
