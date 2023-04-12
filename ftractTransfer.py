@@ -121,7 +121,7 @@ class ftractTransfer(QtGui.QDialog):
         # Local to playground
         if self.isLocalToPlayground():
             self.ui.CSVcheckBox.setEnabled(True)
-            print "Update patients: Local to playground"
+            print("Update patients: Local to playground")
             rdi = ReadDiskItem( 'Subject', 'Directory',requiredAttributes={'center':'Epilepsy'})
             subjects = list( rdi._findValues( {}, None, False ) )
             self.subjects = dict([(s.attributes()['subject'], {'rdi':s, 'center':s.attributes()['center']}) for s in subjects])
@@ -137,7 +137,7 @@ class ftractTransfer(QtGui.QDialog):
 
         # Playground to local
         else:
-            print "Update patients: Playground to local"
+            print("Update patients: Playground to local")
             self.ui.CSVcheckBox.setEnabled(False)
             proxy_handler = urllib2.ProxyHandler({})
             opener = urllib2.build_opener(proxy_handler)
@@ -146,7 +146,7 @@ class ftractTransfer(QtGui.QDialog):
             # response = urllib2.urlopen('https://f-tract.eu:85/ftdata/brainvisaCRF/')
             # response = ProgressDialog.call(lambda x:urllib2.urlopen('https://f-tract.eu:85/ftdata/brainvisaCRF/'), True, self, "Getting list from server...", "Load patients")
             req = urllib2.Request('https://f-tract.eu:85/ftdata/brainvisaCRF/', headers={ 'X-Mashape-Key': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' })
-	    context = ssl._create_unverified_context()  # Only for gangstars
+            context = ssl._create_unverified_context()  # Only for gangstars
             response = ProgressDialog.call(lambda x:urllib2.urlopen(req, context=context), True, self, "Getting list from server...", "Load patients")
             if not response:
                 self.ui.radioButtonLtoP.setChecked(True)
@@ -155,7 +155,7 @@ class ftractTransfer(QtGui.QDialog):
             # Convert from json
             data = json.load(response)
             if data['status'] != u'ok':
-                print "status from django : not ok "
+                print("status from django : not ok ")
                 return
 
             self.subjects = []
@@ -194,9 +194,9 @@ class ftractTransfer(QtGui.QDialog):
                 pass
                 #print "no csv for this patient"
             elif len(di_csv)>=2:
-                print "Error: More that one csv, delete one of the two before continuing."
+                print("Error: More that one csv, delete one of the two before continuing.")
                 for f in di_csv:
-                    print "       " + str(f)
+                    print("       " + str(f))
                 return
 
         if str(self.filterSiteCombo.currentText()) != '*':
@@ -435,7 +435,7 @@ class ftractTransfer(QtGui.QDialog):
                         #thread.emit(QtCore.SIGNAL("PROGRESS_TEXT"), "Reinitialize transformations: " + str(kk+1) + "/" + str(len(spmFiles)))
                         thread.progress_text.emit("Reinitialize transformations: " + str(kk+1) + "/" + str(len(spmFiles)))
                     #check if .mat, .private.mat and .private.mat0 are simalar, if not rewrite the file.
-                    print "SPM: Reinitialize .mat .private.mat and .private.mat0 in \"" + spmFiles[kk] + "\""
+                    print("SPM: Reinitialize .mat .private.mat and .private.mat0 in \"" + spmFiles[kk] + "\"")
                     call = spm_reinitialiaze_mat%("'"+spmpath+"'", "'"+spmFiles[kk]+"'")
                     matlabRun(call)
 
@@ -452,8 +452,8 @@ if __name__ == "__main__":
     except:
         pass
     if not spmpath or not os.path.exists(spmpath):
-        print 'ERROR: SPM path not set.'
-        print 'Open ImageImport and select the SPM path in the preferences tab.'
+        print('ERROR: SPM path not set.')
+        print('Open ImageImport and select the SPM path in the preferences tab.')
         sys.exit(1)
     
     # Start application

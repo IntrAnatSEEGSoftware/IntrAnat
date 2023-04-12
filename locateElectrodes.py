@@ -1831,8 +1831,9 @@ class LocateElectrodes(QtWidgets.QDialog):
         path = None
 
         if patientCenter is None:
-            path = str(QtGui.QFileDialog.getOpenFileName(self, "Open electrode implantation", "",
-                                                         "All implantations(*.elecimplant *.pts *.txt);;Electrode implantation (*.elecimplant);;PTS file (*.pts);;Electrode.txt (*.txt)"))
+            path = QtWidgets.QFileDialog.getOpenFileName(self, "Open electrode implantation", "",
+                                                         "All implantations(*.elecimplant *.pts *.txt)")[0]
+
         else:
             rdi = ReadDiskItem('Electrode implantation', 'Electrode Implantation format',
                                 requiredAttributes={'subject': patientName, 'center': patientCenter})
@@ -1850,6 +1851,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             return
         # Check if we have a PTS/TXT/elecimplant file
         extension = os.path.splitext(path)[1].lower()
+        print
         els = []
         refId = None
         if extension == '.elecimplant':
