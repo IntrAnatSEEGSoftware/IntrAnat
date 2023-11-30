@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Localisation graphique des electrodes
@@ -269,7 +269,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             for wcont in [self.windowContainer1, self.windowContainer2, self.windowContainer3, self.windowContainer4]:
                 # Create anatomist window
                 w = self.a.createWindow('Sagittal', options={'hidden': 1})
-                w.setControl('Selection 3D')  # SelectionControl
+                w.setControl('Default 3D control')  # SelectionControl
                 # w.setParent(wcont)#, no_decoration=True )
                 self.wins.append(w)
                 # Add to main window
@@ -377,7 +377,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             try:
                 if os.path.exists(prefpath_imageimport):
                     filein = open(prefpath_imageimport, 'rU')
-                    prefs_imageimport = pickle.load(filein)
+                    prefs_imageimport = json.load(filein)
                     if 'spm' in list(prefs_imageimport.keys()):
                         self.spmpath = prefs_imageimport['spm']
                     if 'bids' in list(prefs_imageimport.keys()):
@@ -1831,9 +1831,8 @@ class LocateElectrodes(QtWidgets.QDialog):
         path = None
 
         if patientCenter is None:
-            path = QtWidgets.QFileDialog.getOpenFileName(self, "Open electrode implantation", "",
-                                                         "All implantations(*.elecimplant *.pts *.txt)")[0]
-
+            path = QtGui.QFileDialog.getOpenFileName(self, "Open electrode implantation", "",
+                                                         "All implantations(*.elecimplant *.pts *.txt);;Electrode implantation (*.elecimplant);;PTS file (*.pts);;Electrode.txt (*.txt)")[0]
         else:
             rdi = ReadDiskItem('Electrode implantation', 'Electrode Implantation format',
                                 requiredAttributes={'subject': patientName, 'center': patientCenter})
@@ -1851,7 +1850,6 @@ class LocateElectrodes(QtWidgets.QDialog):
             return
         # Check if we have a PTS/TXT/elecimplant file
         extension = os.path.splitext(path)[1].lower()
-        print
         els = []
         refId = None
         if extension == '.elecimplant':
@@ -3927,7 +3925,7 @@ class LocateElectrodes(QtWidgets.QDialog):
         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True)
         print(".elecimplant saved with MNI")
 
-        return [plotsMNI, [ldi[0].fullPath() + r'\xa0(MNI)']]
+        return [plotsMNI, [ldi[0].fullPath() + " (MNI)"]]
 
     def saveTXT(self, contacts=None, path=None, pathPos=None, pathName=None):
         """ Saves two txt files electrode_Name.txt and electrode_Pos.txt. Path should be supplied as /myPath/electrode.txt

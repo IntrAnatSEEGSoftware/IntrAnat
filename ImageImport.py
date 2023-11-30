@@ -274,13 +274,13 @@ class ImageImport(QtWidgets.QDialog):
             layout2 = QtGui.QHBoxLayout()
             layout3 = QtGui.QHBoxLayout()
             self.axWindow = self.a.createWindow('Axial', options={'hidden': 1})
-            self.axWindow.setControl('Selection 3D')
+            self.axWindow.setControl('Default 3D control')
             self.axWindow2 = self.a.createWindow('Sagittal', options={'hidden': 1})
-            self.axWindow2.setControl('Selection 3D')
+            self.axWindow2.setControl('Default 3D control')
             self.axWindow3 = self.a.createWindow('Axial', options={'hidden': 1})
-            self.axWindow3.setControl('Selection 3D')
+            self.axWindow3.setControl('Default 3D control')
             self.axWindow4 = self.a.createWindow('Sagittal', options={'hidden': 1})  # , no_decoration=True )
-            self.axWindow4.setControl('Selection 3D')
+            self.axWindow4.setControl('Default 3D control')
             self.wins = [self.axWindow, self.axWindow2, self.axWindow3, self.axWindow4]
 
             layout2.addWidget(self.axWindow.getInternalRep())
@@ -488,7 +488,7 @@ class ImageImport(QtWidgets.QDialog):
             if brainvisa_freesurfer_home_path != self.prefs['freesurfer']:
                 QtGui.QMessageBox.warning(self, "Freesurfer", "Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
                 print("Freesurfer path different between IntrAnat and BrainVisa, strange, you should check that, by default keep the one precised in IntrAnat")
-            # self.setFreesurferPath(self.prefs['freesurfer'])
+            self.setFreesurferPath(self.prefs['freesurfer'])
         else:
             self.setFreesurferPath(brainvisa_freesurfer_home_path)
 
@@ -521,6 +521,7 @@ class ImageImport(QtWidgets.QDialog):
         
     def savePreferences(self):
         prefpath = os.path.join(os.path.expanduser('~'), '.imageimport')
+        print(prefpath)
         self.prefs['currentProtocol'] = self.currentProtocol
         self.prefs['currentSubject'] = self.currentSubject
         self.prefs['sites'] = [str(self.ui.subjectSiteCombo.itemText(item)) for item in range(self.ui.subjectSiteCombo.count())]
@@ -555,7 +556,7 @@ class ImageImport(QtWidgets.QDialog):
         self.prefs['projectSelected'] = str(self.ui.prefProjectCombo.currentText())
         # Save file
         fileout = open(prefpath, 'wb')
-        pickle.dump(self.prefs, fileout)
+        json.dump(self.prefs, fileout)
         fileout.close()
 
     def storeImageReferentialsAndTransforms(self, image):
@@ -668,7 +669,7 @@ class ImageImport(QtWidgets.QDialog):
                 di = wdi.findValue({'center': str(text)})
                 if di is None:
                     QtGui.QMessageBox.warning(self, "Center (former protocol)", "Could not create the center/protocole directory in the database. \nHint: BrainVisa must have a database directory set in its preferences!")
-                return
+                    return
                 os.mkdir(di.fullPath())
                 neuroHierarchy.databases.insertDiskItem(di, update=True)
         if self.currentProtocol in protocols:
@@ -1326,13 +1327,9 @@ class ImageImport(QtWidgets.QDialog):
         allFiles['anat'] =           {'side':None,    'type':'RawFreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig/001.mgz'}
         allFiles['T1_orig'] =        {'side':None,    'type':'T1 FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/orig.mgz'}
         allFiles['nu'] =             {'side':None,    'type':'Nu FreesurferAnat',          'format':'FreesurferMGZ',              'file':importDir + '/mri/nu.mgz'}
-# ugly fix by OD
-#        allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
-#        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',            'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
-#        allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
-        allFiles['ribbon'] =         {'side':None,    'type':None,          'format':None,              'file':importDir + '/mri/ribbon.mgz'}
-        allFiles['destrieux'] =      {'side':None,    'type':None,            'format':None,  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
-        allFiles['aseg'] =           {'side':None,    'type':None,            'format':None,              'file':importDir + '/mri/aseg.mgz'}
+        allFiles['ribbon'] =         {'side':None,    'type':'Ribbon Freesurfer',          'format':'FreesurferMGZ',              'file':importDir + '/mri/ribbon.mgz'}
+        allFiles['destrieux'] =      {'side':None,    'type':'Freesurfer Cortical Parcellation using Destrieux Atlas',            'format':'FreesurferMGZ',  'file':importDir + '/mri/aparc.a2009s+aseg.mgz'}
+        allFiles['aseg'] =           {'side':None,    'type':'Freesurfer aseg',            'format':'FreesurferMGZ',              'file':importDir + '/mri/aseg.mgz'}
         allFiles['xfm'] =            {'side':None,    'type':'Talairach Auto Freesurfer',  'format':'MINC transformation matrix', 'file':importDir + '/mri/transforms/talairach.auto.xfm'}
         allFiles['leftPial'] =       {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferPial',             'file':importDir + '/surf/lh.pial'}
         allFiles['leftWhite'] =      {'side':'left',  'type':'BaseFreesurferType',         'format':'FreesurferWhite',            'file':importDir + '/surf/lh.white'}
@@ -1374,8 +1371,6 @@ class ImageImport(QtWidgets.QDialog):
                                            True, self, "Processing " + subject + "...", "Import FreeSurfer output")
         # iOk, errMsg = self.importFSoutputWorker(subject, proto, allFiles, diT1pre, isOverwriteHip)
         if isGui and errMsg:
-            if isinstance(errMsg, list):
-                errMsg = ''.join(str(errMsg))
             if isOk:
                 QtGui.QMessageBox.warning(self, "Warning", errMsg)
             else:
@@ -2293,13 +2288,13 @@ class ImageImport(QtWidgets.QDialog):
             morphologist.executionNode().SulcalMorphometry.setSelected(True)
             # Synchronous computation
             self.brainvisaContext.runProcess(morphologist,
-                                             t1mri=self.mriAcPc,
-                                             perform_normalization=False,
-                                             anterior_commissure=self.AcPc['AC'],
-                                             posterior_commissure=self.AcPc['PC'],
-                                             interhemispheric_point=self.AcPc['IH'],
-                                             left_hemisphere_point=self.AcPc['LH'],
-                                             perform_sulci_recognition=True)
+                                            t1mri=self.mriAcPc,
+                                            perform_normalization=False,
+                                            anterior_commissure=self.AcPc['AC'],
+                                            posterior_commissure=self.AcPc['PC'],
+                                            interhemispheric_point=self.AcPc['IH'],
+                                            left_hemisphere_point=self.AcPc['LH'],
+                                            perform_sulci_recognition=True)
 
             # Task finishesd
             self.taskfinished(self.currentSubject + ': BrainVISA segmentation and meshes generation')
