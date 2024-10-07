@@ -6,7 +6,7 @@
 # License GNU GPL v3
 
 # Standard Python imports
-import os, csv, numpy, re, string, time
+import os, csv, numpy, re, string, time, math
 import json, sys, pickle
 # import subprocess, io
 myEnv = os.environ.copy()
@@ -376,7 +376,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             prefpath_imageimport = os.path.join(os.path.expanduser('~'), '.imageimport')
             try:
                 if os.path.exists(prefpath_imageimport):
-                    filein = open(prefpath_imageimport, 'rU')
+                    filein = open(prefpath_imageimport, 'r')
                     prefs_imageimport = pickle.load(filein)
                     if 'spm' in list(prefs_imageimport.keys()):
                         self.spmpath = prefs_imageimport['spm']
@@ -1238,7 +1238,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                                                                          "Select a file containing seeg labels: ",
                                                                          "", "(*.xlsx *.csv *.json)")
                 if os.path.basename(str(fichierseegLabel)).split('.')[-1] == 'json':
-                    fin = open(str(fichierseegLabel), 'rb')
+                    fin = open(str(fichierseegLabel), 'r')
                     new_label = json.loads(fin.read())
                     fin.close()
 
@@ -1246,9 +1246,9 @@ class LocateElectrodes(QtWidgets.QDialog):
                         os.mkdir(os.path.dirname(str(di_seeg)))
                     except:
                         pass
-                    fout = open(str(di_seeg), 'w')
-                    fout.write(json.dumps({'title': new_label['title'], 'contacts': new_label['contacts']}))
-                    fout.close()
+                    with open(str(di_seeg), 'w') as fout:
+                        json.dump({'title': new_label['title'], 'contacts': new_label['contacts']}, fout)
+                    
                     neuroHierarchy.databases.insertDiskItem(di_seeg, update=True)
 
                 elif os.path.basename(str(fichierseegLabel)).split('.')[-1] == 'xlsx':
@@ -1259,9 +1259,9 @@ class LocateElectrodes(QtWidgets.QDialog):
                         os.mkdir(os.path.dirname(str(di_seeg)))
                     except:
                         pass
-                    fout = open(str(di_seeg), 'w')
-                    fout.write(json.dumps({'title': inter_label[0], 'contacts': inter_label[1]}))
-                    fout.close()
+                    with open(str(di_seeg), 'w') as fout:
+                        json.dump({'title': inter_label[0], 'contacts': inter_label[1]}, fout)
+                    
                     neuroHierarchy.databases.insertDiskItem(di_seeg, update=True)
                     new_label = {'title': inter_label[0], 'contacts': inter_label[1]}
                 else:
@@ -1269,7 +1269,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                     return
 
             else:
-                fin = open(str(di_seeglabel[0]), 'rb')
+                fin = open(str(di_seeglabel[0]), 'r')
                 new_label = json.loads(fin.read())
                 fin.close()
 
@@ -1589,6 +1589,7 @@ class LocateElectrodes(QtWidgets.QDialog):
 
     def electrodeSelect(self, idx):
         """Electrode/contact selection changed"""
+        print("Electrode/contact selection changed")
         el = self.electrodes[idx]
         self.nameEdit.setText(el['name'])
         self.typeComboBox.setCurrentIndex(self.typeComboBox.findText(el['model']))
@@ -1855,13 +1856,18 @@ class LocateElectrodes(QtWidgets.QDialog):
         els = []
         refId = None
         if extension == '.elecimplant':
-            filein = open(path, 'rb')
+            filein = open(path, 'r')
             try:
                 dic = json.loads(filein.read())
             except:
-                filein.close()
-                filein = open(path, 'rU')
-                dic = pickle.load(filein)
+                try:
+                  filein.close()
+                  filein = open(path, 'r')
+                  dic = pickle.load(filein)
+                except:
+                  print("Failed to read file " + path)
+                  QtGui.QMessageBox.warning(self, 'Erreur', "Cannot load invalid file " + path)
+                  return
 
             filein.close()
             els = dic['electrodes']
@@ -1923,11 +1929,10 @@ class LocateElectrodes(QtWidgets.QDialog):
         plotsT1Ref_sorted = sorted(info_plotsT1Ref, key=lambda plot_number: plot_number[0])
         # previous_data.update({'plotsMNI':info_plotMNI})
 
-        fileout = open(path, 'wb')
-        fileout.write(json.dumps({'electrodes': els, 'ReferentialUuid': refId, '2mni': None, 'timestamp': time.time(),
-                                  'plotsT1Nat': plotsT1Ref_sorted}))
-        # pickle.dump({'electrodes':els, 'ReferentialUuid':refId, '2mni':None, 'timestamp':time.time()}, fileout)
-        fileout.close()
+        print("Saving electrodes to PATH=" + path)
+        with open(path, 'w') as fileout:
+            json.dump({'electrodes': els, 'ReferentialUuid': refId, '2mni': None, 'timestamp': time.time(),
+                                  'plotsT1Nat': plotsT1Ref_sorted}, fileout)
         if di is not None:
             neuroHierarchy.databases.insertDiskItem(di, update=True)
         QtGui.QMessageBox.information(self, 'Implantation saved', "Implantation has been saved in database.\nThe MNI coordinates of the contacts must be computed before the CSV generation.")
@@ -2798,9 +2803,8 @@ class LocateElectrodes(QtWidgets.QDialog):
         di = wdi.findValue(self.diskItems['T1pre'])
 
         # Write the file
-        fout = open(di.fullPath(), 'w')
-        fout.write(json.dumps(valPatient))
-        fout.close()
+        with open(di.fullPath(), 'w') as fout:
+            json.dump(valPatient, fout)
 
         # Update the database
         neuroHierarchy.databases.insertDiskItem(di, update=True)
@@ -3294,9 +3298,9 @@ class LocateElectrodes(QtWidgets.QDialog):
         if di is None:
             print("Can't generate files")
             return []
-        fout = open(di.fullPath(), 'w')
-        fout.write(json.dumps({'Volume resection (mm3): ': Vol_resection_mm}))
-        fout.close()
+        with open(di.fullPath(), 'w') as fout:
+            json.dump({'Volume resection (mm3): ': Vol_resection_mm}, fout)
+        
         neuroHierarchy.databases.insertDiskItem(di, update=True)
         print("export resection info done")
         return [di.fullPath()]
@@ -3599,16 +3603,16 @@ class LocateElectrodes(QtWidgets.QDialog):
         # Create folder if it doesn't exist
         createItemDirs(di)
         # Write file
-        fout = open(fileEleclabel, 'w')
-        fout.write(json.dumps({
-            'Template': {
-                'MarsAtlas': str('MarsAtlas' not in list(vol.keys())),
-                'Freesurfer': str('Freesurfer' not in list(vol.keys())),
-                'InitialSegmentation': initSegmentation},
-            'plots_label': plots_label,
-            'plots_label_bipolar': bip_label,
-            }))
-        fout.close()
+        with open(fileEleclabel, 'w') as fout:
+            json.dump({
+                'Template': {
+                    'MarsAtlas': str('MarsAtlas' not in list(vol.keys())),
+                    'Freesurfer': str('Freesurfer' not in list(vol.keys())),
+                    'InitialSegmentation': initSegmentation},
+                'plots_label': plots_label,
+                'plots_label_bipolar': bip_label,
+                }, fout)
+        
         # Reference file in database
         neuroHierarchy.databases.insertDiskItem(di, update=True)
         return [[fileEleclabel], errMsg]
@@ -3830,12 +3834,12 @@ class LocateElectrodes(QtWidgets.QDialog):
             print("ERROR: Can't find implantation file. Update your BrainVISA database.")
             return None
         # Read implantation file
-        filein = open(str(impl[0]), 'rb')
+        filein = open(str(impl[0]), 'r')
         try:
             dic_impl = json.loads(filein.read())
         except:
             filein.close()
-            filein = open(str(impl[0]), 'rU')
+            filein = open(str(impl[0]), 'r')
             dic_impl = pickle.load(filein)
             filein.close()
         # Return existing coordinates
@@ -3903,12 +3907,12 @@ class LocateElectrodes(QtWidgets.QDialog):
         previous_data = dict()
         if len(ldi) > 0:
             if (os.path.exists(str(ldi[0]))):
-                filein = open(str(ldi[0]), 'rb')
+                filein = open(str(ldi[0]), 'r')
                 try:
                     previous_data = json.loads(filein.read())
                 except:
                     filein.close()
-                    filein = open(str(ldi[0]), 'rU')
+                    filein = open(str(ldi[0]), 'r')
                     previous_data = pickle.load(filein)
                 filein.close()
 
@@ -3921,9 +3925,9 @@ class LocateElectrodes(QtWidgets.QDialog):
         previous_data.update({'plotsMNI': info_plotMNI})
 
         # Resave as json file
-        fout = open(str(ldi[0]), 'w')
-        fout.write(json.dumps(previous_data))
-        fout.close()
+        with open(str(ldi[0]), 'w') as fout:
+            json.dump(previous_data, fout)
+        
         neuroHierarchy.databases.insertDiskItem([x for x in di][0], update=True)
         print(".elecimplant saved with MNI")
 
@@ -3945,8 +3949,8 @@ class LocateElectrodes(QtWidgets.QDialog):
             path = os.path.splitext(path)[0]
             pathName = path+'_Name.txt'
             pathPos = path+"_Pos.txt"
-        fileName = open(pathName, 'wb')
-        filePos = open(pathPos, 'wb')
+        fileName = open(pathName, 'w')
+        filePos = open(pathPos, 'w')
         # Iteration over electrodes
         for contactName in sorted(list(contacts.keys()), key=natural_keys):
             (elName, plotName) = contactName.split('-$&_&$-')
@@ -3977,7 +3981,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             # Name of each contact is name of electrode (prime ' replaced by the letter p) + number of the plot (electrode A' contact 5 is "Ap5")
             plots.append("%s\t%.2f\t%.2f\t%.2f\t0\t0\t0\t2\t2.0\n" % (elName.replace('\'', 'p') + plotName.replace('Plot', ''), coords[0], coords[1], coords[2]))
 
-        fileout = open(path, 'wb')
+        fileout = open(path, 'w')
         fileout.write("ptsfile\n1\t1\t1\n%s\n" % str(len(plots)))
         for p in plots:
             fileout.write(p)

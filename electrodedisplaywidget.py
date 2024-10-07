@@ -439,13 +439,12 @@ class ElectrodeDisplayWidget(QtGui.QWidget):
       return
     try:
       #import pdb; pdb.set_trace()
-      fileout = open(impl.fullPath()+'.temporary', 'wb')
-      content = self.implantations[subj]
-      content['plotsData-timestamp'] = content['timestamp']
-      content['plotsData'] = self.plotsData[subj]
-      fileout.write(json.dumps(content))
-      #pickle.dump(content, fileout)
-      fileout.close()
+      with open(impl.fullPath()+'.temporary', 'w') as fileout:
+        content = self.implantations[subj]
+        content['plotsData-timestamp'] = content['timestamp']
+        content['plotsData'] = self.plotsData[subj]
+        json.dump(content, fileout)
+        #pickle.dump(content, fileout)
       #to modify to json
       shutil.move(impl.fullPath()+'.temporary', impl.fullPath())
       neuroHierarchy.databases.insertDiskItem( impl, update=True )

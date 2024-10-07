@@ -79,9 +79,9 @@ class generate_contact_colors:
         path_to_save = os.path.dirname(filename)
         filename_wh_ext = os.path.basename(filename).split('.')[0]
         new_filename = path_to_save + os.path.sep + filename_wh_ext + '.json'
-        fout = open(new_filename,'w')
-        fout.write(json.dumps({'title':title_condi,'contacts':contact_labels}))
-        fout.close()           
+        with open(new_filename,'w') as fout:
+          json.dump({'title':title_condi,'contacts':contact_labels}, fout)
+        
         
     else:
         return (title_condi,contact_labels)
