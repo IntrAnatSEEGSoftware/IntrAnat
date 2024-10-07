@@ -20,7 +20,7 @@ class DialogCheckbox(QMessageBox):
         for i in range(0, len(listOpt)):
             self.checkbox[i] = QCheckBox()
             self.checkbox[i].setText(listOpt[i])
-            self.layoutList.addWidget(self.checkbox[i], i%Nrows, i/Nrows)
+            self.layoutList.addWidget(self.checkbox[i], i%Nrows, int(i/Nrows))
             if (defaultSel is not None) and (i <= len(defaultSel)) and (defaultSel[i]):
                 self.checkbox[i].setCheckState(Qt.Checked)
         # Configure dialog window
