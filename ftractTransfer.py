@@ -14,6 +14,7 @@ from externalprocesses import *
 # ssh_account = 'odavid@f-tract.eu'
 # ssh_account = 'odavid@gin-serv.ujf-grenoble.fr'
 # ssh_account = 'davido@129.88.196.130'
+# ssh_account = 'davido@139.124.148.55'
 ssh_account = 'davido@gin-serv.ins-amu.fr'
 ssh_key = '/home/odavid/.ssh/id_rsa' # Now specified to avoid conflicts with the key in Brainvisa container (/casa/home) when executing ssh commands with pOpen
 

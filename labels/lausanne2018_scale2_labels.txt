@@ -1,0 +1,290 @@
+# $Id: cvs_avg35_inMNI152_space-orig_atlas-ctxLaus2018thalMIAL_desc-scale2grow2mm_dseg.lut 08/22/2024, 20:16:39 
+
+# Corresponding parcellation: 
+# cvs_avg35_inMNI152_space-orig_atlas-ctxLaus2018thalMIAL_desc-scale2grow2mm_dseg.nii.gz
+
+# 1. Cortical parcellation (L): Lausanne multi-scale cortical parcellation. (Symmetric version of Cammoun et al, 2012)
+
+
+#No. Label Name:                                R   G   B   A
+# Right Hemisphere. Cortical Structures
+1    ctx-rh-lateralorbitofrontal_1            230 145  40   0
+2    ctx-rh-lateralorbitofrontal_2            175  17  75   0
+3    ctx-rh-parsorbitalis_1                    51 240 148   0
+4    ctx-rh-frontalpole_1                     160 233 142   0
+5    ctx-rh-medialorbitofrontal_1              96  21 205   0
+6    ctx-rh-medialorbitofrontal_2             120 217 233   0
+7    ctx-rh-parstriangularis_1                 50 211  94   0
+8    ctx-rh-parsopercularis_1                 212  27  86   0
+9    ctx-rh-rostralmiddlefrontal_1            209  24 110   0
+10   ctx-rh-rostralmiddlefrontal_2             71 152  44   0
+11   ctx-rh-superiorfrontal_1                 124 116  23   0
+12   ctx-rh-superiorfrontal_2                 233 160  64   0
+13   ctx-rh-superiorfrontal_3                  80 225 218   0
+14   ctx-rh-superiorfrontal_4                 105 167  47   0
+15   ctx-rh-caudalmiddlefrontal_1              72 215  85   0
+16   ctx-rh-precentral_1                      206 120 169   0
+17   ctx-rh-precentral_2                      143 120 251   0
+18   ctx-rh-precentral_3                      232  20 203   0
+19   ctx-rh-paracentral_1                      88 122 164   0
+20   ctx-rh-rostralanteriorcingulate_1        195   0 235   0
+21   ctx-rh-caudalanteriorcingulate_1         249 128 143   0
+22   ctx-rh-posteriorcingulate_1              170 251 210   0
+23   ctx-rh-isthmuscingulate_1                234 217  36   0
+24   ctx-rh-postcentral_1                      74  41 106   0
+25   ctx-rh-postcentral_2                      39  83 173   0
+26   ctx-rh-supramarginal_1                   107  29  31   0
+27   ctx-rh-supramarginal_2                   235  34 162   0
+28   ctx-rh-superiorparietal_1                171 196 221   0
+29   ctx-rh-superiorparietal_2                119 135 185   0
+30   ctx-rh-superiorparietal_3                191   9 162   0
+31   ctx-rh-inferiorparietal_1                130  29 221   0
+32   ctx-rh-inferiorparietal_2                211 149 192   0
+33   ctx-rh-inferiorparietal_3                 55 112 104   0
+34   ctx-rh-precuneus_1                        92 213 159   0
+35   ctx-rh-precuneus_2                       149 198  13   0
+36   ctx-rh-cuneus_1                          235 161 200   0
+37   ctx-rh-pericalcarine_1                   226  60   4   0
+38   ctx-rh-lateraloccipital_1                127 172 201   0
+39   ctx-rh-lateraloccipital_2                207  43  47   0
+40   ctx-rh-lateraloccipital_3                 96 187  95   0
+41   ctx-rh-lingual_1                          67  95 228   0
+42   ctx-rh-lingual_2                          17 190   8   0
+43   ctx-rh-fusiform_1                        182 232 168   0
+44   ctx-rh-fusiform_2                        229 222  11   0
+45   ctx-rh-parahippocampal_1                  63 208  70   0
+46   ctx-rh-entorhinal_1                       49 244 224   0
+47   ctx-rh-temporalpole_1                    206 127  95   0
+48   ctx-rh-inferiortemporal_1                108 226 223   0
+49   ctx-rh-inferiortemporal_2                 76  20  54   0
+50   ctx-rh-middletemporal_1                   51  51 138   0
+51   ctx-rh-middletemporal_2                   24 251 115   0
+52   ctx-rh-bankssts_1                        192  96  43   0
+53   ctx-rh-superiortemporal_1                126  53  38   0
+54   ctx-rh-superiortemporal_2                231 105 189   0
+55   ctx-rh-transversetemporal_1              254 136 246   0
+56   ctx-rh-insula_1                          215 253 185   0
+57   ctx-rh-insula_2                           27   8  81   0
+
+
+# Right Hemisphere. Thalamic Structures
+58   thal-rh-pulvinar                                   255   0   0   0
+59   thal-rh-ventral-anterior                             0 255   0   0
+60   thal-rh-mediodorsal                                255 255   0   0
+61   thal-rh-lateral-posterior-ventral-posterior-group  255 123   0   0
+62   thal-rh-pulvinar-medial-centrolateral-group          0 255 255   0
+63   thal-rh-ventrolateral                              255   0 255   0
+64   thal-rh-ventral-posterior-ventrolateral-group        0   0 255   0
+
+
+# Right Hemisphere. Subcortical Structures
+65   subc-rh-caudate                          122 186 220   0
+66   subc-rh-putamen                          236  13 176   0
+67   subc-rh-pallidum                          13  48 255   0
+68   subc-rh-accumbens-area                   255 165   0   0
+69   subc-rh-amygdala                         103 255 255   0
+70   subc-rh-hippocampus                      220 216  20   0
+
+
+# Left Hemisphere. Cortical Structures
+71   ctx-lh-lateralorbitofrontal_1            230 145  40   0
+72   ctx-lh-lateralorbitofrontal_2            175  17  75   0
+73   ctx-lh-parsorbitalis_1                    51 240 148   0
+74   ctx-lh-frontalpole_1                     160 233 142   0
+75   ctx-lh-medialorbitofrontal_1              96  21 205   0
+76   ctx-lh-medialorbitofrontal_2             120 217 233   0
+77   ctx-lh-parstriangularis_1                 50 211  94   0
+78   ctx-lh-parsopercularis_1                 212  27  86   0
+79   ctx-lh-rostralmiddlefrontal_1            209  24 110   0
+80   ctx-lh-rostralmiddlefrontal_2             71 152  44   0
+81   ctx-lh-superiorfrontal_1                 124 116  23   0
+82   ctx-lh-superiorfrontal_2                 233 160  64   0
+83   ctx-lh-superiorfrontal_3                  80 225 218   0
+84   ctx-lh-superiorfrontal_4                 105 167  47   0
+85   ctx-lh-caudalmiddlefrontal_1              72 215  85   0
+86   ctx-lh-precentral_1                      206 120 169   0
+87   ctx-lh-precentral_2                      143 120 251   0
+88   ctx-lh-precentral_3                      232  20 203   0
+89   ctx-lh-paracentral_1                      88 122 164   0
+90   ctx-lh-rostralanteriorcingulate_1        195   0 235   0
+91   ctx-lh-caudalanteriorcingulate_1         249 128 143   0
+92   ctx-lh-posteriorcingulate_1              170 251 210   0
+93   ctx-lh-isthmuscingulate_1                234 217  36   0
+94   ctx-lh-postcentral_1                      74  41 106   0
+95   ctx-lh-postcentral_2                      39  83 173   0
+96   ctx-lh-supramarginal_1                   107  29  31   0
+97   ctx-lh-supramarginal_2                   235  34 162   0
+98   ctx-lh-superiorparietal_1                171 196 221   0
+99   ctx-lh-superiorparietal_2                119 135 185   0
+100  ctx-lh-superiorparietal_3                191   9 162   0
+101  ctx-lh-inferiorparietal_1                130  29 221   0
+102  ctx-lh-inferiorparietal_2                211 149 192   0
+103  ctx-lh-inferiorparietal_3                 55 112 104   0
+104  ctx-lh-precuneus_1                        92 213 159   0
+105  ctx-lh-precuneus_2                       149 198  13   0
+106  ctx-lh-cuneus_1                          235 161 200   0
+107  ctx-lh-pericalcarine_1                   226  60   4   0
+108  ctx-lh-lateraloccipital_1                127 172 201   0
+109  ctx-lh-lateraloccipital_2                207  43  47   0
+110  ctx-lh-lateraloccipital_3                 96 187  95   0
+111  ctx-lh-lingual_1                          67  95 228   0
+112  ctx-lh-lingual_2                          17 190   8   0
+113  ctx-lh-fusiform_1                        182 232 168   0
+114  ctx-lh-fusiform_2                        229 222  11   0
+115  ctx-lh-parahippocampal_1                  63 208  70   0
+116  ctx-lh-entorhinal_1                       49 244 224   0
+117  ctx-lh-temporalpole_1                    206 127  95   0
+118  ctx-lh-inferiortemporal_1                108 226 223   0
+119  ctx-lh-inferiortemporal_2                 76  20  54   0
+120  ctx-lh-middletemporal_1                   51  51 138   0
+121  ctx-lh-middletemporal_2                   24 251 115   0
+122  ctx-lh-bankssts_1                        192  96  43   0
+123  ctx-lh-superiortemporal_1                126  53  38   0
+124  ctx-lh-superiortemporal_2                231 105 189   0
+125  ctx-lh-transversetemporal_1              254 136 246   0
+126  ctx-lh-insula_1                          215 253 185   0
+127  ctx-lh-insula_2                           27   8  81   0
+
+
+# Left Hemisphere. Thalamic Structures
+128  thal-lh-pulvinar                                   255   0   0   0
+129  thal-lh-ventral-anterior                             0 255   0   0
+130  thal-lh-mediodorsal                                255 255   0   0
+131  thal-lh-lateral-posterior-ventral-posterior-group  255 123   0   0
+132  thal-lh-pulvinar-medial-centrolateral-group          0 255 255   0
+133  thal-lh-ventrolateral                              255   0 255   0
+134  thal-lh-ventral-posterior-ventrolateral-group        0   0 255   0
+
+
+# Left Hemisphere. Subcortical Structures
+135  subc-lh-caudate                          122 186 220   0
+136  subc-lh-putamen                          236  13 176   0
+137  subc-lh-pallidum                          12  48 255   0
+138  subc-lh-accumbens-area                   255 165   0   0
+139  subc-lh-amygdala                         103 255 255   0
+140  subc-lh-hippocampus                      220 216  20   0
+141  brain-stem                               119 159 176   0
+
+
+# Global White Matter
+3000 wm-brain-white_matter                    255 255 255   0
+
+
+# Right Hemisphere. Gyral White Matter Structures
+3001 wm-rh-lateralorbitofrontal_1              25 110 215   0
+3002 wm-rh-lateralorbitofrontal_2              80 238 180   0
+3003 wm-rh-parsorbitalis_1                    204  15 107   0
+3004 wm-rh-frontalpole_1                       95  22 113   0
+3005 wm-rh-medialorbitofrontal_1              159 234  50   0
+3006 wm-rh-medialorbitofrontal_2              135  38  22   0
+3007 wm-rh-parstriangularis_1                 205  44 161   0
+3008 wm-rh-parsopercularis_1                   43 228 169   0
+3009 wm-rh-rostralmiddlefrontal_1              46 231 145   0
+3010 wm-rh-rostralmiddlefrontal_2             184 103 211   0
+3011 wm-rh-superiorfrontal_1                  131 139 232   0
+3012 wm-rh-superiorfrontal_2                   22  95 191   0
+3013 wm-rh-superiorfrontal_3                  175  30  37   0
+3014 wm-rh-superiorfrontal_4                  150  88 208   0
+3015 wm-rh-caudalmiddlefrontal_1              183  40 170   0
+3016 wm-rh-precentral_1                        49 135  86   0
+3017 wm-rh-precentral_2                       112 135   4   0
+3018 wm-rh-precentral_3                        23 235  52   0
+3019 wm-rh-paracentral_1                      167 133  91   0
+3020 wm-rh-rostralanteriorcingulate_1          60 255  20   0
+3021 wm-rh-caudalanteriorcingulate_1            6 127 112   0
+3022 wm-rh-posteriorcingulate_1                85   4  45   0
+3023 wm-rh-isthmuscingulate_1                  21  38 219   0
+3024 wm-rh-postcentral_1                      181 214 149   0
+3025 wm-rh-postcentral_2                      216 172  82   0
+3026 wm-rh-supramarginal_1                    148 226 224   0
+3027 wm-rh-supramarginal_2                     20 221  93   0
+3028 wm-rh-superiorparietal_1                  84  59  34   0
+3029 wm-rh-superiorparietal_2                 136 120  70   0
+3030 wm-rh-superiorparietal_3                  64 246  93   0
+3031 wm-rh-inferiorparietal_1                 125 226  34   0
+3032 wm-rh-inferiorparietal_2                  44 106  63   0
+3033 wm-rh-inferiorparietal_3                 200 143 151   0
+3034 wm-rh-precuneus_1                        163  42  96   0
+3035 wm-rh-precuneus_2                        106  57 242   0
+3036 wm-rh-cuneus_1                            20  94  55   0
+3037 wm-rh-pericalcarine_1                     29 195 251   0
+3038 wm-rh-lateraloccipital_1                 128  83  54   0
+3039 wm-rh-lateraloccipital_2                  48 212 208   0
+3040 wm-rh-lateraloccipital_3                 159  68 160   0
+3041 wm-rh-lingual_1                          188 160  27   0
+3042 wm-rh-lingual_2                          238  65 247   0
+3043 wm-rh-fusiform_1                          73  23  87   0
+3044 wm-rh-fusiform_2                          26  33 244   0
+3045 wm-rh-parahippocampal_1                  192  47 185   0
+3046 wm-rh-entorhinal_1                       206  11  31   0
+3047 wm-rh-temporalpole_1                      49 128 160   0
+3048 wm-rh-inferiortemporal_1                 147  29  32   0
+3049 wm-rh-inferiortemporal_2                 179 235 201   0
+3050 wm-rh-middletemporal_1                   204 204 117   0
+3051 wm-rh-middletemporal_2                   231   4 140   0
+3052 wm-rh-bankssts_1                          63 159 212   0
+3053 wm-rh-superiortemporal_1                 129 202 217   0
+3054 wm-rh-superiortemporal_2                  24 150  66   0
+3055 wm-rh-transversetemporal_1                 1 119   9   0
+3056 wm-rh-insula_1                            40   2  70   0
+3057 wm-rh-insula_2                           228 247 174   0
+
+
+# Left Hemisphere. Gyral White Matter Structures
+3071 wm-lh-lateralorbitofrontal_1              25 110 215   0
+3072 wm-lh-lateralorbitofrontal_2              80 238 180   0
+3073 wm-lh-parsorbitalis_1                    204  15 107   0
+3074 wm-lh-frontalpole_1                       95  22 113   0
+3075 wm-lh-medialorbitofrontal_1              159 234  50   0
+3076 wm-lh-medialorbitofrontal_2              135  38  22   0
+3077 wm-lh-parstriangularis_1                 205  44 161   0
+3078 wm-lh-parsopercularis_1                   43 228 169   0
+3079 wm-lh-rostralmiddlefrontal_1              46 231 145   0
+3080 wm-lh-rostralmiddlefrontal_2             184 103 211   0
+3081 wm-lh-superiorfrontal_1                  131 139 232   0
+3082 wm-lh-superiorfrontal_2                   22  95 191   0
+3083 wm-lh-superiorfrontal_3                  175  30  37   0
+3084 wm-lh-superiorfrontal_4                  150  88 208   0
+3085 wm-lh-caudalmiddlefrontal_1              183  40 170   0
+3086 wm-lh-precentral_1                        49 135  86   0
+3087 wm-lh-precentral_2                       112 135   4   0
+3088 wm-lh-precentral_3                        23 235  52   0
+3089 wm-lh-paracentral_1                      167 133  91   0
+3090 wm-lh-rostralanteriorcingulate_1          60 255  20   0
+3091 wm-lh-caudalanteriorcingulate_1            6 127 112   0
+3092 wm-lh-posteriorcingulate_1                85   4  45   0
+3093 wm-lh-isthmuscingulate_1                  21  38 219   0
+3094 wm-lh-postcentral_1                      181 214 149   0
+3095 wm-lh-postcentral_2                      216 172  82   0
+3096 wm-lh-supramarginal_1                    148 226 224   0
+3097 wm-lh-supramarginal_2                     20 221  93   0
+3098 wm-lh-superiorparietal_1                  84  59  34   0
+3099 wm-lh-superiorparietal_2                 136 120  70   0
+3100 wm-lh-superiorparietal_3                  64 246  93   0
+3101 wm-lh-inferiorparietal_1                 125 226  34   0
+3102 wm-lh-inferiorparietal_2                  44 106  63   0
+3103 wm-lh-inferiorparietal_3                 200 143 151   0
+3104 wm-lh-precuneus_1                        163  42  96   0
+3105 wm-lh-precuneus_2                        106  57 242   0
+3106 wm-lh-cuneus_1                            20  94  55   0
+3107 wm-lh-pericalcarine_1                     29 195 251   0
+3108 wm-lh-lateraloccipital_1                 128  83  54   0
+3109 wm-lh-lateraloccipital_2                  48 212 208   0
+3110 wm-lh-lateraloccipital_3                 159  68 160   0
+3111 wm-lh-lingual_1                          188 160  27   0
+3112 wm-lh-lingual_2                          238  65 247   0
+3113 wm-lh-fusiform_1                          73  23  87   0
+3114 wm-lh-fusiform_2                          26  33 244   0
+3115 wm-lh-parahippocampal_1                  192  47 185   0
+3116 wm-lh-entorhinal_1                       206  11  31   0
+3117 wm-lh-temporalpole_1                      49 128 160   0
+3118 wm-lh-inferiortemporal_1                 147  29  32   0
+3119 wm-lh-inferiortemporal_2                 179 235 201   0
+3120 wm-lh-middletemporal_1                   204 204 117   0
+3121 wm-lh-middletemporal_2                   231   4 140   0
+3122 wm-lh-bankssts_1                          63 159 212   0
+3123 wm-lh-superiortemporal_1                 129 202 217   0
+3124 wm-lh-superiortemporal_2                  24 150  66   0
+3125 wm-lh-transversetemporal_1                 1 119   9   0
+3126 wm-lh-insula_1                            40   2  70   0
+3127 wm-lh-insula_2                           228 247 174   0

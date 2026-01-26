@@ -115,6 +115,13 @@ labels['DKT'] = labels['Destrieux']
 (labels['Lausanne2008-125'], lausanne125_colormap) = readFreesurferLabelFile('labels/lausanne125_labels.txt', 234)
 (labels['Lausanne2008-250'], lausanne250_colormap) = readFreesurferLabelFile('labels/lausanne250_labels.txt', 463)
 (labels['Lausanne2008-500'], lausanne500_colormap) = readFreesurferLabelFile('labels/lausanne500_labels.txt', 1015)
+
+(labels['Lausanne2018-scale1'], lausanne_scale1_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale1_labels.txt', 3081)
+(labels['Lausanne2018-scale2'], lausanne_scale2_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale2_labels.txt', 3127)
+(labels['Lausanne2018-scale3'], lausanne_scale3_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale3_labels.txt', 3229)
+(labels['Lausanne2018-scale4'], lausanne_scale4_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale4_labels.txt', 3459)
+(labels['Lausanne2018-scale5'], lausanne_scale5_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale5_labels.txt', 4015)
+
 labels['MarsAtlas'] = readLabels('labels/marsatlas_labels.txt')
 
 
@@ -752,7 +759,22 @@ class LocateElectrodes(QtWidgets.QDialog):
                 na = 'Lausanne2008-250'
             elif t.attributes()['modality'] == 'freesurfer_atlas' and 'Lausanne2008-500' in t.attributes()['acquisition']:
                 dictionnaire_list_images.update({'Lausanne2008-500 Atlas': ['Lausanne2008-500', 'electrodes']})
-                na = 'Lausanne2008-500'
+                na = 'Lausanne2008-500'                
+            elif t.attributes()['modality'] == 'freesurfer_atlas' and 'Lausanne2018-scale1' in t.attributes()['acquisition']:
+                dictionnaire_list_images.update({'Lausanne2018-scale1 Atlas': ['Lausanne2018-scale1', 'electrodes']})
+                na = 'Lausanne2018-scale1'
+            elif t.attributes()['modality'] == 'freesurfer_atlas' and 'Lausanne2018-scale2' in t.attributes()['acquisition']:
+                dictionnaire_list_images.update({'Lausanne2018-scale2 Atlas': ['Lausanne2018-scale2', 'electrodes']})
+                na = 'Lausanne2018-scale2'
+            elif t.attributes()['modality'] == 'freesurfer_atlas' and 'Lausanne2018-scale3' in t.attributes()['acquisition']:
+                dictionnaire_list_images.update({'Lausanne2018-scale3 Atlas': ['Lausanne2018-scale3', 'electrodes']})
+                na = 'Lausanne2018-scale3'
+            elif t.attributes()['modality'] == 'freesurfer_atlas' and 'Lausanne2018-scale4' in t.attributes()['acquisition']:
+                dictionnaire_list_images.update({'Lausanne2018-scale4 Atlas': ['Lausanne2018-scale4', 'electrodes']})
+                na = 'Lausanne2018-scale4'
+            elif t.attributes()['modality'] == 'freesurfer_atlas' and 'Lausanne2018-scale5' in t.attributes()['acquisition']:
+                dictionnaire_list_images.update({'Lausanne2018-scale5 Atlas': ['Lausanne2018-scale5', 'electrodes']})
+                na = 'Lausanne2018-scale5'
 
             # Simiplified acquisition name
             nameAcq = t.attributes()['acquisition']
@@ -846,7 +868,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 # Load all related transformations
                 self.loadVolTransformations(t)
 
-            elif na == 'FreesurferAtlaspre' or 'Lausanne2008' in na or 'DKT' in na or 'HCP-MMP1' in na or 'VEP' in na:
+            elif na == 'FreesurferAtlaspre' or 'Lausanne2008' in na or 'Lausanne2018' in na or 'DKT' in na or 'HCP-MMP1' in na or 'VEP' in na:
                 objAtlas.append(obj)
                 # Create palette adapted to the volume
                 if na == 'FreesurferAtlaspre':
@@ -867,6 +889,16 @@ class LocateElectrodes(QtWidgets.QDialog):
                     colors = lausanne250_colormap
                 elif na == 'Lausanne2008-500':
                     colors = lausanne500_colormap
+                elif na == 'Lausanne2018-scale1':
+                    colors = lausanne_scale1_colormap
+                elif na == 'Lausanne2018-scale2':
+                    colors = lausanne_scale2_colormap
+                elif na == 'Lausanne2018-scale3':
+                    colors = lausanne_scale3_colormap
+                elif na == 'Lausanne2018-scale4':
+                    colors = lausanne_scale4_colormap
+                elif na == 'Lausanne2018-scale5':
+                    colors = lausanne_scale5_colormap
                 else:
                     print("ERROR unknown palette ", repr(na))
                     colors = None
@@ -2913,6 +2945,11 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'Lausanne2008-125',
                 'Lausanne2008-250',
                 'Lausanne2008-500',
+                'Lausanne2018-scale1',
+                'Lausanne2018-scale2',
+                'Lausanne2018-scale3',
+                'Lausanne2018-scale4',
+                'Lausanne2018-scale5',
                 'GreyWhite',
                 'IntrAnat-MarsAtlas',
                 'MNI-MarsAtlas',
@@ -2923,6 +2960,11 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'MNI-Lausanne2008-125',
                 'MNI-Lausanne2008-250',
                 'MNI-Lausanne2008-500',
+                'MNI-Lausanne2018-scale1',
+                'MNI-Lausanne2018-scale2',
+                'MNI-Lausanne2018-scale3',
+                'MNI-Lausanne2018-scale4',
+                'MNI-Lausanne2018-scale5',
                 'MNI-AAL',
                 'MNI-AALDilate',
                 'MNI-AAL1_2018',
@@ -2934,7 +2976,9 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'MNI-HCP-MMP1',
                 'MNI-AICHA',
                 'MNI-JulichBrain',
+                'MNI-JulichBrain-3.0',
                 'MNI-insula',
+                'MNI-VEP',
                 'Resection rate']
             # Add list of column names
             colNames = ['contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlasFull'] + parcelNames
@@ -3112,6 +3156,11 @@ class LocateElectrodes(QtWidgets.QDialog):
                     'Lausanne2008-125',
                     'Lausanne2008-250',
                     'Lausanne2008-500',
+                    'Lausanne2018-scale1',
+                    'Lausanne2018-scale2',
+                    'Lausanne2018-scale3',
+                    'Lausanne2018-scale4',
+                    'Lausanne2018-scale5',                    
                     'GreyWhite']
                 jsonCoord = {
                         "iEEGCoordinateSystem": space,
@@ -3130,6 +3179,11 @@ class LocateElectrodes(QtWidgets.QDialog):
                     'MNI-Lausanne2008-125',
                     'MNI-Lausanne2008-250',
                     'MNI-Lausanne2008-500',
+                    'MNI-Lausanne2018-scale1',
+                    'MNI-Lausanne2018-scale2',
+                    'MNI-Lausanne2018-scale3',
+                    'MNI-Lausanne2018-scale4',
+                    'MNI-Lausanne2018-scale5',
                     'MNI-AAL',
                     'MNI-AALDilate',
                     'MNI-AAL1_2018',
@@ -3141,7 +3195,9 @@ class LocateElectrodes(QtWidgets.QDialog):
                     'MNI-HCP-MMP1',
                     'MNI-AICHA',
                     'MNI-JulichBrain',
-                    'MNI-insula']
+                    'MNI-JulichBrain-3.0',
+                    'MNI-insula',
+                    'MNI-VEP']
                 jsonCoord = {
                         "iEEGCoordinateSystem": space,
                         "iEEGCoordinateUnits": "mm",
@@ -3492,7 +3548,8 @@ class LocateElectrodes(QtWidgets.QDialog):
                             requiredAttributes={'subject': subject, 'center': center})
         rdiFs = list(diFs.findValues({}, None, False))
         for name in ['FreesurferAtlaspre', 'DKT', 'VEP', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60',
-                     'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+                     'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Lausanne2018-scale1', 'Lausanne2018-scale2',
+                     'Lausanne2018-scale3', 'Lausanne2018-scale4', 'Lausanne2018-scale5']:
             iFile = [i for i in range(len(rdiFs)) if name in rdiFs[i].attributes()["acquisition"]]
             if iFile:
                 if name == 'FreesurferAtlaspre':
@@ -3525,14 +3582,22 @@ class LocateElectrodes(QtWidgets.QDialog):
         files_MNI['MNI-HCP-MMP1']         = {'vol':'MNI_Atlases/HCP-MMP1_on_MNI305_reslice.nii.gz',      'labels':'MNI_Atlases/HCP-MMP1_on_MNI305_labels.txt'}
         files_MNI['MNI-AICHA']            = {'vol':'MNI_Atlases/AICHA_reslice.nii.gz',                   'labels':'MNI_Atlases/AICHA_labels.txt'}
         files_MNI['MNI-JulichBrain']      = {'vol':'MNI_Atlases/JuBrain_Map_icbm_v25_lr_reslice.nii.gz', 'labels':'MNI_Atlases/JuBrain_Map_icbm_v25_lr_labels.txt'}
+        files_MNI['MNI-JulichBrain-3.0']  = {'vol':'MNI_Atlases/julich_maxprobmap_3.0_mni152_reslice.nii.gz',    'labels':'MNI_Atlases/julich_maxprobmap_3.0_mni152_labels.txt'}
         files_MNI['MNI-Destrieux']        = {'vol':'MNI_Atlases/freesurfer_parcelisation_mni2.nii.gz',   'labels':labels['Destrieux']}
         files_MNI['MNI-DKT']              = {'vol':'MNI_Atlases/DKT40_reslice.nii.gz',                   'labels':labels['DKT']}
         files_MNI['MNI-Lausanne2008-33']  = {'vol':'MNI_Atlases/Lausanne2008-33.nii.gz',                 'labels':labels['Lausanne2008-33']}
         files_MNI['MNI-Lausanne2008-60']  = {'vol':'MNI_Atlases/Lausanne2008-60.nii.gz',                 'labels':labels['Lausanne2008-60']}
         files_MNI['MNI-Lausanne2008-125'] = {'vol':'MNI_Atlases/Lausanne2008-125.nii.gz',                'labels':labels['Lausanne2008-125']}
         files_MNI['MNI-Lausanne2008-250'] = {'vol':'MNI_Atlases/Lausanne2008-250.nii.gz',                'labels':labels['Lausanne2008-250']}
-        files_MNI['MNI-Lausanne2008-500'] = {'vol':'MNI_Atlases/Lausanne2008-500.nii.gz',                'labels':labels['Lausanne2008-500']}
+        files_MNI['MNI-Lausanne2008-500'] = {'vol':'MNI_Atlases/Lausanne2008-500.nii.gz',                'labels':labels['Lausanne2008-500']}  
+        files_MNI['MNI-Lausanne2018-scale1'] = {'vol':'MNI_Atlases/Lausanne2018-scale1.nii.gz',          'labels':labels['Lausanne2018-scale1']}
+        files_MNI['MNI-Lausanne2018-scale2'] = {'vol':'MNI_Atlases/Lausanne2018-scale2.nii.gz',          'labels':labels['Lausanne2018-scale2']}
+        files_MNI['MNI-Lausanne2018-scale3'] = {'vol':'MNI_Atlases/Lausanne2018-scale3.nii.gz',          'labels':labels['Lausanne2018-scale3']}
+        files_MNI['MNI-Lausanne2018-scale4'] = {'vol':'MNI_Atlases/Lausanne2018-scale4.nii.gz',          'labels':labels['Lausanne2018-scale4']}
+        files_MNI['MNI-Lausanne2018-scale5'] = {'vol':'MNI_Atlases/Lausanne2018-scale5.nii.gz',          'labels':labels['Lausanne2018-scale5']}
+        
         files_MNI['MNI-insula'] = {'vol':'MNI_Atlases/insula_icbm152b_reslice.nii.gz',                   'labels':'MNI_Atlases/insula_icbm152b_labels.txt'}
+        files_MNI['MNI-VEP'] = {'vol':'MNI_Atlases/rvep_mni.nii.gz',                'labels':labels['VEP']}
         # Load: all MNI volumes and atlases
         for atlas in files_MNI:
             if files_MNI[atlas]['vol']:
@@ -3588,7 +3653,7 @@ class LocateElectrodes(QtWidgets.QDialog):
             if (prev_elec == cur_elec) and (prev_ind == cur_ind - 1):
                 bip_MNI.update({plots[pindex-1][0] + '-' + plots[pindex][0]: (numpy.array(plots_MNI[plots[pindex][0]])+numpy.array(plots_MNI[plots[pindex-1][0]]))/2})
         # Search sphere size
-        sphere_size = 5
+        sphere_size = 3
         # Compute all parcels
         bip_label, bip_name = self.computeParcelsSub(bip_SB, bip_fs, bip_MNI, sphere_size, info_image, info_fs, vol, labels, files_MNI, initSegmentation)
 
@@ -3716,7 +3781,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 plots_label[pname]['Destrieux'] = (value, label)
 
                 # === PROCESS: OTHER FREESURFER ATLASES ===
-                for name in ['DKT', 'VEP', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500']:
+                for name in ['DKT', 'HCP-MMP1', 'Lausanne2008-33', 'Lausanne2008-60', 'Lausanne2008-125', 'Lausanne2008-250', 'Lausanne2008-500', 'Lausanne2018-scale1', 'Lausanne2018-scale2', 'Lausanne2018-scale3', 'Lausanne2018-scale4', 'Lausanne2018-scale5']:
                     value = 0
                     label = 'N/A'
                     if name in list(vol.keys()):
@@ -3724,6 +3789,28 @@ class LocateElectrodes(QtWidgets.QDialog):
                         vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
                         if vox:
                             vox = [x for x in vox if x != 0]
+                            if vox:
+                                value, N = Counter(vox).most_common(1)[0]
+                                try:
+                                    label = labels[name][value]
+                                except:
+                                    label = 'N/A'
+                                    print('labels ', str(name), ' -> ', str(value), ' NOT FOUND')
+                            else:
+                                value = vol[name].value(pos_SB[0], pos_SB[1], pos_SB[2])
+                        else:
+                            print(pname + '-' + name + ': Invalid coordinates (%d,%d,%d)' % (pos_SB[0], pos_SB[1], pos_SB[2]))
+                    plots_label[pname][name] = (value, label)
+
+                # === PROCESS: VEP ===
+                for name in ['VEP']:
+                    value = 0
+                    label = 'N/A'
+                    if name in list(vol.keys()):
+                        # These volumes seem to be saved in the T1pre/orig.mgz/Destrieux space (maybe a 1mm shift???)
+                        vox = self.getSphVoxels(vol[name], pos_SB, Nsph, sphere_size)
+                        if vox:
+                            vox = [x for x in vox if x != 0 and x != 2 and x != 41 and x != 7 and x != 46] # L/R Cerebellum-White-Matter and L/R Cerebral-White-Matter
                             if vox:
                                 value, N = Counter(vox).most_common(1)[0]
                                 try:
@@ -3770,6 +3857,8 @@ class LocateElectrodes(QtWidgets.QDialog):
                     label = 'N/A'
                     vox = self.getSphVoxels(vol[atlas], pos_MNI, Nsph_MNI, sphere_size)
                     if vox:
+                        if atlas == 'MNI-VEP':
+                            vox = [x for x in vox if x != 2 and x != 41 and x != 7 and x != 46]
                         vox = [x for x in vox if x != 0]
                         if vox:
                             most_common, N = Counter(vox).most_common(1)[0]
