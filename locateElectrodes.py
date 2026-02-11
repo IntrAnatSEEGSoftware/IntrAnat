@@ -3364,8 +3364,8 @@ class LocateElectrodes(QtWidgets.QDialog):
     # ===== GET VOXELS WITHIN SPHERE =====
     def getSphVoxels(self, vol, pos, Nsph, sphere_size):
         if (not pos) or (len(pos) < 3) or \
-           (pos[0]-Nsph[2] < 0) or (pos[0]+Nsph[2] >= vol.getSizeX()) or \
-           (pos[1]-Nsph[2] < 0) or (pos[1]+Nsph[2] >= vol.getSizeY()) or \
+           (pos[0]-Nsph[0] < 0) or (pos[0]+Nsph[0] >= vol.getSizeX()) or \
+           (pos[1]-Nsph[1] < 0) or (pos[1]+Nsph[1] >= vol.getSizeY()) or \
            (pos[2]-Nsph[2] < 0) or (pos[2]+Nsph[2] >= vol.getSizeZ()):
             return []
         else:
