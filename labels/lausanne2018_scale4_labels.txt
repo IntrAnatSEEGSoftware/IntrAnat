@@ -1,7 +1,7 @@
-# $Id: cvs_avg35_inMNI152_space-orig_atlas-ctxLaus2018thalMIAL_desc-scale4grow2mm_dseg.lut 08/22/2024, 20:16:50 
+# $Id: lausanne2018_scale4_labels.txt 05/21/2026, 18:05:44 
 
 # Corresponding parcellation: 
-# cvs_avg35_inMNI152_space-orig_atlas-ctxLaus2018thalMIAL_desc-scale4grow2mm_dseg.nii.gz
+# Lausanne2018-scale4.nii.gz
 
 # 1. Cortical parcellation (L): Lausanne multi-scale cortical parcellation. (Symmetric version of Cammoun et al, 2012)
 
@@ -495,7 +495,7 @@
 470  subc-lh-accumbens-area                   255 165   0   0
 471  subc-lh-amygdala                         103 255 255   0
 472  subc-lh-hippocampus                      220 216  20   0
-473  brain-stem                               119 159 176   0
+473  bstem-mid-brainstem                      119 159 176   0
 
 
 # Global White Matter
