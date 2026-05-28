@@ -110,12 +110,12 @@ labels = dict()
 labels['DKT'] = labels['Destrieux']
 (labels['HCP-MMP1'], hcp_colormap) = readFreesurferLabelFile('labels/hcp_l0r200_labels.txt', 14175)
 (labels['VEP'], vep_colormap) = readFreesurferLabelFile('labels/VepFreeSurferColorLut.txt', 72077)
+(labels['YBA-696'], yba_696_colormap) = readFreesurferLabelFile('labels/YBA_696_LUT.txt', 696)
 (labels['Lausanne2008-33'], lausanne33_colormap) = readFreesurferLabelFile('labels/lausanne33_labels.txt', 83)
 (labels['Lausanne2008-60'], lausanne60_colormap) = readFreesurferLabelFile('labels/lausanne60_labels.txt', 129)
 (labels['Lausanne2008-125'], lausanne125_colormap) = readFreesurferLabelFile('labels/lausanne125_labels.txt', 234)
 (labels['Lausanne2008-250'], lausanne250_colormap) = readFreesurferLabelFile('labels/lausanne250_labels.txt', 463)
 (labels['Lausanne2008-500'], lausanne500_colormap) = readFreesurferLabelFile('labels/lausanne500_labels.txt', 1015)
-
 (labels['Lausanne2018-scale1'], lausanne_scale1_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale1_labels.txt', 3081)
 (labels['Lausanne2018-scale2'], lausanne_scale2_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale2_labels.txt', 3127)
 (labels['Lausanne2018-scale3'], lausanne_scale3_colormap) = readFreesurferLabelFile('labels/lausanne2018_scale3_labels.txt', 3229)
@@ -2979,6 +2979,7 @@ class LocateElectrodes(QtWidgets.QDialog):
                 'MNI-JulichBrain-3.0',
                 'MNI-insula',
                 'MNI-VEP',
+                'MNI-YBA-696',
                 'Resection rate']
             # Add list of column names
             colNames = ['contact', 'MNI', 'T1pre Scanner Based', 'MarsAtlasFull'] + parcelNames
@@ -3196,8 +3197,9 @@ class LocateElectrodes(QtWidgets.QDialog):
                     'MNI-AICHA',
                     'MNI-JulichBrain',
                     'MNI-JulichBrain-3.0',
-                    'MNI-insula',
-                    'MNI-VEP']
+                    'MNI-insula',                    
+                    'MNI-VEP',
+                    'MNI-YBA-696']
                 jsonCoord = {
                         "iEEGCoordinateSystem": space,
                         "iEEGCoordinateUnits": "mm",
@@ -3597,7 +3599,9 @@ class LocateElectrodes(QtWidgets.QDialog):
         files_MNI['MNI-Lausanne2018-scale5'] = {'vol':'MNI_Atlases/Lausanne2018-scale5.nii.gz',          'labels':labels['Lausanne2018-scale5']}
         
         files_MNI['MNI-insula'] = {'vol':'MNI_Atlases/insula_icbm152b_reslice.nii.gz',                   'labels':'MNI_Atlases/insula_icbm152b_labels.txt'}
-        files_MNI['MNI-VEP'] = {'vol':'MNI_Atlases/rvep_mni.nii.gz',                'labels':labels['VEP']}
+        files_MNI['MNI-VEP'] = {'vol':'MNI_Atlases/rvep_mni.nii.gz',                'labels':labels['VEP']}        
+        files_MNI['MNI-YBA-696'] = {'vol':'MNI_Atlases/rYBA_696.nii.gz',                   'labels':labels['YBA-696']}
+        
         # Load: all MNI volumes and atlases
         for atlas in files_MNI:
             if files_MNI[atlas]['vol']:
